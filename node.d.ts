@@ -42845,6 +42845,21 @@ declare namespace $ {
     };
     /** How far along a step of the pipeline is. */
     type $bog_figmol_deploy_github_state = 'wait' | 'work' | 'done' | 'fail';
+    /** A return from the consent screen, as it arrives in the address. */
+    type $bog_figmol_deploy_github_back = {
+        readonly code: string;
+        readonly state: string;
+        readonly error: string;
+        readonly descr: string;
+    };
+    /**
+     * What to make of such a return.
+     *
+     * `take` — trade the code; `skip` — nothing happened, or the user said no;
+     * `wrong` — it does not answer a request this browser made; `error` — GitHub
+     * refused and explained itself.
+     */
+    type $bog_figmol_deploy_github_verdict = 'take' | 'skip' | 'wrong' | 'error';
     /**
      * The slice of the GitHub REST API that publishing a generated site needs.
      *
