@@ -38,6 +38,21 @@ namespace $.$$ {
 			return this.$.$bog_figmol_deploy_github.token_saved( next )
 		}
 
+		/** Login of the account that token belongs to, remembered beside it. */
+		account( next?: string ) {
+			return this.$.$bog_figmol_deploy_github.login_saved( next )
+		}
+
+		/**
+		 * One time value of a sign in under way, kept across the redirect.
+		 *
+		 * Like the token above, it is stored rather than held: the browser leaves
+		 * the page in between, and nothing in memory survives that.
+		 */
+		nonce( next?: string ) {
+			return this.$.$bog_figmol_deploy_github.state_saved( next )
+		}
+
 		@ $mol_mem
 		github() {
 			return this.$.$bog_figmol_deploy_github.make( {
@@ -48,6 +63,163 @@ namespace $.$$ {
 
 		override token_uri() {
 			return this.$.$bog_figmol_deploy_github.token_uri()
+		}
+
+		/* ------------------------------------------------------------- signing in */
+
+		oauth_client() {
+			return this.$.$bog_figmol_deploy_github.oauth_client()
+		}
+
+		oauth_proxy() {
+			return this.$.$bog_figmol_deploy_github.oauth_proxy()
+		}
+
+		/** Whether this browser holds a token at all, however it got one. */
+		@ $mol_mem
+		signed() {
+			return !!this.token().trim()
+		}
+
+		/**
+		 * Only the head of the section changes with the token — the fold with the
+		 * field in it is a fixed row below.
+		 *
+		 * That is not a matter of taste: the field writes on every keystroke, and
+		 * a section rebuilt around it would take the field out of the page on the
+		 * first character of a token typed by hand.
+		 */
+		@ $mol_mem
+		auth_head(): readonly $mol_view[] {
+			if( this.signed() ) return [ this.Account() ]
+			return [ this.Login(), this.Login_hint() ]
+		}
+
+		/**
+		 * Whom the token belongs to.
+		 *
+		 * A token typed in by hand names nobody until the first publication asks
+		 * GitHub, and saying so is more honest than an empty line.
+		 */
+		@ $mol_mem
+		override account_label() {
+			const login = this.account()
+			return login ? this.signed_label() + ' ' + login : this.token_label()
+		}
+
+		/** Leaves the page. A test overrides it — leaving is not an option there. */
+		go( uri: string ) {
+			this.$.$mol_dom_context.location.href = uri
+		}
+
+		/**
+		 * Off to the consent screen.
+		 *
+		 * The one time value is written down before the browser leaves, and it is
+		 * the only thing that will tell a return meant for this window from a code
+		 * somebody else has arranged to land here.
+		 */
+		@ $mol_action
+		override login( next?: any ) {
+
+			if( next === undefined ) return null
+
+			const klass = this.$.$bog_figmol_deploy_github
+			const state = klass.oauth_state()
+
+			this.nonce( state )
+			this.problem( '' )
+
+			this.go( klass.oauth_uri( this.oauth_client(), this.oauth_back(), state ) )
+
+			return null
+		}
+
+		@ $mol_action
+		override logout( next?: any ) {
+
+			if( next === undefined ) return null
+
+			this.token( '' )
+			this.account( '' )
+			this.nonce( '' )
+
+			this.owner( '' )
+			this.problem( '' )
+
+			return null
+		}
+
+		/** Where the consent screen sends the browser back to: this page, bare. */
+		oauth_back( href = this.$.$mol_state_arg.href() ) {
+			return this.$.$bog_figmol_deploy_github.oauth_back( href )
+		}
+
+		/**
+		 * Takes the OAuth keys out of the address.
+		 *
+		 * Through `$mol_state_arg` rather than around it: the address it holds is
+		 * the one it copies into every link the app builds, so a `replaceState`
+		 * behind its back would keep handing out a spent code.
+		 */
+		oauth_clean( href: string ) {
+			const clean = this.$.$bog_figmol_deploy_github.oauth_clean( href )
+			if( clean !== href ) this.$.$mol_state_arg.href( clean )
+		}
+
+		/**
+		 * Finishes a sign in the consent screen has sent back.
+		 *
+		 * Undecorated, like `pipeline`: the caller hands it a fiber, and that
+		 * fiber restarts from the top every time the exchange suspends. So the
+		 * whole body is either idempotent or an action whose answer is replayed
+		 * from the fiber's own cache — which is what keeps a single use code from
+		 * being spent a second time.
+		 *
+		 * The address is handed in rather than read here for the same reason: by
+		 * the second pass it has already been cleaned.
+		 */
+		oauth_land( href: string ) {
+
+			const klass = this.$.$bog_figmol_deploy_github
+
+			const back = klass.oauth_return( href )
+			const verdict = klass.oauth_verdict( back, this.nonce() )
+
+			this.oauth_clean( href )
+
+			if( verdict === 'skip' ) {
+				this.nonce( '' )
+				return
+			}
+
+			if( verdict !== 'take' ) {
+				this.nonce( '' )
+				this.problem( verdict === 'wrong' ? this.login_wrong() : ( back.descr || back.error ) )
+				return
+			}
+
+			try {
+
+				const github = this.github()
+
+				const token = github.oauth_token( this.oauth_proxy(), back.code, this.oauth_back( href ) )
+				if( !token ) throw new Error( this.login_none() )
+
+				this.token( token )
+				this.account( github.user().login )
+				this.nonce( '' )
+
+				this.problem( '' )
+
+			} catch( error: any ) {
+
+				if( $mol_promise_like( error ) ) $mol_fail_hidden( error )
+				$mol_fail_log( error )
+
+				this.nonce( '' )
+				this.problem( error?.message ?? String( error ) )
+			}
 		}
 
 		/* ------------------------------------------------------------------ state */
@@ -282,6 +454,9 @@ namespace $.$$ {
 				const owner = github.user().login
 				this.owner( owner )
 				this.note( 'login', owner )
+				// A token pasted by hand names its account only here, and from now
+				// on the panel can say whose it is.
+				this.account( owner )
 				this.stage( 'login', 'done' )
 
 				this.stage( 'repo', 'work' )

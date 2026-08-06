@@ -42,8 +42,48 @@ namespace $.$$ {
 			}
 
 			this.listen()
+			this.oauth_catch()
 
 			super.auto()
+		}
+
+		/* ------------------------------------------------------------- signing in */
+
+		/**
+		 * Whether the return from GitHub has been picked up already.
+		 *
+		 * A plain field rather than an atom: `auto` runs inside a memoized render
+		 * and is re-entered whenever anything it reads changes — the address
+		 * included, which this very handler is about to rewrite. A cell would be
+		 * reset along with the render and let a spent code go round again.
+		 */
+		oauth_seen = false
+
+		/**
+		 * A code in the address means the user is coming back from the consent
+		 * screen. The rail is reopened and the panel finishes the exchange: the
+		 * token is its business, and a refusal needs somewhere to be shown.
+		 *
+		 * Both are done in a fiber of their own — `auto` is part of a render, and
+		 * writing state from there loops.
+		 */
+		oauth_catch() {
+
+			if( this.oauth_seen ) return
+			this.oauth_seen = true
+
+			const href = this.$.$mol_state_arg.href()
+			const back = this.$.$bog_figmol_deploy_github.oauth_return( href )
+
+			if( !back.code && !back.error ) return
+
+			$mol_wire_async( this ).oauth_land( href )
+		}
+
+		/** Never decorated — `$mol_wire_async` above hands it a fiber. */
+		oauth_land( href: string ) {
+			this.publishing( true )
+			;( this.Publish() as $.$$.$bog_figmol_deploy_publish ).oauth_land( href )
 		}
 
 		/* --------------------------------------------------------------- rights */

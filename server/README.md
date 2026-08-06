@@ -12,9 +12,22 @@ GET  /health                                              ->  { "ok": true, ... 
 The token is handed back to the caller and forgotten in the same tick. Neither
 the code nor the token is written to the log.
 
-The editor talks to it through `$bog_figmol_deploy_github.oauth_token( proxy, code )`.
-Until an OAuth App is registered the editor takes a personal access token
-instead, and the proxy is not involved at all.
+The editor talks to it through `$bog_figmol_deploy_github.oauth_token( proxy, code, redirect )`.
+The client id and the address of this proxy are constants in `deploy/github/github.ts`
+— a client id is public by design, and the secret half never leaves here. A token
+pasted by hand still works and does not involve the proxy at all.
+
+The deployed pair:
+
+| | |
+| --- | --- |
+| Client id | `Ov23liiOSDbpdHqaotYF` |
+| Proxy | `https://figmol-oauth.91-188-212-151.ip.giper.dev` |
+| Callback | `https://b-on-g.github.io/figmol/` |
+
+`FIGMOL_OAUTH_ORIGINS` there has to carry `https://b-on-g.github.io`, or the
+exchange is refused before GitHub is ever asked. The recipe below is written for
+`87.120.36.150`; the live instance sits on another host by the same pattern.
 
 ## Environment
 

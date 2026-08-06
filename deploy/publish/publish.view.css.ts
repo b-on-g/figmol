@@ -9,6 +9,46 @@ namespace $ {
 		padding: $mol_gap.block,
 		maxWidth: '34rem',
 
+		Auth: {
+			gap: $mol_gap.text,
+		},
+
+		Auth_head: {
+			flex: {
+				direction: 'column',
+			},
+			gap: $mol_gap.text,
+		},
+
+		Login_hint: {
+			color: $mol_theme.shade,
+			font: {
+				size: '0.85rem',
+			},
+		},
+
+		Account: {
+			gap: $mol_gap.space,
+			align: {
+				items: 'center',
+			},
+			justify: {
+				content: 'space-between',
+			},
+		},
+
+		Account_name: {
+			flex: {
+				grow: 1,
+			},
+			minWidth: 0,
+			overflow: {
+				x: 'hidden',
+			},
+			whiteSpace: 'nowrap',
+			textOverflow: 'ellipsis',
+		},
+
 		Fields: {
 			gap: $mol_gap.text,
 		},

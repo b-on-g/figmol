@@ -8,21 +8,30 @@ $bog_figmol_deploy_publish $mol_list
 	commit_message \Published from Figmol
 	repo_descr \Built with Figmol
 	rows /
+		- \Head swaps between the offer to sign in and the account; the fold under
+		- \it stays put, so typing a token by hand does not pull the field away.
+		<= Auth $mol_list
+			rows /
+				<= Auth_head $mol_view
+					sub <= auth_head /$mol_view
+				<= Manual $mol_expander
+					title <= manual_label @ \or paste a token by hand
+					content /
+						<= Token_field $mol_form_field
+							name <= token_name @ \GitHub token
+							control <= Token $mol_string
+								hint \ghp_xxxxxxxxxxxxxxxxxxxx
+								type \password
+								value? <=> token? \
+						<= Token_hint $mol_view
+							sub /
+								<= token_hint @ \Never leaves this browser — the only address it is sent to is api.github.com.
+								<= Token_link $mol_link
+									uri <= token_uri \
+									target \_blank
+									title <= token_link @ \Create a token
 		<= Fields $mol_list
 			rows /
-				<= Token_field $mol_form_field
-					name <= token_name @ \GitHub token
-					control <= Token $mol_string
-						hint \ghp_xxxxxxxxxxxxxxxxxxxx
-						type \password
-						value? <=> token? \
-				<= Token_hint $mol_view
-					sub /
-						<= token_hint @ \Never leaves this browser — the only address it is sent to is api.github.com.
-						<= Token_link $mol_link
-							uri <= token_uri \
-							target \_blank
-							title <= token_link @ \Create a token
 				<= Name_field $mol_form_field
 					name <= name_name @ \Repository
 					bids /
@@ -43,6 +52,21 @@ $bog_figmol_deploy_publish $mol_list
 			rows <= step_rows /$mol_view
 		<= Links $mol_list
 			rows <= link_rows /$mol_view
+	- \Signing in through GitHub itself. The alternative is the fold above.
+	Login $mol_button_major
+		click? <=> login? null
+		title <= login_label @ \Sign in with GitHub
+	Login_hint $mol_view
+		sub /
+			<= login_hint @ \GitHub will ask for the right to create a repository and push into it. The token it hands back is kept in this browser.
+	Account $mol_row
+		sub /
+			<= Account_name $mol_view
+				sub /
+					<= account_label \
+			<= Logout $mol_button_minor
+				click? <=> logout? null
+				title <= logout_label @ \Sign out
 	Publish $mol_button_major
 		enabled <= publish_enabled true
 		click? <=> publish? null
@@ -77,9 +101,13 @@ $bog_figmol_deploy_publish $mol_list
 	link_label_site @ \Open the site
 	link_label_repo @ \Open the repository
 	link_label_run @ \Open the build log
+	signed_label @ \Signed in as
+	token_label @ \A token is in place
+	login_wrong @ \That sign in did not come back the way it left. Start it again.
+	login_none @ \GitHub handed no token back. Try signing in again.
 	conflict_hint @ \This account already has a repository with that name. Republishing replaces its files with a new commit — anything committed there by hand is lost.
 	nothing_hint @ \There is nothing to publish yet.
-	token_missing @ \Paste a token first.
+	token_missing @ \Sign in with GitHub first, or paste a token by hand.
 	build_late @ \GitHub did not start a build in time. Open the repository and check the Actions tab.
 	build_bad @ \The build did not succeed — open the log to see why.
 	pages_late @ \Pages did not switch on. Turn them on for the gh-pages branch in the repository settings.

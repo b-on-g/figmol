@@ -111,6 +111,28 @@ namespace $ {
 			return this.$.$mol_state_local.value< string >( 'bog_figmol_deploy_token', next ) ?? ''
 		}
 
+		/**
+		 * Login of the account the saved token belongs to.
+		 *
+		 * Kept beside the token so the panel can say whom it is signed in as
+		 * without asking GitHub on every render — the answer only changes when
+		 * the token does.
+		 */
+		static login_saved( next?: string ): string {
+			return this.$.$mol_state_local.value< string >( 'bog_figmol_deploy_login', next ) ?? ''
+		}
+
+		/**
+		 * The pending one time value of a sign in, kept across the redirect.
+		 *
+		 * The whole point is that it survives leaving the page and coming back:
+		 * a return carrying somebody else's `state` is not an answer to a request
+		 * this browser made.
+		 */
+		static state_saved( next?: string ): string {
+			return this.$.$mol_state_local.value< string >( 'bog_figmol_deploy_state', next ) ?? ''
+		}
+
 		/* ------------------------------------------------------------- pure helpers */
 
 		/** Empty when the name is usable, a sentence explaining the refusal otherwise. */
@@ -247,6 +269,110 @@ namespace $ {
 			} )
 
 			return 'https://github.com/login/oauth/authorize?' + args.toString()
+		}
+
+		static oauth_client() {
+			return figmol_deploy_client
+		}
+
+		static oauth_proxy() {
+			return figmol_deploy_proxy
+		}
+
+		/**
+		 * A fresh one time value for a sign in.
+		 *
+		 * From the same source as any other secret in the browser rather than
+		 * from `Math.random`: a guessable `state` is a way to talk a signed in
+		 * user into finishing somebody else's sign in.
+		 */
+		static oauth_state() {
+			return Array.from(
+				$mol_crypto2_nonce(),
+				byte => byte.toString( 16 ).padStart( 2, '0' ),
+			).join( '' )
+		}
+
+		/**
+		 * The page itself, without the query and the fragment.
+		 *
+		 * This is both what the OAuth App is registered for and what the token
+		 * exchange is checked against, so the two have to be spelled the same way
+		 * on the way there and on the way back.
+		 */
+		static oauth_back( href: string ) {
+			try {
+				const uri = new URL( href )
+				return uri.origin + uri.pathname
+			} catch {
+				return ''
+			}
+		}
+
+		/** What the consent screen left in the address. */
+		static oauth_return( href: string ): $bog_figmol_deploy_github_back {
+
+			let args = new URLSearchParams()
+
+			try {
+				args = new URL( href ).searchParams
+			} catch {}
+
+			return {
+				code: args.get( 'code' ) ?? '',
+				state: args.get( 'state' ) ?? '',
+				error: args.get( 'error' ) ?? '',
+				descr: args.get( 'error_description' ) ?? '',
+			}
+		}
+
+		/**
+		 * The same address with the OAuth keys taken out.
+		 *
+		 * Everything else survives — the fragment above all, since the editor
+		 * keeps its whole state there and `$mol_state_arg` copies whatever the
+		 * address holds into every link it builds.
+		 */
+		static oauth_clean( href: string ) {
+
+			try {
+
+				const uri = new URL( href )
+				for( const key of figmol_deploy_oauth_keys ) uri.searchParams.delete( key )
+
+				const query = uri.searchParams.toString()
+
+				return uri.origin + uri.pathname + ( query ? '?' + query : '' ) + uri.hash
+
+			} catch {
+				return href
+			}
+		}
+
+		/** Whether such a return is worth a token exchange, and why not otherwise. */
+		static oauth_verdict(
+			back: $bog_figmol_deploy_github_back,
+			want: string,
+		): $bog_figmol_deploy_github_verdict {
+
+			// A refusal on the consent screen is an answer, not a failure.
+			if( back.error === 'access_denied' ) return 'skip'
+			if( back.error ) return 'error'
+			if( !back.code ) return 'skip'
+
+			return want && back.state === want ? 'take' : 'wrong'
+		}
+
+		/** The proxy answers in OAuth's own shape, not in GitHub's. */
+		static oauth_fail( code: number, body: string ) {
+
+			try {
+				const data = JSON.parse( body ) as { error?: string, error_description?: string }
+				const message = String( data?.error_description || data?.error || '' )
+				if( message ) return 'Sign in failed — ' + message
+			} catch {}
+
+			return 'Sign in failed — the proxy answered ' + code
 		}
 
 		/* ------------------------------------------------------------- transport */
@@ -388,17 +514,25 @@ namespace $ {
 		 *
 		 * The exchange needs the client secret, which is why it cannot happen in
 		 * the browser; the proxy holds the secret and stores nothing.
+		 *
+		 * `redirect` repeats what the consent screen was asked for — GitHub
+		 * refuses an exchange whose redirect differs from the one that earned the
+		 * code, and the proxy checks it against its own allowlist besides.
+		 *
+		 * An action rather than a plain method, and that is the point: a code is
+		 * good for one exchange, and a caller whose fiber restarts replays the
+		 * cached answer instead of spending the code twice.
 		 */
 		@ $mol_action
-		oauth_token( proxy: string, code: string ) {
+		oauth_token( proxy: string, code: string, redirect = '' ) {
 
 			const res = this.$.$mol_fetch.response( proxy.replace( /\/+$/, '' ) + '/exchange', {
 				method: 'POST',
 				headers: { 'accept': 'application/json', 'content-type': 'application/json' },
-				body: JSON.stringify( { code } ),
+				body: JSON.stringify( redirect ? { code, redirect_uri: redirect } : { code } ),
 			} )
 
-			if( !res.ok() ) throw new Error( $bog_figmol_deploy_github.fail( res.code(), res.text() ) )
+			if( !res.ok() ) throw new Error( $bog_figmol_deploy_github.oauth_fail( res.code(), res.text() ) )
 
 			return String( ( res.json() as any )?.access_token ?? '' )
 		}

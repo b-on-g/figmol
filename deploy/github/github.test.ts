@@ -188,6 +188,119 @@ namespace $ {
 			$mol_assert_equal( args.get( 'state' ), 'nonce1' )
 		},
 
+		'the address to come back to is the page alone'() {
+
+			const back = ( href: string )=> $bog_figmol_deploy_github.oauth_back( href )
+
+			$mol_assert_equal( back( 'https://figmol.example/figmol/' ), 'https://figmol.example/figmol/' )
+
+			// The editor keeps its whole state in the fragment, and none of it is
+			// any of GitHub's business.
+			$mol_assert_equal(
+				back( 'https://figmol.example/figmol/#!site=abc/page=1' ),
+				'https://figmol.example/figmol/',
+			)
+
+			$mol_assert_equal(
+				back( 'http://localhost:9080/bog/figmol/app/-/index.html?code=old#!x=1' ),
+				'http://localhost:9080/bog/figmol/app/-/index.html',
+			)
+
+			$mol_assert_equal( back( 'not an address' ), '' )
+		},
+
+		'a return is read out of the query'() {
+
+			const read = ( href: string )=> $bog_figmol_deploy_github.oauth_return( href )
+
+			$mol_assert_like(
+				read( 'https://figmol.example/?code=abc123&state=nonce1#!site=xyz' ),
+				{ code: 'abc123', state: 'nonce1', error: '', descr: '' },
+			)
+
+			$mol_assert_like(
+				read( 'https://figmol.example/?error=access_denied&error_description=The+user+said+no' ),
+				{ code: '', state: '', error: 'access_denied', descr: 'The user said no' },
+			)
+
+			$mol_assert_like(
+				read( 'https://figmol.example/#!site=xyz' ),
+				{ code: '', state: '', error: '', descr: '' },
+			)
+		},
+
+		'cleaning the address takes the OAuth keys and nothing else'() {
+
+			const clean = ( href: string )=> $bog_figmol_deploy_github.oauth_clean( href )
+
+			$mol_assert_equal(
+				clean( 'https://figmol.example/figmol/?code=abc&state=nonce1#!site=xyz/page=1' ),
+				'https://figmol.example/figmol/#!site=xyz/page=1',
+			)
+
+			$mol_assert_equal(
+				clean( 'https://figmol.example/?error=access_denied&error_description=no&keep=1' ),
+				'https://figmol.example/?keep=1',
+			)
+
+			$mol_assert_equal(
+				clean( 'https://figmol.example/figmol/#!site=xyz' ),
+				'https://figmol.example/figmol/#!site=xyz',
+			)
+		},
+
+		'a one time value is fresh every time'() {
+
+			const first = $bog_figmol_deploy_github.oauth_state()
+			const second = $bog_figmol_deploy_github.oauth_state()
+
+			$mol_assert_equal( first.length, 32 )
+			$mol_assert_ok( /^[0-9a-f]+$/.test( first ) )
+			$mol_assert_ok( first !== second )
+		},
+
+		'a return is trusted only when it answers this browser'() {
+
+			const back = ( over: Partial< $bog_figmol_deploy_github_back > = {} )=> ( {
+				code: 'abc', state: 'nonce1', error: '', descr: '', ...over,
+			} )
+
+			const verdict = ( over: Partial< $bog_figmol_deploy_github_back >, want: string )=>
+				$bog_figmol_deploy_github.oauth_verdict( back( over ), want )
+
+			$mol_assert_equal( verdict( {}, 'nonce1' ), 'take' )
+
+			// A code that answers a request this window never made.
+			$mol_assert_equal( verdict( {}, 'nonce2' ), 'wrong' )
+			$mol_assert_equal( verdict( {}, '' ), 'wrong' )
+			$mol_assert_equal( verdict( { state: '' }, 'nonce1' ), 'wrong' )
+
+			$mol_assert_equal( verdict( { code: '', state: '' }, '' ), 'skip' )
+			$mol_assert_equal( verdict( { code: '', error: 'access_denied' }, 'nonce1' ), 'skip' )
+			$mol_assert_equal( verdict( { code: '', error: 'redirect_uri_mismatch' }, 'nonce1' ), 'error' )
+		},
+
+		'a refused exchange is explained in the words the proxy used'() {
+
+			$mol_assert_equal(
+				$bog_figmol_deploy_github.oauth_fail( 400, JSON.stringify( {
+					error: 'bad_verification_code',
+					error_description: 'The code passed is incorrect or expired.',
+				} ) ),
+				'Sign in failed — The code passed is incorrect or expired.',
+			)
+
+			$mol_assert_equal(
+				$bog_figmol_deploy_github.oauth_fail( 403, JSON.stringify( { error: 'origin_not_allowed' } ) ),
+				'Sign in failed — origin_not_allowed',
+			)
+
+			$mol_assert_equal(
+				$bog_figmol_deploy_github.oauth_fail( 502, '<html>gateway</html>' ),
+				'Sign in failed — the proxy answered 502',
+			)
+		},
+
 	} )
 
 }
