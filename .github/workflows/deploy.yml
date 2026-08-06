@@ -20,3 +20,19 @@ jobs:
               with:
                   folder: "bog/figmol/app/-"
 
+            - uses: actions/upload-pages-artifact@v3
+              if: github.ref == 'refs/heads/main'
+              with:
+                  path: "bog/figmol/app/-"
+
+    pages:
+        needs: build
+        if: github.ref == 'refs/heads/main'
+        runs-on: ubuntu-latest
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
+            - id: deployment
+              uses: actions/deploy-pages@v4
+
