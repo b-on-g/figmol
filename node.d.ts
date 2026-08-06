@@ -42645,6 +42645,94 @@ declare namespace $ {
 }
 
 declare namespace $ {
+
+	export class $mol_check_expand extends $mol_check {
+		level_style( ): string
+		expanded( next?: boolean ): boolean
+		expandable( ): boolean
+		Icon( ): $mol_icon_chevron
+		level( ): number
+		style( ): ({ 
+			'paddingLeft': ReturnType< $mol_check_expand['level_style'] >,
+		})  & ReturnType< $mol_check['style'] >
+		checked( next?: ReturnType< $mol_check_expand['expanded'] > ): ReturnType< $mol_check_expand['expanded'] >
+		enabled( ): ReturnType< $mol_check_expand['expandable'] >
+	}
+	
+}
+
+//# sourceMappingURL=expand.view.tree.d.ts.map
+declare namespace $.$$ {
+    /**
+     * Expander for trees, lists, etc
+     * @see https://mol.hyoo.ru/#!section=demos/demo=mol_check_expand_demo
+     */
+    class $mol_check_expand extends $.$mol_check_expand {
+        level_style(): string;
+        expandable(): boolean;
+    }
+}
+
+declare namespace $ {
+}
+
+declare namespace $ {
+
+	type $mol_check_expand__checked_mol_expander_1 = $mol_type_enforce<
+		ReturnType< $mol_expander['expanded'] >
+		,
+		ReturnType< $mol_check_expand['checked'] >
+	>
+	type $mol_check_expand__expandable_mol_expander_2 = $mol_type_enforce<
+		ReturnType< $mol_expander['expandable'] >
+		,
+		ReturnType< $mol_check_expand['expandable'] >
+	>
+	type $mol_check_expand__label_mol_expander_3 = $mol_type_enforce<
+		ReturnType< $mol_expander['label'] >
+		,
+		ReturnType< $mol_check_expand['label'] >
+	>
+	type $mol_view__sub_mol_expander_4 = $mol_type_enforce<
+		readonly(any)[]
+		,
+		ReturnType< $mol_view['sub'] >
+	>
+	type $mol_list__rows_mol_expander_5 = $mol_type_enforce<
+		ReturnType< $mol_expander['content'] >
+		,
+		ReturnType< $mol_list['rows'] >
+	>
+	export class $mol_expander extends $mol_list {
+		expanded( next?: boolean ): boolean
+		expandable( ): boolean
+		label( ): readonly(any)[]
+		Trigger( ): $mol_check_expand
+		Tools( ): any
+		Label( ): $mol_view
+		content( ): readonly(any)[]
+		Content( ): $mol_list
+		rows( ): readonly(any)[]
+	}
+	
+}
+
+//# sourceMappingURL=expander.view.tree.d.ts.map
+declare namespace $.$$ {
+    /**
+     * Component which expands any content on title click.
+     * @see https://mol.hyoo.ru/#!section=demos/demo=mol_expander_demo
+     */
+    class $mol_expander extends $.$mol_expander {
+        rows(): $mol_view[];
+        expandable(): boolean;
+    }
+}
+
+declare namespace $ {
+}
+
+declare namespace $ {
 }
 
 declare namespace $ {
@@ -42787,7 +42875,7 @@ declare namespace $ {
     class $mol_fetch_response extends $mol_object {
         readonly native: Response;
         readonly request: $mol_fetch_request;
-        status(): "unknown" | "success" | "inform" | "redirect" | "wrong" | "failed";
+        status(): "unknown" | "success" | "wrong" | "inform" | "redirect" | "failed";
         code(): number;
         ok(): boolean;
         message(): string;
@@ -42887,6 +42975,22 @@ declare namespace $ {
          * is scoped to repositories the user created for this very purpose.
          */
         static token_saved(next?: string): string;
+        /**
+         * Login of the account the saved token belongs to.
+         *
+         * Kept beside the token so the panel can say whom it is signed in as
+         * without asking GitHub on every render — the answer only changes when
+         * the token does.
+         */
+        static login_saved(next?: string): string;
+        /**
+         * The pending one time value of a sign in, kept across the redirect.
+         *
+         * The whole point is that it survives leaving the page and coming back:
+         * a return carrying somebody else's `state` is not an answer to a request
+         * this browser made.
+         */
+        static state_saved(next?: string): string;
         /** Empty when the name is usable, a sentence explaining the refusal otherwise. */
         static name_error(name: string): "" | "Enter a name for the repository" | "Sixty characters at most" | "One lowercase word: latin letters and digits, starting with a letter" | "This name is taken by MAM itself — pick another one";
         /** GitHub explains itself well, so its own wording is what the user sees. */
@@ -42967,6 +43071,38 @@ declare namespace $ {
          * token that only has `repo`.
          */
         static oauth_uri(client_id: string, redirect: string, state: string): string;
+        static oauth_client(): string;
+        static oauth_proxy(): string;
+        /**
+         * A fresh one time value for a sign in.
+         *
+         * From the same source as any other secret in the browser rather than
+         * from `Math.random`: a guessable `state` is a way to talk a signed in
+         * user into finishing somebody else's sign in.
+         */
+        static oauth_state(): string;
+        /**
+         * The page itself, without the query and the fragment.
+         *
+         * This is both what the OAuth App is registered for and what the token
+         * exchange is checked against, so the two have to be spelled the same way
+         * on the way there and on the way back.
+         */
+        static oauth_back(href: string): string;
+        /** What the consent screen left in the address. */
+        static oauth_return(href: string): $bog_figmol_deploy_github_back;
+        /**
+         * The same address with the OAuth keys taken out.
+         *
+         * Everything else survives — the fragment above all, since the editor
+         * keeps its whole state there and `$mol_state_arg` copies whatever the
+         * address holds into every link it builds.
+         */
+        static oauth_clean(href: string): string;
+        /** Whether such a return is worth a token exchange, and why not otherwise. */
+        static oauth_verdict(back: $bog_figmol_deploy_github_back, want: string): $bog_figmol_deploy_github_verdict;
+        /** The proxy answers in OAuth's own shape, not in GitHub's. */
+        static oauth_fail(code: number, body: string): string;
         headers(body: boolean): Record<string, string>;
         response(method: string, path: string, body?: unknown): $mol_fetch_response;
         /** Any success as JSON, anything else as an error carrying GitHub's message. */
@@ -43002,8 +43138,16 @@ declare namespace $ {
          *
          * The exchange needs the client secret, which is why it cannot happen in
          * the browser; the proxy holds the secret and stores nothing.
+         *
+         * `redirect` repeats what the consent screen was asked for — GitHub
+         * refuses an exchange whose redirect differs from the one that earned the
+         * code, and the proxy checks it against its own allowlist besides.
+         *
+         * An action rather than a plain method, and that is the point: a code is
+         * good for one exchange, and a caller whose fiber restarts replays the
+         * cached answer instead of spending the code twice.
          */
-        oauth_token(proxy: string, code: string): string;
+        oauth_token(proxy: string, code: string, redirect?: string): string;
     }
 }
 
@@ -43014,179 +43158,237 @@ declare namespace $ {
 
 declare namespace $ {
 
-	type $mol_string__hint_bog_figmol_deploy_publish_1 = $mol_type_enforce<
+	type $mol_view__sub_bog_figmol_deploy_publish_1 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['auth_head'] >
+		,
+		ReturnType< $mol_view['sub'] >
+	>
+	type $mol_string__hint_bog_figmol_deploy_publish_2 = $mol_type_enforce<
 		string
 		,
 		ReturnType< $mol_string['hint'] >
 	>
-	type $mol_string__type_bog_figmol_deploy_publish_2 = $mol_type_enforce<
+	type $mol_string__type_bog_figmol_deploy_publish_3 = $mol_type_enforce<
 		string
 		,
 		ReturnType< $mol_string['type'] >
 	>
-	type $mol_string__value_bog_figmol_deploy_publish_3 = $mol_type_enforce<
+	type $mol_string__value_bog_figmol_deploy_publish_4 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['token'] >
 		,
 		ReturnType< $mol_string['value'] >
 	>
-	type $mol_form_field__name_bog_figmol_deploy_publish_4 = $mol_type_enforce<
+	type $mol_form_field__name_bog_figmol_deploy_publish_5 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['token_name'] >
 		,
 		ReturnType< $mol_form_field['name'] >
 	>
-	type $mol_form_field__control_bog_figmol_deploy_publish_5 = $mol_type_enforce<
+	type $mol_form_field__control_bog_figmol_deploy_publish_6 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['Token'] >
 		,
 		ReturnType< $mol_form_field['control'] >
 	>
-	type $mol_link__uri_bog_figmol_deploy_publish_6 = $mol_type_enforce<
+	type $mol_link__uri_bog_figmol_deploy_publish_7 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['token_uri'] >
 		,
 		ReturnType< $mol_link['uri'] >
 	>
-	type $mol_link__target_bog_figmol_deploy_publish_7 = $mol_type_enforce<
+	type $mol_link__target_bog_figmol_deploy_publish_8 = $mol_type_enforce<
 		string
 		,
 		ReturnType< $mol_link['target'] >
 	>
-	type $mol_link__title_bog_figmol_deploy_publish_8 = $mol_type_enforce<
+	type $mol_link__title_bog_figmol_deploy_publish_9 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['token_link'] >
 		,
 		ReturnType< $mol_link['title'] >
 	>
-	type $mol_view__sub_bog_figmol_deploy_publish_9 = $mol_type_enforce<
+	type $mol_view__sub_bog_figmol_deploy_publish_10 = $mol_type_enforce<
 		readonly(any)[]
 		,
 		ReturnType< $mol_view['sub'] >
 	>
-	type $mol_string__hint_bog_figmol_deploy_publish_10 = $mol_type_enforce<
+	type $mol_expander__title_bog_figmol_deploy_publish_11 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['manual_label'] >
+		,
+		ReturnType< $mol_expander['title'] >
+	>
+	type $mol_expander__content_bog_figmol_deploy_publish_12 = $mol_type_enforce<
+		readonly(any)[]
+		,
+		ReturnType< $mol_expander['content'] >
+	>
+	type $mol_list__rows_bog_figmol_deploy_publish_13 = $mol_type_enforce<
+		readonly(any)[]
+		,
+		ReturnType< $mol_list['rows'] >
+	>
+	type $mol_string__hint_bog_figmol_deploy_publish_14 = $mol_type_enforce<
 		string
 		,
 		ReturnType< $mol_string['hint'] >
 	>
-	type $mol_string__value_bog_figmol_deploy_publish_11 = $mol_type_enforce<
+	type $mol_string__value_bog_figmol_deploy_publish_15 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['name'] >
 		,
 		ReturnType< $mol_string['value'] >
 	>
-	type $mol_form_field__name_bog_figmol_deploy_publish_12 = $mol_type_enforce<
+	type $mol_form_field__name_bog_figmol_deploy_publish_16 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['name_name'] >
 		,
 		ReturnType< $mol_form_field['name'] >
 	>
-	type $mol_form_field__bids_bog_figmol_deploy_publish_13 = $mol_type_enforce<
+	type $mol_form_field__bids_bog_figmol_deploy_publish_17 = $mol_type_enforce<
 		readonly(any)[]
 		,
 		ReturnType< $mol_form_field['bids'] >
 	>
-	type $mol_form_field__control_bog_figmol_deploy_publish_14 = $mol_type_enforce<
+	type $mol_form_field__control_bog_figmol_deploy_publish_18 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['Name'] >
 		,
 		ReturnType< $mol_form_field['control'] >
 	>
-	type $mol_view__sub_bog_figmol_deploy_publish_15 = $mol_type_enforce<
-		readonly(any)[]
-		,
-		ReturnType< $mol_view['sub'] >
-	>
-	type $mol_list__rows_bog_figmol_deploy_publish_16 = $mol_type_enforce<
-		readonly(any)[]
-		,
-		ReturnType< $mol_list['rows'] >
-	>
-	type $mol_row__sub_bog_figmol_deploy_publish_17 = $mol_type_enforce<
-		ReturnType< $bog_figmol_deploy_publish['buttons'] >
-		,
-		ReturnType< $mol_row['sub'] >
-	>
-	type $mol_view__sub_bog_figmol_deploy_publish_18 = $mol_type_enforce<
-		ReturnType< $bog_figmol_deploy_publish['conflict_rows'] >
-		,
-		ReturnType< $mol_view['sub'] >
-	>
 	type $mol_view__sub_bog_figmol_deploy_publish_19 = $mol_type_enforce<
-		ReturnType< $bog_figmol_deploy_publish['problem_rows'] >
+		readonly(any)[]
 		,
 		ReturnType< $mol_view['sub'] >
 	>
 	type $mol_list__rows_bog_figmol_deploy_publish_20 = $mol_type_enforce<
-		ReturnType< $bog_figmol_deploy_publish['step_rows'] >
+		readonly(any)[]
 		,
 		ReturnType< $mol_list['rows'] >
 	>
-	type $mol_list__rows_bog_figmol_deploy_publish_21 = $mol_type_enforce<
-		ReturnType< $bog_figmol_deploy_publish['link_rows'] >
+	type $mol_row__sub_bog_figmol_deploy_publish_21 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['buttons'] >
 		,
-		ReturnType< $mol_list['rows'] >
+		ReturnType< $mol_row['sub'] >
 	>
 	type $mol_view__sub_bog_figmol_deploy_publish_22 = $mol_type_enforce<
-		readonly(any)[]
+		ReturnType< $bog_figmol_deploy_publish['conflict_rows'] >
 		,
 		ReturnType< $mol_view['sub'] >
 	>
 	type $mol_view__sub_bog_figmol_deploy_publish_23 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['problem_rows'] >
+		,
+		ReturnType< $mol_view['sub'] >
+	>
+	type $mol_list__rows_bog_figmol_deploy_publish_24 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['step_rows'] >
+		,
+		ReturnType< $mol_list['rows'] >
+	>
+	type $mol_list__rows_bog_figmol_deploy_publish_25 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['link_rows'] >
+		,
+		ReturnType< $mol_list['rows'] >
+	>
+	type $mol_view__sub_bog_figmol_deploy_publish_26 = $mol_type_enforce<
 		readonly(any)[]
 		,
 		ReturnType< $mol_view['sub'] >
 	>
-	type $mol_view__sub_bog_figmol_deploy_publish_24 = $mol_type_enforce<
+	type $mol_button_minor__click_bog_figmol_deploy_publish_27 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['logout'] >
+		,
+		ReturnType< $mol_button_minor['click'] >
+	>
+	type $mol_button_minor__title_bog_figmol_deploy_publish_28 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['logout_label'] >
+		,
+		ReturnType< $mol_button_minor['title'] >
+	>
+	type $mol_view__sub_bog_figmol_deploy_publish_29 = $mol_type_enforce<
 		readonly(any)[]
 		,
 		ReturnType< $mol_view['sub'] >
 	>
-	type $mol_button_major__enabled_bog_figmol_deploy_publish_25 = $mol_type_enforce<
+	type $mol_view__sub_bog_figmol_deploy_publish_30 = $mol_type_enforce<
+		readonly(any)[]
+		,
+		ReturnType< $mol_view['sub'] >
+	>
+	type $mol_view__sub_bog_figmol_deploy_publish_31 = $mol_type_enforce<
+		readonly(any)[]
+		,
+		ReturnType< $mol_view['sub'] >
+	>
+	type $mol_button_major__click_bog_figmol_deploy_publish_32 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['login'] >
+		,
+		ReturnType< $mol_button_major['click'] >
+	>
+	type $mol_button_major__title_bog_figmol_deploy_publish_33 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['login_label'] >
+		,
+		ReturnType< $mol_button_major['title'] >
+	>
+	type $mol_view__sub_bog_figmol_deploy_publish_34 = $mol_type_enforce<
+		readonly(any)[]
+		,
+		ReturnType< $mol_view['sub'] >
+	>
+	type $mol_row__sub_bog_figmol_deploy_publish_35 = $mol_type_enforce<
+		readonly(any)[]
+		,
+		ReturnType< $mol_row['sub'] >
+	>
+	type $mol_button_major__enabled_bog_figmol_deploy_publish_36 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['publish_enabled'] >
 		,
 		ReturnType< $mol_button_major['enabled'] >
 	>
-	type $mol_button_major__click_bog_figmol_deploy_publish_26 = $mol_type_enforce<
+	type $mol_button_major__click_bog_figmol_deploy_publish_37 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['publish'] >
 		,
 		ReturnType< $mol_button_major['click'] >
 	>
-	type $mol_button_major__title_bog_figmol_deploy_publish_27 = $mol_type_enforce<
+	type $mol_button_major__title_bog_figmol_deploy_publish_38 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['publish_label'] >
 		,
 		ReturnType< $mol_button_major['title'] >
 	>
-	type $mol_button_minor__click_bog_figmol_deploy_publish_28 = $mol_type_enforce<
+	type $mol_button_minor__click_bog_figmol_deploy_publish_39 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['overwrite'] >
 		,
 		ReturnType< $mol_button_minor['click'] >
 	>
-	type $mol_button_minor__title_bog_figmol_deploy_publish_29 = $mol_type_enforce<
+	type $mol_button_minor__title_bog_figmol_deploy_publish_40 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['overwrite_label'] >
 		,
 		ReturnType< $mol_button_minor['title'] >
 	>
-	type $mol_row__attr_bog_figmol_deploy_publish_30 = $mol_type_enforce<
+	type $mol_row__attr_bog_figmol_deploy_publish_41 = $mol_type_enforce<
 		({ 
 			'bog_figmol_deploy_state': ReturnType< $bog_figmol_deploy_publish['step_state'] >,
 		})  & ReturnType< $mol_row['attr'] >
 		,
 		ReturnType< $mol_row['attr'] >
 	>
-	type $mol_row__sub_bog_figmol_deploy_publish_31 = $mol_type_enforce<
+	type $mol_row__sub_bog_figmol_deploy_publish_42 = $mol_type_enforce<
 		readonly(any)[]
 		,
 		ReturnType< $mol_row['sub'] >
 	>
-	type $mol_link__uri_bog_figmol_deploy_publish_32 = $mol_type_enforce<
+	type $mol_link__uri_bog_figmol_deploy_publish_43 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['link_uri'] >
 		,
 		ReturnType< $mol_link['uri'] >
 	>
-	type $mol_link__target_bog_figmol_deploy_publish_33 = $mol_type_enforce<
+	type $mol_link__target_bog_figmol_deploy_publish_44 = $mol_type_enforce<
 		string
 		,
 		ReturnType< $mol_link['target'] >
 	>
-	type $mol_link__title_bog_figmol_deploy_publish_34 = $mol_type_enforce<
+	type $mol_link__title_bog_figmol_deploy_publish_45 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['link_label'] >
 		,
 		ReturnType< $mol_link['title'] >
 	>
 	export class $bog_figmol_deploy_publish extends $mol_list {
+		auth_head( ): readonly($mol_view)[]
+		Auth_head( ): $mol_view
+		manual_label( ): string
 		token_name( ): string
 		token( next?: string ): string
 		Token( ): $mol_string
@@ -43196,6 +43398,8 @@ declare namespace $ {
 		token_link( ): string
 		Token_link( ): $mol_link
 		Token_hint( ): $mol_view
+		Manual( ): $mol_expander
+		Auth( ): $mol_list
 		name_name( ): string
 		name_bid( ): string
 		name( next?: string ): string
@@ -43214,6 +43418,14 @@ declare namespace $ {
 		Steps( ): $mol_list
 		link_rows( ): readonly($mol_view)[]
 		Links( ): $mol_list
+		login( next?: any ): any
+		login_label( ): string
+		login_hint( ): string
+		account_label( ): string
+		Account_name( ): $mol_view
+		logout( next?: any ): any
+		logout_label( ): string
+		Logout( ): $mol_button_minor
 		publish_enabled( ): boolean
 		publish( next?: any ): any
 		publish_label( ): string
@@ -43232,6 +43444,9 @@ declare namespace $ {
 		commit_message( ): string
 		repo_descr( ): string
 		rows( ): readonly(any)[]
+		Login( ): $mol_button_major
+		Login_hint( ): $mol_view
+		Account( ): $mol_row
 		Publish( ): $mol_button_major
 		Overwrite( ): $mol_button_minor
 		Step( id: any): $mol_row
@@ -43245,6 +43460,10 @@ declare namespace $ {
 		link_label_site( ): string
 		link_label_repo( ): string
 		link_label_run( ): string
+		signed_label( ): string
+		token_label( ): string
+		login_wrong( ): string
+		login_none( ): string
 		conflict_hint( ): string
 		nothing_hint( ): string
 		token_missing( ): string
@@ -43281,8 +43500,71 @@ declare namespace $.$$ {
          * own is needed — and an owner binding `token?` shadows this anyway.
          */
         token(next?: string): string;
+        /** Login of the account that token belongs to, remembered beside it. */
+        account(next?: string): string;
+        /**
+         * One time value of a sign in under way, kept across the redirect.
+         *
+         * Like the token above, it is stored rather than held: the browser leaves
+         * the page in between, and nothing in memory survives that.
+         */
+        nonce(next?: string): string;
         github(): $bog_figmol_deploy_github;
         token_uri(): string;
+        oauth_client(): string;
+        oauth_proxy(): string;
+        /** Whether this browser holds a token at all, however it got one. */
+        signed(): boolean;
+        /**
+         * Only the head of the section changes with the token — the fold with the
+         * field in it is a fixed row below.
+         *
+         * That is not a matter of taste: the field writes on every keystroke, and
+         * a section rebuilt around it would take the field out of the page on the
+         * first character of a token typed by hand.
+         */
+        auth_head(): readonly $mol_view[];
+        /**
+         * Whom the token belongs to.
+         *
+         * A token typed in by hand names nobody until the first publication asks
+         * GitHub, and saying so is more honest than an empty line.
+         */
+        account_label(): string;
+        /** Leaves the page. A test overrides it — leaving is not an option there. */
+        go(uri: string): void;
+        /**
+         * Off to the consent screen.
+         *
+         * The one time value is written down before the browser leaves, and it is
+         * the only thing that will tell a return meant for this window from a code
+         * somebody else has arranged to land here.
+         */
+        login(next?: any): null;
+        logout(next?: any): null;
+        /** Where the consent screen sends the browser back to: this page, bare. */
+        oauth_back(href?: string): string;
+        /**
+         * Takes the OAuth keys out of the address.
+         *
+         * Through `$mol_state_arg` rather than around it: the address it holds is
+         * the one it copies into every link the app builds, so a `replaceState`
+         * behind its back would keep handing out a spent code.
+         */
+        oauth_clean(href: string): void;
+        /**
+         * Finishes a sign in the consent screen has sent back.
+         *
+         * Undecorated, like `pipeline`: the caller hands it a fiber, and that
+         * fiber restarts from the top every time the exchange suspends. So the
+         * whole body is either idempotent or an action whose answer is replayed
+         * from the fiber's own cache — which is what keeps a single use code from
+         * being spent a second time.
+         *
+         * The address is handed in rather than read here for the same reason: by
+         * the second pass it has already been cleaned.
+         */
+        oauth_land(href: string): void;
         /** Login of the account the token belongs to. */
         owner(next?: string): string;
         /** Address of the published site, once there is one. */
@@ -47829,6 +48111,26 @@ declare namespace $.$$ {
          * happens once for as long as the app is on screen.
          */
         auto(): void;
+        /**
+         * Whether the return from GitHub has been picked up already.
+         *
+         * A plain field rather than an atom: `auto` runs inside a memoized render
+         * and is re-entered whenever anything it reads changes — the address
+         * included, which this very handler is about to rewrite. A cell would be
+         * reset along with the render and let a spent code go round again.
+         */
+        oauth_seen: boolean;
+        /**
+         * A code in the address means the user is coming back from the consent
+         * screen. The rail is reopened and the panel finishes the exchange: the
+         * token is its business, and a refusal needs somewhere to be shown.
+         *
+         * Both are done in a fiber of their own — `auto` is part of a render, and
+         * writing state from there loops.
+         */
+        oauth_catch(): void;
+        /** Never decorated — `$mol_wire_async` above hands it a fiber. */
+        oauth_land(href: string): void;
         /**
          * Whether this window may change anything.
          *

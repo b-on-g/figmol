@@ -3830,7 +3830,7 @@ var $;
                 check('hi', [0x68, 0x69]);
             },
             "1B ASCII with diacritic"($) {
-                check('allo\u0302', [0x61, 0x6C, 0x6C, 0x6F, 0xEA]);
+                check('allo\u0300', [0x61, 0x6C, 0x6C, 0x6F, 0xE2]);
             },
             "1B Cyrillic"($) {
                 check('мир', [0x88, 0x3C, 0xE2, 0x40, 0xF8]);
@@ -4090,9 +4090,9 @@ var $;
             },
             "vary pack Date"($) {
                 const date1 = new Date('2025-01-02T03:04:05');
-                check([date1], [tupl | 1, list | 1, text | 9, ...str('unix_time'), uint | L4, ...new Uint8Array(new Uint32Array([date1.valueOf() / 1000]).buffer)]);
+                check([date1], [tupl | 1, list | 1, text | $mol_vary_len.L1, 9, ...str('unix_time'), uint | L4, ...new Uint8Array(new Uint32Array([date1.valueOf() / 1000]).buffer)]);
                 const date2 = new Date('2025-01-02T03:04:05.678');
-                check([date2], [tupl | 1, list | 1, text | 9, ...str('unix_time'), fp64, ...new Uint8Array(new Float64Array([date2.valueOf() / 1000]).buffer)]);
+                check([date2], [tupl | 1, list | 1, text | $mol_vary_len.L1, 9, ...str('unix_time'), fp64, ...new Uint8Array(new Float64Array([date2.valueOf() / 1000]).buffer)]);
             },
             "vary pack DOM Element"($) {
                 $mol_assert_equal($mol_dom_serialize($mol_jsx("div", null,
@@ -6909,6 +6909,172 @@ var $;
             $mol_assert_equal(args.get('redirect_uri'), 'https://figmol.example/back');
             $mol_assert_equal(args.get('scope'), 'repo workflow');
             $mol_assert_equal(args.get('state'), 'nonce1');
+        },
+        'the address to come back to is the page alone'() {
+            const back = (href) => $bog_figmol_deploy_github.oauth_back(href);
+            $mol_assert_equal(back('https://figmol.example/figmol/'), 'https://figmol.example/figmol/');
+            // The editor keeps its whole state in the fragment, and none of it is
+            // any of GitHub's business.
+            $mol_assert_equal(back('https://figmol.example/figmol/#!site=abc/page=1'), 'https://figmol.example/figmol/');
+            $mol_assert_equal(back('http://localhost:9080/bog/figmol/app/-/index.html?code=old#!x=1'), 'http://localhost:9080/bog/figmol/app/-/index.html');
+            $mol_assert_equal(back('not an address'), '');
+        },
+        'a return is read out of the query'() {
+            const read = (href) => $bog_figmol_deploy_github.oauth_return(href);
+            $mol_assert_like(read('https://figmol.example/?code=abc123&state=nonce1#!site=xyz'), { code: 'abc123', state: 'nonce1', error: '', descr: '' });
+            $mol_assert_like(read('https://figmol.example/?error=access_denied&error_description=The+user+said+no'), { code: '', state: '', error: 'access_denied', descr: 'The user said no' });
+            $mol_assert_like(read('https://figmol.example/#!site=xyz'), { code: '', state: '', error: '', descr: '' });
+        },
+        'cleaning the address takes the OAuth keys and nothing else'() {
+            const clean = (href) => $bog_figmol_deploy_github.oauth_clean(href);
+            $mol_assert_equal(clean('https://figmol.example/figmol/?code=abc&state=nonce1#!site=xyz/page=1'), 'https://figmol.example/figmol/#!site=xyz/page=1');
+            $mol_assert_equal(clean('https://figmol.example/?error=access_denied&error_description=no&keep=1'), 'https://figmol.example/?keep=1');
+            $mol_assert_equal(clean('https://figmol.example/figmol/#!site=xyz'), 'https://figmol.example/figmol/#!site=xyz');
+        },
+        'a one time value is fresh every time'() {
+            const first = $bog_figmol_deploy_github.oauth_state();
+            const second = $bog_figmol_deploy_github.oauth_state();
+            $mol_assert_equal(first.length, 32);
+            $mol_assert_ok(/^[0-9a-f]+$/.test(first));
+            $mol_assert_ok(first !== second);
+        },
+        'a return is trusted only when it answers this browser'() {
+            const back = (over = {}) => ({
+                code: 'abc', state: 'nonce1', error: '', descr: '', ...over,
+            });
+            const verdict = (over, want) => $bog_figmol_deploy_github.oauth_verdict(back(over), want);
+            $mol_assert_equal(verdict({}, 'nonce1'), 'take');
+            // A code that answers a request this window never made.
+            $mol_assert_equal(verdict({}, 'nonce2'), 'wrong');
+            $mol_assert_equal(verdict({}, ''), 'wrong');
+            $mol_assert_equal(verdict({ state: '' }, 'nonce1'), 'wrong');
+            $mol_assert_equal(verdict({ code: '', state: '' }, ''), 'skip');
+            $mol_assert_equal(verdict({ code: '', error: 'access_denied' }, 'nonce1'), 'skip');
+            $mol_assert_equal(verdict({ code: '', error: 'redirect_uri_mismatch' }, 'nonce1'), 'error');
+        },
+        'a refused exchange is explained in the words the proxy used'() {
+            $mol_assert_equal($bog_figmol_deploy_github.oauth_fail(400, JSON.stringify({
+                error: 'bad_verification_code',
+                error_description: 'The code passed is incorrect or expired.',
+            })), 'Sign in failed — The code passed is incorrect or expired.');
+            $mol_assert_equal($bog_figmol_deploy_github.oauth_fail(403, JSON.stringify({ error: 'origin_not_allowed' })), 'Sign in failed — origin_not_allowed');
+            $mol_assert_equal($bog_figmol_deploy_github.oauth_fail(502, '<html>gateway</html>'), 'Sign in failed — the proxy answered 502');
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    /** Where the editor is pretending to live for the length of a test. */
+    const figmol_publish_test_page = 'https://figmol.example/figmol/';
+    /**
+     * A panel with the outside world replaced by three variables: the storage it
+     * would keep the token in, and the address bar it would rewrite and leave.
+     *
+     * Nothing here reaches the network — every case below ends before the
+     * exchange, which is the only step that would.
+     */
+    function figmol_publish_test_panel() {
+        const panel = new $bog_figmol_deploy_publish;
+        const kept = { token: '', account: '', nonce: '', went: '', address: figmol_publish_test_page };
+        panel.token = (next) => next === undefined ? kept.token : (kept.token = next);
+        panel.account = (next) => next === undefined ? kept.account : (kept.account = next);
+        panel.nonce = (next) => next === undefined ? kept.nonce : (kept.nonce = next);
+        panel.go = (uri) => { kept.went = uri; };
+        panel.oauth_clean = (href) => { kept.address = $bog_figmol_deploy_github.oauth_clean(href); };
+        panel.oauth_back = () => figmol_publish_test_page;
+        // Wording is the business of the locale files, and reading those is the
+        // business of a browser — outside a bundle there is nothing to read.
+        panel.signed_label = () => 'Signed in as';
+        panel.token_label = () => 'A token is in place';
+        panel.login_wrong = () => 'Start it again';
+        return { panel, kept };
+    }
+    $mol_test({
+        'a fresh panel offers to sign in, a signed in one offers to leave'() {
+            const guest = figmol_publish_test_panel();
+            $mol_assert_like(guest.panel.auth_head(), [guest.panel.Login(), guest.panel.Login_hint()]);
+            const known = figmol_publish_test_panel();
+            known.panel.token('ghp_secret');
+            $mol_assert_like(known.panel.auth_head(), [known.panel.Account()]);
+        },
+        /**
+         * The field writes on every keystroke. If it lived in the part that
+         * changes with the token, the first character typed would take it away.
+         */
+        'the fold with the token field stays put whatever the token'() {
+            const guest = figmol_publish_test_panel();
+            $mol_assert_ok(guest.panel.Auth().rows().includes(guest.panel.Manual()));
+            $mol_assert_ok(!guest.panel.auth_head().includes(guest.panel.Manual()));
+            const known = figmol_publish_test_panel();
+            known.panel.token('ghp_secret');
+            $mol_assert_ok(known.panel.Auth().rows().includes(known.panel.Manual()));
+            $mol_assert_ok(!known.panel.auth_head().includes(known.panel.Manual()));
+        },
+        'the account is named once it is known'() {
+            const known = figmol_publish_test_panel();
+            known.panel.token('ghp_secret');
+            $mol_assert_equal(known.panel.account_label(), known.panel.token_label());
+            const named = figmol_publish_test_panel();
+            named.panel.token('ghp_secret');
+            named.panel.account('alice');
+            $mol_assert_equal(named.panel.account_label(), named.panel.signed_label() + ' alice');
+        },
+        'signing in writes a one time value down and carries it to GitHub'() {
+            const { panel, kept } = figmol_publish_test_panel();
+            panel.login(null);
+            $mol_assert_ok(kept.went.startsWith('https://github.com/login/oauth/authorize?'));
+            const args = new URLSearchParams(kept.went.split('?')[1]);
+            $mol_assert_equal(args.get('client_id'), $bog_figmol_deploy_github.oauth_client());
+            $mol_assert_equal(args.get('redirect_uri'), figmol_publish_test_page);
+            $mol_assert_equal(args.get('scope'), 'repo workflow');
+            // The value in the address is the very one the browser will check the
+            // return against.
+            $mol_assert_ok(kept.nonce);
+            $mol_assert_equal(args.get('state'), kept.nonce);
+        },
+        'signing out forgets everything the browser was holding'() {
+            const { panel } = figmol_publish_test_panel();
+            panel.token('ghp_secret');
+            panel.account('alice');
+            panel.nonce('nonce1');
+            panel.logout(null);
+            $mol_assert_equal(panel.token(), '');
+            $mol_assert_equal(panel.account(), '');
+            $mol_assert_equal(panel.nonce(), '');
+        },
+        /** A code arriving with the wrong value answers a request nobody made here. */
+        'a return that does not match is refused before any exchange'() {
+            const { panel, kept } = figmol_publish_test_panel();
+            panel.nonce('nonce1');
+            panel.oauth_land(figmol_publish_test_page + '?code=abc&state=nonce2');
+            $mol_assert_equal(panel.problem(), panel.login_wrong());
+            $mol_assert_equal(panel.token(), '');
+            $mol_assert_equal(kept.nonce, '');
+            $mol_assert_equal(kept.address, figmol_publish_test_page);
+        },
+        'a refusal on the consent screen leaves no complaint behind'() {
+            const { panel, kept } = figmol_publish_test_panel();
+            panel.nonce('nonce1');
+            panel.oauth_land(figmol_publish_test_page + '?error=access_denied&state=nonce1');
+            $mol_assert_equal(panel.problem(), '');
+            $mol_assert_equal(panel.token(), '');
+            $mol_assert_equal(kept.nonce, '');
+        },
+        'any other refusal is shown in the words GitHub used'() {
+            const { panel } = figmol_publish_test_panel();
+            panel.nonce('nonce1');
+            panel.oauth_land(figmol_publish_test_page + '?error=redirect_uri_mismatch&error_description=The+redirect_uri+is+not+associated');
+            $mol_assert_equal(panel.problem(), 'The redirect_uri is not associated');
+        },
+        /** The fragment is the whole state of the editor, and it has to survive. */
+        'the address keeps everything but the OAuth keys'() {
+            const { panel, kept } = figmol_publish_test_panel();
+            panel.nonce('nonce1');
+            panel.oauth_land(figmol_publish_test_page + '?code=abc&state=nonce2#!site=xyz/page=1');
+            $mol_assert_equal(kept.address, figmol_publish_test_page + '#!site=xyz/page=1');
         },
     });
 })($ || ($ = {}));

@@ -8832,7 +8832,7 @@ var $;
         let page_offset = 0;
         const read_code = () => {
             let code = buffer[pos++];
-            if (code > 0x80)
+            if (code >= 0x80)
                 code = ((mode + code) & 0x7F) | 0x80;
             return code;
         };
@@ -8848,7 +8848,7 @@ var $;
             let code = read_code();
             if (code < full_mode) { // Char Code
                 if (mode === tiny_mode) {
-                    if (code > 0x80) {
+                    if (code >= 0x80) {
                         code = diacr_set[code - 0x080] | (6 << 7);
                     }
                 }
@@ -9103,7 +9103,7 @@ var $;
                 const offset = offsets.get(val);
                 if (offset !== undefined)
                     return dump_unum($mol_vary_tip.link, offset);
-                const len_max = val.length * 3;
+                const len_max = val.length * 3 + 2;
                 const len_size = calc_size(len_max);
                 acquire(len_max);
                 const len = $mol_charset_ucf_encode_to(val, this.array, pos + len_size);
@@ -27987,6 +27987,156 @@ var $;
 })($ || ($ = {}));
 
 ;
+	($.$mol_check_expand) = class $mol_check_expand extends ($.$mol_check) {
+		level_style(){
+			return "0px";
+		}
+		expanded(next){
+			if(next !== undefined) return next;
+			return false;
+		}
+		expandable(){
+			return false;
+		}
+		Icon(){
+			const obj = new this.$.$mol_icon_chevron();
+			return obj;
+		}
+		level(){
+			return 0;
+		}
+		style(){
+			return {...(super.style()), "paddingLeft": (this.level_style())};
+		}
+		checked(next){
+			return (this.expanded(next));
+		}
+		enabled(){
+			return (this.expandable());
+		}
+	};
+	($mol_mem(($.$mol_check_expand.prototype), "expanded"));
+	($mol_mem(($.$mol_check_expand.prototype), "Icon"));
+
+
+;
+"use strict";
+
+
+;
+"use strict";
+var $;
+(function ($) {
+    var $$;
+    (function ($$) {
+        /**
+         * Expander for trees, lists, etc
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_check_expand_demo
+         */
+        class $mol_check_expand extends $.$mol_check_expand {
+            level_style() {
+                return `${this.level() * 1 - 1}rem`;
+            }
+            expandable() {
+                return this.expanded() !== null;
+            }
+        }
+        $$.$mol_check_expand = $mol_check_expand;
+    })($$ = $.$$ || ($.$$ = {}));
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    $mol_style_attach("mol/check/expand/expand.view.css", "[mol_check_expand] {\n\tmin-width: 20px;\n}\n\n:where([mol_check_expand][disabled]) [mol_check_expand_icon] {\n\tvisibility: hidden;\n}\n\n[mol_check_expand_icon] {\n\tbox-shadow: none;\n\tmargin-left: -0.375rem;\n}\n[mol_check_expand_icon] {\n\ttransform: rotateZ(0deg);\n}\n\n:where([mol_check_checked]) [mol_check_expand_icon] {\n\ttransform: rotateZ(90deg);\n}\n\n[mol_check_expand_icon] {\n\tvertical-align: text-top;\n}\n\n[mol_check_expand_label] {\n\tmargin-left: 0;\n}\n");
+})($ || ($ = {}));
+
+;
+	($.$mol_expander) = class $mol_expander extends ($.$mol_list) {
+		expanded(next){
+			if(next !== undefined) return next;
+			return false;
+		}
+		expandable(){
+			return true;
+		}
+		label(){
+			return [(this.title())];
+		}
+		Trigger(){
+			const obj = new this.$.$mol_check_expand();
+			(obj.checked) = (next) => ((this.expanded(next)));
+			(obj.expandable) = () => ((this.expandable()));
+			(obj.label) = () => ((this.label()));
+			return obj;
+		}
+		Tools(){
+			return null;
+		}
+		Label(){
+			const obj = new this.$.$mol_view();
+			(obj.sub) = () => ([(this.Trigger()), (this.Tools())]);
+			return obj;
+		}
+		content(){
+			return [];
+		}
+		Content(){
+			const obj = new this.$.$mol_list();
+			(obj.rows) = () => ((this.content()));
+			return obj;
+		}
+		rows(){
+			return [(this.Label()), (this.Content())];
+		}
+	};
+	($mol_mem(($.$mol_expander.prototype), "expanded"));
+	($mol_mem(($.$mol_expander.prototype), "Trigger"));
+	($mol_mem(($.$mol_expander.prototype), "Label"));
+	($mol_mem(($.$mol_expander.prototype), "Content"));
+
+
+;
+"use strict";
+
+
+;
+"use strict";
+var $;
+(function ($) {
+    var $$;
+    (function ($$) {
+        /**
+         * Component which expands any content on title click.
+         * @see https://mol.hyoo.ru/#!section=demos/demo=mol_expander_demo
+         */
+        class $mol_expander extends $.$mol_expander {
+            rows() {
+                return [
+                    this.Label(),
+                    ...this.expanded() ? [this.Content()] : []
+                ];
+            }
+            expandable() {
+                return this.content().length > 0;
+            }
+        }
+        __decorate([
+            $mol_mem
+        ], $mol_expander.prototype, "rows", null);
+        $$.$mol_expander = $mol_expander;
+    })($$ = $.$$ || ($.$$ = {}));
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    $mol_style_attach("mol/expander/expander.view.css", "[mol_expander] {\n\tflex-direction: column;\n}\n\n[mol_expander_label] {\n\tdisplay: flex;\n\tflex-wrap: wrap;\n\tborder-radius: var(--mol_gap_round);\n}\n\n[mol_expander_trigger] {\n\tflex: auto;\n\tposition: relative;\n}\n");
+})($ || ($ = {}));
+
+;
 	($.$mol_row) = class $mol_row extends ($.$mol_view) {};
 
 
@@ -28253,6 +28403,17 @@ var $;
 
 ;
 	($.$bog_figmol_deploy_publish) = class $bog_figmol_deploy_publish extends ($.$mol_list) {
+		auth_head(){
+			return [];
+		}
+		Auth_head(){
+			const obj = new this.$.$mol_view();
+			(obj.sub) = () => ((this.auth_head()));
+			return obj;
+		}
+		manual_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_manual_label"));
+		}
 		token_name(){
 			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_token_name"));
 		}
@@ -28294,6 +28455,17 @@ var $;
 			(obj.sub) = () => ([(this.token_hint()), (this.Token_link())]);
 			return obj;
 		}
+		Manual(){
+			const obj = new this.$.$mol_expander();
+			(obj.title) = () => ((this.manual_label()));
+			(obj.content) = () => ([(this.Token_field()), (this.Token_hint())]);
+			return obj;
+		}
+		Auth(){
+			const obj = new this.$.$mol_list();
+			(obj.rows) = () => ([(this.Auth_head()), (this.Manual())]);
+			return obj;
+		}
 		name_name(){
 			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_name_name"));
 		}
@@ -28327,12 +28499,7 @@ var $;
 		}
 		Fields(){
 			const obj = new this.$.$mol_list();
-			(obj.rows) = () => ([
-				(this.Token_field()), 
-				(this.Token_hint()), 
-				(this.Name_field()), 
-				(this.Name_hint())
-			]);
+			(obj.rows) = () => ([(this.Name_field()), (this.Name_hint())]);
 			return obj;
 		}
 		buttons(){
@@ -28373,6 +28540,37 @@ var $;
 		Links(){
 			const obj = new this.$.$mol_list();
 			(obj.rows) = () => ((this.link_rows()));
+			return obj;
+		}
+		login(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		login_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_login_label"));
+		}
+		login_hint(){
+			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_login_hint"));
+		}
+		account_label(){
+			return "";
+		}
+		Account_name(){
+			const obj = new this.$.$mol_view();
+			(obj.sub) = () => ([(this.account_label())]);
+			return obj;
+		}
+		logout(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		logout_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_logout_label"));
+		}
+		Logout(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.logout(next)));
+			(obj.title) = () => ((this.logout_label()));
 			return obj;
 		}
 		publish_enabled(){
@@ -28436,6 +28634,7 @@ var $;
 		}
 		rows(){
 			return [
+				(this.Auth()), 
 				(this.Fields()), 
 				(this.Buttons()), 
 				(this.Conflict()), 
@@ -28443,6 +28642,22 @@ var $;
 				(this.Steps()), 
 				(this.Links())
 			];
+		}
+		Login(){
+			const obj = new this.$.$mol_button_major();
+			(obj.click) = (next) => ((this.login(next)));
+			(obj.title) = () => ((this.login_label()));
+			return obj;
+		}
+		Login_hint(){
+			const obj = new this.$.$mol_view();
+			(obj.sub) = () => ([(this.login_hint())]);
+			return obj;
+		}
+		Account(){
+			const obj = new this.$.$mol_row();
+			(obj.sub) = () => ([(this.Account_name()), (this.Logout())]);
+			return obj;
 		}
 		Publish(){
 			const obj = new this.$.$mol_button_major();
@@ -28501,6 +28716,18 @@ var $;
 		link_label_run(){
 			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_link_label_run"));
 		}
+		signed_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_signed_label"));
+		}
+		token_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_token_label"));
+		}
+		login_wrong(){
+			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_login_wrong"));
+		}
+		login_none(){
+			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_login_none"));
+		}
 		conflict_hint(){
 			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_conflict_hint"));
 		}
@@ -28520,11 +28747,14 @@ var $;
 			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_pages_late"));
 		}
 	};
+	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Auth_head"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "token"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Token"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Token_field"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Token_link"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Token_hint"));
+	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Manual"));
+	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Auth"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "name"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Name"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Name_field"));
@@ -28535,11 +28765,18 @@ var $;
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Problem"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Steps"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Links"));
+	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "login"));
+	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Account_name"));
+	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "logout"));
+	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Logout"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "publish"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "overwrite"));
 	($mol_mem_key(($.$bog_figmol_deploy_publish.prototype), "Step_mark"));
 	($mol_mem_key(($.$bog_figmol_deploy_publish.prototype), "Step_title"));
 	($mol_mem_key(($.$bog_figmol_deploy_publish.prototype), "Step_note"));
+	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Login"));
+	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Login_hint"));
+	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Account"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Publish"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Overwrite"));
 	($mol_mem_key(($.$bog_figmol_deploy_publish.prototype), "Step"));
@@ -28794,6 +29031,26 @@ var $;
         static token_saved(next) {
             return this.$.$mol_state_local.value('bog_figmol_deploy_token', next) ?? '';
         }
+        /**
+         * Login of the account the saved token belongs to.
+         *
+         * Kept beside the token so the panel can say whom it is signed in as
+         * without asking GitHub on every render — the answer only changes when
+         * the token does.
+         */
+        static login_saved(next) {
+            return this.$.$mol_state_local.value('bog_figmol_deploy_login', next) ?? '';
+        }
+        /**
+         * The pending one time value of a sign in, kept across the redirect.
+         *
+         * The whole point is that it survives leaving the page and coming back:
+         * a return carrying somebody else's `state` is not an answer to a request
+         * this browser made.
+         */
+        static state_saved(next) {
+            return this.$.$mol_state_local.value('bog_figmol_deploy_state', next) ?? '';
+        }
         /* ------------------------------------------------------------- pure helpers */
         /** Empty when the name is usable, a sentence explaining the refusal otherwise. */
         static name_error(name) {
@@ -28916,6 +29173,93 @@ var $;
             });
             return 'https://github.com/login/oauth/authorize?' + args.toString();
         }
+        static oauth_client() {
+            return figmol_deploy_client;
+        }
+        static oauth_proxy() {
+            return figmol_deploy_proxy;
+        }
+        /**
+         * A fresh one time value for a sign in.
+         *
+         * From the same source as any other secret in the browser rather than
+         * from `Math.random`: a guessable `state` is a way to talk a signed in
+         * user into finishing somebody else's sign in.
+         */
+        static oauth_state() {
+            return Array.from($mol_crypto2_nonce(), byte => byte.toString(16).padStart(2, '0')).join('');
+        }
+        /**
+         * The page itself, without the query and the fragment.
+         *
+         * This is both what the OAuth App is registered for and what the token
+         * exchange is checked against, so the two have to be spelled the same way
+         * on the way there and on the way back.
+         */
+        static oauth_back(href) {
+            try {
+                const uri = new URL(href);
+                return uri.origin + uri.pathname;
+            }
+            catch {
+                return '';
+            }
+        }
+        /** What the consent screen left in the address. */
+        static oauth_return(href) {
+            let args = new URLSearchParams();
+            try {
+                args = new URL(href).searchParams;
+            }
+            catch { }
+            return {
+                code: args.get('code') ?? '',
+                state: args.get('state') ?? '',
+                error: args.get('error') ?? '',
+                descr: args.get('error_description') ?? '',
+            };
+        }
+        /**
+         * The same address with the OAuth keys taken out.
+         *
+         * Everything else survives — the fragment above all, since the editor
+         * keeps its whole state there and `$mol_state_arg` copies whatever the
+         * address holds into every link it builds.
+         */
+        static oauth_clean(href) {
+            try {
+                const uri = new URL(href);
+                for (const key of figmol_deploy_oauth_keys)
+                    uri.searchParams.delete(key);
+                const query = uri.searchParams.toString();
+                return uri.origin + uri.pathname + (query ? '?' + query : '') + uri.hash;
+            }
+            catch {
+                return href;
+            }
+        }
+        /** Whether such a return is worth a token exchange, and why not otherwise. */
+        static oauth_verdict(back, want) {
+            // A refusal on the consent screen is an answer, not a failure.
+            if (back.error === 'access_denied')
+                return 'skip';
+            if (back.error)
+                return 'error';
+            if (!back.code)
+                return 'skip';
+            return want && back.state === want ? 'take' : 'wrong';
+        }
+        /** The proxy answers in OAuth's own shape, not in GitHub's. */
+        static oauth_fail(code, body) {
+            try {
+                const data = JSON.parse(body);
+                const message = String(data?.error_description || data?.error || '');
+                if (message)
+                    return 'Sign in failed — ' + message;
+            }
+            catch { }
+            return 'Sign in failed — the proxy answered ' + code;
+        }
         /* ------------------------------------------------------------- transport */
         headers(body) {
             const res = {
@@ -29022,15 +29366,23 @@ var $;
          *
          * The exchange needs the client secret, which is why it cannot happen in
          * the browser; the proxy holds the secret and stores nothing.
+         *
+         * `redirect` repeats what the consent screen was asked for — GitHub
+         * refuses an exchange whose redirect differs from the one that earned the
+         * code, and the proxy checks it against its own allowlist besides.
+         *
+         * An action rather than a plain method, and that is the point: a code is
+         * good for one exchange, and a caller whose fiber restarts replays the
+         * cached answer instead of spending the code twice.
          */
-        oauth_token(proxy, code) {
+        oauth_token(proxy, code, redirect = '') {
             const res = this.$.$mol_fetch.response(proxy.replace(/\/+$/, '') + '/exchange', {
                 method: 'POST',
                 headers: { 'accept': 'application/json', 'content-type': 'application/json' },
-                body: JSON.stringify({ code }),
+                body: JSON.stringify(redirect ? { code, redirect_uri: redirect } : { code }),
             });
             if (!res.ok())
-                throw new Error($bog_figmol_deploy_github.fail(res.code(), res.text()));
+                throw new Error($bog_figmol_deploy_github.oauth_fail(res.code(), res.text()));
             return String(res.json()?.access_token ?? '');
         }
     }
@@ -29100,6 +29452,41 @@ var $;
         gap: $mol_gap.block,
         padding: $mol_gap.block,
         maxWidth: '34rem',
+        Auth: {
+            gap: $mol_gap.text,
+        },
+        Auth_head: {
+            flex: {
+                direction: 'column',
+            },
+            gap: $mol_gap.text,
+        },
+        Login_hint: {
+            color: $mol_theme.shade,
+            font: {
+                size: '0.85rem',
+            },
+        },
+        Account: {
+            gap: $mol_gap.space,
+            align: {
+                items: 'center',
+            },
+            justify: {
+                content: 'space-between',
+            },
+        },
+        Account_name: {
+            flex: {
+                grow: 1,
+            },
+            minWidth: 0,
+            overflow: {
+                x: 'hidden',
+            },
+            whiteSpace: 'nowrap',
+            textOverflow: 'ellipsis',
+        },
         Fields: {
             gap: $mol_gap.text,
         },
@@ -29257,6 +29644,19 @@ var $;
             token(next) {
                 return this.$.$bog_figmol_deploy_github.token_saved(next);
             }
+            /** Login of the account that token belongs to, remembered beside it. */
+            account(next) {
+                return this.$.$bog_figmol_deploy_github.login_saved(next);
+            }
+            /**
+             * One time value of a sign in under way, kept across the redirect.
+             *
+             * Like the token above, it is stored rather than held: the browser leaves
+             * the page in between, and nothing in memory survives that.
+             */
+            nonce(next) {
+                return this.$.$bog_figmol_deploy_github.state_saved(next);
+            }
             github() {
                 return this.$.$bog_figmol_deploy_github.make({
                     token: () => this.token(),
@@ -29265,6 +29665,131 @@ var $;
             }
             token_uri() {
                 return this.$.$bog_figmol_deploy_github.token_uri();
+            }
+            /* ------------------------------------------------------------- signing in */
+            oauth_client() {
+                return this.$.$bog_figmol_deploy_github.oauth_client();
+            }
+            oauth_proxy() {
+                return this.$.$bog_figmol_deploy_github.oauth_proxy();
+            }
+            /** Whether this browser holds a token at all, however it got one. */
+            signed() {
+                return !!this.token().trim();
+            }
+            /**
+             * Only the head of the section changes with the token — the fold with the
+             * field in it is a fixed row below.
+             *
+             * That is not a matter of taste: the field writes on every keystroke, and
+             * a section rebuilt around it would take the field out of the page on the
+             * first character of a token typed by hand.
+             */
+            auth_head() {
+                if (this.signed())
+                    return [this.Account()];
+                return [this.Login(), this.Login_hint()];
+            }
+            /**
+             * Whom the token belongs to.
+             *
+             * A token typed in by hand names nobody until the first publication asks
+             * GitHub, and saying so is more honest than an empty line.
+             */
+            account_label() {
+                const login = this.account();
+                return login ? this.signed_label() + ' ' + login : this.token_label();
+            }
+            /** Leaves the page. A test overrides it — leaving is not an option there. */
+            go(uri) {
+                this.$.$mol_dom_context.location.href = uri;
+            }
+            /**
+             * Off to the consent screen.
+             *
+             * The one time value is written down before the browser leaves, and it is
+             * the only thing that will tell a return meant for this window from a code
+             * somebody else has arranged to land here.
+             */
+            login(next) {
+                if (next === undefined)
+                    return null;
+                const klass = this.$.$bog_figmol_deploy_github;
+                const state = klass.oauth_state();
+                this.nonce(state);
+                this.problem('');
+                this.go(klass.oauth_uri(this.oauth_client(), this.oauth_back(), state));
+                return null;
+            }
+            logout(next) {
+                if (next === undefined)
+                    return null;
+                this.token('');
+                this.account('');
+                this.nonce('');
+                this.owner('');
+                this.problem('');
+                return null;
+            }
+            /** Where the consent screen sends the browser back to: this page, bare. */
+            oauth_back(href = this.$.$mol_state_arg.href()) {
+                return this.$.$bog_figmol_deploy_github.oauth_back(href);
+            }
+            /**
+             * Takes the OAuth keys out of the address.
+             *
+             * Through `$mol_state_arg` rather than around it: the address it holds is
+             * the one it copies into every link the app builds, so a `replaceState`
+             * behind its back would keep handing out a spent code.
+             */
+            oauth_clean(href) {
+                const clean = this.$.$bog_figmol_deploy_github.oauth_clean(href);
+                if (clean !== href)
+                    this.$.$mol_state_arg.href(clean);
+            }
+            /**
+             * Finishes a sign in the consent screen has sent back.
+             *
+             * Undecorated, like `pipeline`: the caller hands it a fiber, and that
+             * fiber restarts from the top every time the exchange suspends. So the
+             * whole body is either idempotent or an action whose answer is replayed
+             * from the fiber's own cache — which is what keeps a single use code from
+             * being spent a second time.
+             *
+             * The address is handed in rather than read here for the same reason: by
+             * the second pass it has already been cleaned.
+             */
+            oauth_land(href) {
+                const klass = this.$.$bog_figmol_deploy_github;
+                const back = klass.oauth_return(href);
+                const verdict = klass.oauth_verdict(back, this.nonce());
+                this.oauth_clean(href);
+                if (verdict === 'skip') {
+                    this.nonce('');
+                    return;
+                }
+                if (verdict !== 'take') {
+                    this.nonce('');
+                    this.problem(verdict === 'wrong' ? this.login_wrong() : (back.descr || back.error));
+                    return;
+                }
+                try {
+                    const github = this.github();
+                    const token = github.oauth_token(this.oauth_proxy(), back.code, this.oauth_back(href));
+                    if (!token)
+                        throw new Error(this.login_none());
+                    this.token(token);
+                    this.account(github.user().login);
+                    this.nonce('');
+                    this.problem('');
+                }
+                catch (error) {
+                    if ($mol_promise_like(error))
+                        $mol_fail_hidden(error);
+                    $mol_fail_log(error);
+                    this.nonce('');
+                    this.problem(error?.message ?? String(error));
+                }
             }
             /* ------------------------------------------------------------------ state */
             /** Login of the account the token belongs to. */
@@ -29444,6 +29969,9 @@ var $;
                     const owner = github.user().login;
                     this.owner(owner);
                     this.note('login', owner);
+                    // A token pasted by hand names its account only here, and from now
+                    // on the panel can say whose it is.
+                    this.account(owner);
                     this.stage('login', 'done');
                     this.stage('repo', 'work');
                     const found = github.repo(owner, name);
@@ -29521,6 +30049,21 @@ var $;
         __decorate([
             $mol_mem
         ], $bog_figmol_deploy_publish.prototype, "github", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_deploy_publish.prototype, "signed", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_deploy_publish.prototype, "auth_head", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_deploy_publish.prototype, "account_label", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_deploy_publish.prototype, "login", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_deploy_publish.prototype, "logout", null);
         __decorate([
             $mol_mem
         ], $bog_figmol_deploy_publish.prototype, "owner", null);
@@ -31248,7 +31791,41 @@ var $;
                         $mol_fail_log(error);
                 }
                 this.listen();
+                this.oauth_catch();
                 super.auto();
+            }
+            /* ------------------------------------------------------------- signing in */
+            /**
+             * Whether the return from GitHub has been picked up already.
+             *
+             * A plain field rather than an atom: `auto` runs inside a memoized render
+             * and is re-entered whenever anything it reads changes — the address
+             * included, which this very handler is about to rewrite. A cell would be
+             * reset along with the render and let a spent code go round again.
+             */
+            oauth_seen = false;
+            /**
+             * A code in the address means the user is coming back from the consent
+             * screen. The rail is reopened and the panel finishes the exchange: the
+             * token is its business, and a refusal needs somewhere to be shown.
+             *
+             * Both are done in a fiber of their own — `auto` is part of a render, and
+             * writing state from there loops.
+             */
+            oauth_catch() {
+                if (this.oauth_seen)
+                    return;
+                this.oauth_seen = true;
+                const href = this.$.$mol_state_arg.href();
+                const back = this.$.$bog_figmol_deploy_github.oauth_return(href);
+                if (!back.code && !back.error)
+                    return;
+                $mol_wire_async(this).oauth_land(href);
+            }
+            /** Never decorated — `$mol_wire_async` above hands it a fiber. */
+            oauth_land(href) {
+                this.publishing(true);
+                this.Publish().oauth_land(href);
             }
             /* --------------------------------------------------------------- rights */
             /**

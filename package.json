@@ -434,6 +434,8 @@
     "$mol_button_major",
     "$mol_status",
     "$mol_labeler",
+    "$mol_expander",
+    "$mol_check_expand",
     "$bog_figmol_deploy_github",
     "$mol_fetch",
     "$mol_error_enriched",
