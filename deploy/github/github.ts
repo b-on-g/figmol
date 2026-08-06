@@ -8,6 +8,20 @@ namespace $ {
 		'mol', 'hyoo', 'bog', 'giper', 'node', 'mam', 'my', 'app', 'web', 'test', 'exam',
 	]
 
+	/**
+	 * Public half of the OAuth App the published editor signs in through.
+	 *
+	 * A client id is meant to be read by anybody — it travels in the address of
+	 * the consent screen. The secret half never leaves the proxy below.
+	 */
+	const figmol_deploy_client = 'Ov23liiOSDbpdHqaotYF'
+
+	/** The one service of ours in the whole picture: it trades a code for a token. */
+	const figmol_deploy_proxy = 'https://figmol-oauth.91-188-212-151.ip.giper.dev'
+
+	/** What the consent screen adds to the address, and what is taken back out. */
+	const figmol_deploy_oauth_keys = [ 'code', 'state', 'error', 'error_description', 'error_uri' ]
+
 	/** A workflow run, cut down to what publishing needs to know. */
 	export type $bog_figmol_deploy_github_run = {
 		readonly id?: number
@@ -29,6 +43,23 @@ namespace $ {
 
 	/** How far along a step of the pipeline is. */
 	export type $bog_figmol_deploy_github_state = 'wait' | 'work' | 'done' | 'fail'
+
+	/** A return from the consent screen, as it arrives in the address. */
+	export type $bog_figmol_deploy_github_back = {
+		readonly code: string
+		readonly state: string
+		readonly error: string
+		readonly descr: string
+	}
+
+	/**
+	 * What to make of such a return.
+	 *
+	 * `take` — trade the code; `skip` — nothing happened, or the user said no;
+	 * `wrong` — it does not answer a request this browser made; `error` — GitHub
+	 * refused and explained itself.
+	 */
+	export type $bog_figmol_deploy_github_verdict = 'take' | 'skip' | 'wrong' | 'error'
 
 	/**
 	 * The slice of the GitHub REST API that publishing a generated site needs.

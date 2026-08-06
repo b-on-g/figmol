@@ -3,14 +3,7 @@ name: $bog_figmol_app
 permissions: write-all
 
 on:
-    workflow_dispatch:
     push:
-    pull_request:
-    delete:
-
-concurrency:
-    group: deploy-${{ github.ref }}
-    cancel-in-progress: true
 
 jobs:
     build:
