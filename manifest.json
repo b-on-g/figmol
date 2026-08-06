@@ -1,0 +1,10 @@
+{
+	"name": "bog_figmol_app",
+	"short_name": "bog_figmol_app",
+	"description": "",
+	"id": "bog_figmol_app",
+	"start_url": ".",
+	"display": "standalone",
+	"background_color": "#000000",
+	"theme_color": "#000000"
+}
