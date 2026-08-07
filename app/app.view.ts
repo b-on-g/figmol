@@ -40,16 +40,52 @@ namespace $.$$ {
 		 */
 		override auto() {
 
+			let site = null as ReturnType< $bog_figmol_store[ 'site' ] >
+
 			try {
-				this.store().site()
+				site = this.store().site()
 			} catch( error ) {
 				if( !$mol_promise_like( error ) ) $mol_fail_log( error )
 			}
 
 			this.listen()
 			this.oauth_catch()
+			this.live().start()
+
+			if( site ) this.live_open()
 
 			super.auto()
+		}
+
+		/* -------------------------------------------------------------- presence */
+
+		/**
+		 * Whether the room has been asked for already.
+		 *
+		 * A plain field for the same reason `oauth_seen` is one: `auto` belongs to
+		 * a memoized render and is re-entered whenever anything it reads changes,
+		 * and a cell reset along with it would grab a second Land.
+		 */
+		live_seen = false
+
+		/**
+		 * Makes the room the first time the owner opens this site, in a fiber of
+		 * its own — grabbing a Land runs Proof of Work, and the task belongs to
+		 * whoever asked for it. A visitor asks for nothing: the link to the room
+		 * lives in the site, and writing there is not theirs to do.
+		 *
+		 * A window with no site yet asks for nothing either, which is why `auto`
+		 * only calls this once there is one: it reads the site and is re-entered
+		 * when one appears, so pressing "create a site" opens the room right after.
+		 */
+		live_open() {
+
+			if( this.live_seen ) return
+			this.live_seen = true
+
+			$mol_wire_async( this.live() ).room_make().catch( ( error: unknown )=> {
+				if( !$mol_promise_like( error ) ) $mol_fail_log( error )
+			} )
 		}
 
 		/* -------------------------------------------------------------- selection */
@@ -140,7 +176,7 @@ namespace $.$$ {
 		@ $mol_mem
 		override head_tools(): readonly $mol_view[] {
 
-			const res = [ this.Title(), this.Status() ] as $mol_view[]
+			const res = [ this.Title(), this.Status(), this.Mates() ] as $mol_view[]
 
 			if( this.editable() ) res.push( this.Share(), this.Publish_toggle() )
 			else if( this.shared() ) res.push( this.Readonly(), this.Mine() )
