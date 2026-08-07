@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>figmol tests</title>
+	<style>
+		body { margin: 0; font: 13px/1.5 ui-monospace, monospace; background: #111; color: #eee }
+		pre { margin: 0; padding: 1rem; white-space: pre-wrap }
+		b { color: #7ee787 }
+		i { color: #ff7b72; font-style: normal }
+	</style>
+</head>
+<body>
+	<pre id="out">running…</pre>
+
+	<!--
+		The test bundle holds the test files alone, so the application itself has
+		to be loaded first — which is also why `test.html` next door loads two
+		scripts rather than one.
+	-->
+	<script src="-/web.js"></script>
+	<script src="-/web.test.js"></script>
+
+	<script>
+		;( function () {
+
+			const all = $.$mol_test_all.slice()
+			const mocks = $.$mol_test_mocks.slice()
+
+			// The bundle schedules a run of its own a second from now, and that
+			// one stops at the first failure without a word about it. This one
+			// walks every test and names all of them.
+			$.$mol_test_all.length = 0
+
+			const args = new URLSearchParams( location.search )
+			const only = args.get( 'only' ) || ''
+			const limit = Number( args.get( 'limit' ) || 5000 )
+
+			const out = document.getElementById( 'out' )
+
+			addEventListener( 'load', async function () {
+
+				const lines = []
+				const slow = []
+				let pass = 0, fail = 0, skip = 0
+
+				for ( const test of all ) {
+
+					const name = test.name || '(anonymous)'
+					if ( only && !new RegExp( only, 'i' ).test( name ) ) { ++skip; continue }
+
+					const started = Date.now()
+
+					try {
+
+						const context = Object.create( $.$$ )
+						for ( const mock of mocks ) await mock( context )
+
+						const res = test( context )
+
+						if ( res && typeof res.then === 'function' ) {
+							await Promise.race( [
+								res,
+								new Promise( ( _, bad )=> setTimeout( ()=> bad( new Error( 'test timeout' ) ), limit ) ),
+							] )
+						}
+
+						++pass
+
+					} catch ( error ) {
+
+						++fail
+
+						let cause = ''
+						try {
+							if ( error && error.cause ) cause = '\n      ' + JSON.stringify( error.cause )
+						} catch ( _ ) {
+							cause = '\n      <cause is not printable>'
+						}
+
+						lines.push(
+							'FAIL  ' + name
+							+ '\n      ' + ( ( error && error.message ) || String( error ) )
+							+ cause
+							+ '\n' + String( ( error && error.stack ) || '' ).split( '\n' ).slice( 1, 7 ).join( '\n' )
+						)
+
+					}
+
+					const spent = Date.now() - started
+					if ( spent > 300 ) slow.push( spent + 'ms  ' + name )
+
+				}
+
+				const head = 'PASS ' + pass + '  FAIL ' + fail + '  SKIP ' + skip
+				document.title = head
+
+				out.innerHTML = ''
+				const mark = document.createElement( fail ? 'i' : 'b' )
+				mark.textContent = head
+				out.appendChild( mark )
+				out.appendChild( document.createTextNode(
+					'\n\n' + lines.join( '\n' ) + ( slow.length ? '\n\n--- slow ---\n' + slow.join( '\n' ) : '' )
+				) )
+
+				// Also said out loud, so a headless run that cannot dump the page
+				// can be read off the log of whatever is serving it.
+				for ( const line of lines ) new Image().src = '?fail=' + encodeURIComponent( line.split( '\n' )[ 0 ] )
+				new Image().src = '?report=' + encodeURIComponent( head )
+
+			} )
+
+		} )()
+	</script>
+</body>
+</html>
