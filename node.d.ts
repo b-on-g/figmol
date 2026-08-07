@@ -40114,6 +40114,190 @@ declare namespace $ {
 }
 
 declare namespace $ {
+    /**
+     * Where somebody is, unpacked.
+     *
+     * Deliberately not named after the module it lives in: to the builder an
+     * identifier of that shape is a path, and it would go looking for a module
+     * under `live/` that does not exist.
+     */
+    type Spot = {
+        /** Page, or component master, they are looking at. */
+        readonly place: string;
+        /** Cursor in sheet pixels, `null` when it is not over the sheet. */
+        readonly x: number | null;
+        readonly y: number | null;
+        /** Their own clock at the moment they wrote this. */
+        readonly wall: number;
+    };
+    /**
+     * Who else is looking at this site, and where their cursor is.
+     *
+     * Everything travels through a Land of its own, grabbed by the owner and
+     * writable by anybody holding the link. The site itself stays readable and
+     * nothing more for a visitor — which is the point: presence is not allowed
+     * anywhere near the document, whose ordered lists do not survive two writers
+     * (see the note on co-editing in the README).
+     *
+     * Inside that Land nobody writes anybody else's pawn either. A participant
+     * owns the key named after their lord and the three registers under it, so
+     * the only shared write in the whole channel is putting that key in, once
+     * per person — a plain CRDT insert with a fresh self, which merges.
+     *
+     * Nothing that returns a Baza object is memoized: `@$mol_mem` makes the atom
+     * the owner of what it returns, and destructing a Land walks into a circular
+     * subscription.
+     */
+    export class $bog_figmol_live extends $mol_object2 {
+        /**
+         * The document this presence is about. Handed in by the app, which owns
+         * the one instance of both.
+         */
+        store(): $bog_figmol_store;
+        /**
+         * What this browser has picked. Bound to the selection of the editor, so
+         * the channel reads it rather than being told — the selection changes from
+         * the canvas, the layer tree, the palette and the undo journal alike.
+         */
+        picked(): readonly string[];
+        /** Who this browser is, in the eyes of the Baza. */
+        lord(): string;
+        /**
+         * What this browser calls itself.
+         *
+         * Kept beside the browser rather than in the document: the same person in
+         * two tabs is two participants with two cursors, and naming them is a
+         * property of the window they are in.
+         */
+        name(next?: string): string;
+        /** What the canvas is showing: a component master takes over from a page. */
+        place(): string;
+        /** Where everybody says where they are, `null` until there is one. */
+        room(): $bog_figmol_schema_live | null;
+        /** Somebody's pawn in the room, `null` when they have never been here. */
+        mate(lord: string): $bog_figmol_schema_mate | null;
+        /** This browser's own pawn, put in the room the first time it is asked for. */
+        mine(): $bog_figmol_schema_mate | null;
+        /**
+         * Makes the room, and does nothing at all for a visitor: the link to it
+         * lives in the site, and a visitor may not write there.
+         *
+         * Must run in a fiber of its own — grabbing a Land runs Proof of Work,
+         * whose task belongs to the fiber that asked for it. A render would begin
+         * the proof afresh on every retry and never finish one.
+         */
+        room_make(): $bog_figmol_schema_live | null;
+        /** Everybody who has ever been in the room, this browser included. */
+        lords(): readonly string[];
+        /**
+         * Everybody but this browser who has said something lately.
+         *
+         * A room that has not arrived yet is nobody rather than a broken header:
+         * the atom subscribed to the reads it made before suspending, and comes
+         * back on its own once they resolve.
+         */
+        mates(): readonly string[];
+        /**
+         * Everybody whose cursor belongs on what the canvas is drawing now: same
+         * page or same component master, and heard from recently enough for the
+         * position to still mean something.
+         */
+        crowd(place: string): readonly string[];
+        /** Whether somebody has moved lately enough to be drawn where they were. */
+        awake(lord: string): boolean;
+        /** Whether somebody is still around. */
+        here(lord: string): boolean;
+        /**
+         * When this browser last saw that person say anything, by this browser's
+         * own clock.
+         *
+         * The cell is recomputed exactly when their registers change and never
+         * otherwise, so the answer needs no bookkeeping — and no agreement between
+         * two clocks, which two machines do not have.
+         */
+        seen(lord: string): number;
+        /** Where somebody is, as they last said. */
+        spot(lord: string): Spot;
+        /** What somebody has picked. */
+        pick(lord: string): readonly string[];
+        /** What to call somebody: their own name, or the short of their lord. */
+        title(lord: string): string;
+        /** The colour that is theirs in every browser at once. */
+        color(lord: string): string;
+        /**
+         * Where the pointer is, in sheet pixels, and whether it is over the sheet
+         * at all.
+         *
+         * Plain fields: a cursor moving repaints nothing here, and a cell written
+         * by one event handler and read by another is reset between the two — the
+         * fiber of the previous event is its only subscriber, and the next event
+         * kills it.
+         */
+        spot_x: number | null;
+        spot_y: number | null;
+        /** What went out last, so an unchanged cursor costs one comparison. */
+        sent_body: string;
+        sent_pick: string;
+        sent_time: number;
+        /** Whether something that is not the cursor has changed. */
+        dirty: boolean;
+        /** Whether a write has ever reached the room. */
+        ready: boolean;
+        /** Whether the beat is running, and what to stop. */
+        timer: null | ReturnType<typeof setInterval>;
+        /** Where the pointer is now. `null` twice means it has left the sheet. */
+        point(x: number | null, y: number | null): void;
+        /**
+         * Starts the beat, once.
+         *
+         * Called from the render of the app, which is why the guard is a plain
+         * field and not an atom: a render re-runs, and a cell reset along with it
+         * would leave a second timer running beside the first.
+         */
+        start(): void;
+        destructor(): void;
+        /**
+         * Decides whether anything is worth writing — many times a second, and
+         * without touching the Baza when it is not.
+         *
+         * Reading the editor from here may suspend while the site loads. That is
+         * not an error and not worth a line in the log: the next tick asks again.
+         */
+        tick(): void;
+        /**
+         * Says where this browser is. Never decorated — `tick` hands it a fiber.
+         *
+         * Every register is written unconditionally: an atom whose value has not
+         * changed posts nothing, so the deduplication is already done a level
+         * below and doing it again here would only be a second place to get wrong.
+         */
+        flush(): void;
+        /**
+         * Colours participants are given, in the order the palette hands them out.
+         * Picked to stay apart on a white sheet and on a dark one alike.
+         */
+        static colors: readonly string[];
+        /**
+         * Which colour of the palette a lord gets.
+         *
+         * A hash rather than a counter, so every browser works the answer out for
+         * itself and two of them never disagree about who is red.
+         */
+        static slot(lord: string): number;
+        static color(lord: string): string;
+        /** What to call somebody who has not said. */
+        static label(lord: string): string;
+        /** Packs where somebody is into the one register that carries it. */
+        static spot_pack(place: string, x: number | null, y: number | null, wall: number): string;
+        static spot_read(raw: string): Spot;
+        /** Links of the picked nodes. They never contain a space. */
+        static pick_pack(ids: readonly string[]): string;
+        static pick_read(raw: string): readonly string[];
+    }
+    export {};
+}
+
+declare namespace $ {
 
 	export class $mol_ghost extends $mol_view {
 		Sub( ): $mol_view
@@ -41653,6 +41837,65 @@ declare namespace $.$$ {
         master_id(uri: string): string;
         option_label(uri: string): string;
         value(next?: string): string;
+    }
+}
+
+declare namespace $ {
+}
+
+declare namespace $ {
+
+	type $mol_view__style_bog_figmol_app_mates_1 = $mol_type_enforce<
+		({ 
+			'backgroundColor': ReturnType< $bog_figmol_app_mates['chip_color'] >,
+		}) 
+		,
+		ReturnType< $mol_view['style'] >
+	>
+	type $mol_string__value_bog_figmol_app_mates_2 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_mates['name'] >
+		,
+		ReturnType< $mol_string['value'] >
+	>
+	type $mol_string__hint_bog_figmol_app_mates_3 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_mates['name_hint'] >
+		,
+		ReturnType< $mol_string['hint'] >
+	>
+	type $mol_view__sub_bog_figmol_app_mates_4 = $mol_type_enforce<
+		readonly(any)[]
+		,
+		ReturnType< $mol_view['sub'] >
+	>
+	export class $bog_figmol_app_mates extends $mol_view {
+		chips( ): readonly($mol_view)[]
+		name( next?: string ): string
+		name_hint( ): string
+		chip_color( id: any): string
+		Dot( id: any): $mol_view
+		chip_name( id: any): string
+		live( ): $bog_figmol_live
+		sub( ): ReturnType< $bog_figmol_app_mates['chips'] >
+		Name( ): $mol_string
+		Chip( id: any): $mol_view
+	}
+	
+}
+
+//# sourceMappingURL=mates.view.tree.d.ts.map
+declare namespace $.$$ {
+    /**
+     * Who else is looking at this site: a coloured dot and a name each.
+     *
+     * Empty while nobody else is around, and the field for one's own name goes
+     * with it — a header of a lone editor has nothing to say about company, and
+     * a name nobody will read is not worth a control.
+     */
+    class $bog_figmol_app_mates extends $.$bog_figmol_app_mates {
+        chips(): readonly $mol_view[];
+        name(next?: string): string;
+        chip_color(lord: string): string;
+        chip_name(lord: string): string;
     }
 }
 
@@ -43463,6 +43706,7 @@ declare namespace $ {
 		style_font_size( ): string
 		style_weight( ): string
 		style_text_align( ): string
+		style_mark( ): string
 		content( ): readonly(any)[]
 		uri( ): string
 		master_root( ): string
@@ -43482,6 +43726,7 @@ declare namespace $ {
 		label( next?: string ): string
 		editable( ): boolean
 		selected( ): boolean
+		mark( ): string
 		grips( ): boolean
 		editing( ): boolean
 		dropping( ): boolean
@@ -43507,6 +43752,7 @@ declare namespace $ {
 			'fontSize': ReturnType< $bog_figmol_app_canvas_shape['style_font_size'] >,
 			'fontWeight': ReturnType< $bog_figmol_app_canvas_shape['style_weight'] >,
 			'textAlign': ReturnType< $bog_figmol_app_canvas_shape['style_text_align'] >,
+			'boxShadow': ReturnType< $bog_figmol_app_canvas_shape['style_mark'] >,
 		}) 
 		sub( ): ReturnType< $bog_figmol_app_canvas_shape['content'] >
 		Label( ): $mol_view
@@ -43598,6 +43844,15 @@ declare namespace $.$$ {
         inner_gap(): string;
         inner_padding(): string;
         inner_align(): "" | "center" | "flex-start" | "flex-end" | "stretch";
+        /**
+         * Ring around the shape when somebody else has it picked, in their colour.
+         *
+         * Written here rather than left to the stylesheet because the ring this
+         * browser draws for its own selection is a shadow too, and one property
+         * cannot come from two places: an empty answer hands the shape back to
+         * the rule behind `figmol_selected`, and a full one spells both rings out.
+         */
+        style_mark(): string;
         style_color(): string;
         style_back(): string;
         style_font_size(): string;
@@ -43609,6 +43864,41 @@ declare namespace $.$$ {
     }
 }
 
+declare namespace $ {
+}
+
+declare namespace $ {
+
+	type $mol_view__style_bog_figmol_app_canvas_cursor_1 = $mol_type_enforce<
+		({ 
+			'borderBottomColor': ReturnType< $bog_figmol_app_canvas_cursor['color'] >,
+		}) 
+		,
+		ReturnType< $mol_view['style'] >
+	>
+	type $mol_view__style_bog_figmol_app_canvas_cursor_2 = $mol_type_enforce<
+		({ 
+			'backgroundColor': ReturnType< $bog_figmol_app_canvas_cursor['color'] >,
+		}) 
+		,
+		ReturnType< $mol_view['style'] >
+	>
+	type $mol_view__sub_bog_figmol_app_canvas_cursor_3 = $mol_type_enforce<
+		readonly(any)[]
+		,
+		ReturnType< $mol_view['sub'] >
+	>
+	export class $bog_figmol_app_canvas_cursor extends $mol_view {
+		Arrow( ): $mol_view
+		Label( ): $mol_view
+		color( ): string
+		mate_name( ): string
+		sub( ): readonly(any)[]
+	}
+	
+}
+
+//# sourceMappingURL=cursor.view.tree.d.ts.map
 declare namespace $ {
 }
 
@@ -43825,32 +44115,54 @@ declare namespace $ {
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['selected'] >
 	>
-	type $bog_figmol_app_canvas_shape__grips_bog_figmol_app_canvas_27 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_shape__mark_bog_figmol_app_canvas_27 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_canvas['shape_mark'] >
+		,
+		ReturnType< $bog_figmol_app_canvas_shape['mark'] >
+	>
+	type $bog_figmol_app_canvas_shape__grips_bog_figmol_app_canvas_28 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['shape_grips'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['grips'] >
 	>
-	type $bog_figmol_app_canvas_shape__editing_bog_figmol_app_canvas_28 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_shape__editing_bog_figmol_app_canvas_29 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['shape_editing'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['editing'] >
 	>
-	type $bog_figmol_app_canvas_shape__dropping_bog_figmol_app_canvas_29 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_shape__dropping_bog_figmol_app_canvas_30 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['shape_dropping'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['dropping'] >
 	>
-	type $bog_figmol_app_canvas_shape__kids_bog_figmol_app_canvas_30 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_shape__kids_bog_figmol_app_canvas_31 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['shape_kids'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['kids'] >
 	>
-	type $bog_figmol_app_canvas_shape__rect_bog_figmol_app_canvas_31 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_shape__rect_bog_figmol_app_canvas_32 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['shape_rect'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['rect'] >
 	>
-	type $mol_view__style_bog_figmol_app_canvas_32 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_cursor__color_bog_figmol_app_canvas_33 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_canvas['cursor_color'] >
+		,
+		ReturnType< $bog_figmol_app_canvas_cursor['color'] >
+	>
+	type $bog_figmol_app_canvas_cursor__mate_name_bog_figmol_app_canvas_34 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_canvas['cursor_name'] >
+		,
+		ReturnType< $bog_figmol_app_canvas_cursor['mate_name'] >
+	>
+	type $bog_figmol_app_canvas_cursor__style_bog_figmol_app_canvas_35 = $mol_type_enforce<
+		({ 
+			'transform': ReturnType< $bog_figmol_app_canvas['cursor_transform'] >,
+		}) 
+		,
+		ReturnType< $bog_figmol_app_canvas_cursor['style'] >
+	>
+	type $mol_view__style_bog_figmol_app_canvas_36 = $mol_type_enforce<
 		({ 
 			'left': ReturnType< $bog_figmol_app_canvas['marquee_left'] >,
 			'top': ReturnType< $bog_figmol_app_canvas['marquee_top'] >,
@@ -43860,7 +44172,7 @@ declare namespace $ {
 		,
 		ReturnType< $mol_view['style'] >
 	>
-	type $mol_view__style_bog_figmol_app_canvas_33 = $mol_type_enforce<
+	type $mol_view__style_bog_figmol_app_canvas_37 = $mol_type_enforce<
 		({ 
 			'left': ReturnType< $bog_figmol_app_canvas['guide_x_left'] >,
 			'top': ReturnType< $bog_figmol_app_canvas['guide_x_top'] >,
@@ -43869,7 +44181,7 @@ declare namespace $ {
 		,
 		ReturnType< $mol_view['style'] >
 	>
-	type $mol_view__style_bog_figmol_app_canvas_34 = $mol_type_enforce<
+	type $mol_view__style_bog_figmol_app_canvas_38 = $mol_type_enforce<
 		({ 
 			'top': ReturnType< $bog_figmol_app_canvas['guide_y_top'] >,
 			'left': ReturnType< $bog_figmol_app_canvas['guide_y_left'] >,
@@ -43878,7 +44190,7 @@ declare namespace $ {
 		,
 		ReturnType< $mol_view['style'] >
 	>
-	type $mol_view__style_bog_figmol_app_canvas_35 = $mol_type_enforce<
+	type $mol_view__style_bog_figmol_app_canvas_39 = $mol_type_enforce<
 		({ 
 			'left': ReturnType< $bog_figmol_app_canvas['measure_left'] >,
 			'top': ReturnType< $bog_figmol_app_canvas['measure_top'] >,
@@ -43888,19 +44200,19 @@ declare namespace $ {
 		,
 		ReturnType< $mol_view['style'] >
 	>
-	type $mol_view__sub_bog_figmol_app_canvas_36 = $mol_type_enforce<
+	type $mol_view__sub_bog_figmol_app_canvas_40 = $mol_type_enforce<
 		readonly(any)[]
 		,
 		ReturnType< $mol_view['sub'] >
 	>
-	type $mol_view__attr_bog_figmol_app_canvas_37 = $mol_type_enforce<
+	type $mol_view__attr_bog_figmol_app_canvas_41 = $mol_type_enforce<
 		({ 
 			'figmol_group': string,
 		})  & ReturnType< $mol_view['attr'] >
 		,
 		ReturnType< $mol_view['attr'] >
 	>
-	type $mol_view__style_bog_figmol_app_canvas_38 = $mol_type_enforce<
+	type $mol_view__style_bog_figmol_app_canvas_42 = $mol_type_enforce<
 		({ 
 			'left': ReturnType< $bog_figmol_app_canvas['group_left'] >,
 			'top': ReturnType< $bog_figmol_app_canvas['group_top'] >,
@@ -43910,19 +44222,19 @@ declare namespace $ {
 		,
 		ReturnType< $mol_view['style'] >
 	>
-	type $mol_view__sub_bog_figmol_app_canvas_39 = $mol_type_enforce<
+	type $mol_view__sub_bog_figmol_app_canvas_43 = $mol_type_enforce<
 		readonly(any)[]
 		,
 		ReturnType< $mol_view['sub'] >
 	>
-	type $mol_view__attr_bog_figmol_app_canvas_40 = $mol_type_enforce<
+	type $mol_view__attr_bog_figmol_app_canvas_44 = $mol_type_enforce<
 		({ 
 			'figmol_menu': string,
 		})  & ReturnType< $mol_view['attr'] >
 		,
 		ReturnType< $mol_view['attr'] >
 	>
-	type $mol_view__style_bog_figmol_app_canvas_41 = $mol_type_enforce<
+	type $mol_view__style_bog_figmol_app_canvas_45 = $mol_type_enforce<
 		({ 
 			'left': ReturnType< $bog_figmol_app_canvas['menu_left'] >,
 			'top': ReturnType< $bog_figmol_app_canvas['menu_top'] >,
@@ -43930,7 +44242,7 @@ declare namespace $ {
 		,
 		ReturnType< $mol_view['style'] >
 	>
-	type $mol_view__sub_bog_figmol_app_canvas_42 = $mol_type_enforce<
+	type $mol_view__sub_bog_figmol_app_canvas_46 = $mol_type_enforce<
 		readonly(any)[]
 		,
 		ReturnType< $mol_view['sub'] >
@@ -43941,6 +44253,7 @@ declare namespace $ {
 		pointer_down( next?: any ): any
 		pointer_move( next?: any ): any
 		pointer_up( next?: any ): any
+		pointer_out( next?: any ): any
 		pointer_edit( next?: any ): any
 		wheel_zoom( next?: any ): any
 		context_menu( next?: any ): any
@@ -43958,11 +44271,15 @@ declare namespace $ {
 		editable( ): boolean
 		shape_id( id: any): string
 		shape_selected( id: any): boolean
+		shape_mark( id: any): string
 		shape_grips( id: any): boolean
 		shape_editing( id: any): boolean
 		shape_dropping( id: any): boolean
 		shape_kids( id: any): readonly($mol_view)[]
 		shape_rect( id: any): readonly(number)[]
+		cursor_color( id: any): string
+		cursor_name( id: any): string
+		cursor_transform( id: any): string
 		marquee_left( ): string
 		marquee_top( ): string
 		marquee_width( ): string
@@ -44005,6 +44322,7 @@ declare namespace $ {
 		menu_drop_label( ): string
 		Menu_drop( ): $mol_button_minor
 		store( ): $bog_figmol_store
+		live( ): $bog_figmol_live
 		tool( next?: string ): string
 		selection( next?: readonly(string)[] ): readonly(string)[]
 		editing( next?: string ): string
@@ -44029,6 +44347,7 @@ declare namespace $ {
 			pointermove( next?: ReturnType< $bog_figmol_app_canvas['pointer_move'] > ): ReturnType< $bog_figmol_app_canvas['pointer_move'] >,
 			pointerup( next?: ReturnType< $bog_figmol_app_canvas['pointer_up'] > ): ReturnType< $bog_figmol_app_canvas['pointer_up'] >,
 			pointercancel( next?: ReturnType< $bog_figmol_app_canvas['pointer_up'] > ): ReturnType< $bog_figmol_app_canvas['pointer_up'] >,
+			pointerleave( next?: ReturnType< $bog_figmol_app_canvas['pointer_out'] > ): ReturnType< $bog_figmol_app_canvas['pointer_out'] >,
 			lostpointercapture( next?: ReturnType< $bog_figmol_app_canvas['pointer_up'] > ): ReturnType< $bog_figmol_app_canvas['pointer_up'] >,
 			dblclick( next?: ReturnType< $bog_figmol_app_canvas['pointer_edit'] > ): ReturnType< $bog_figmol_app_canvas['pointer_edit'] >,
 			wheel( next?: ReturnType< $bog_figmol_app_canvas['wheel_zoom'] > ): ReturnType< $bog_figmol_app_canvas['wheel_zoom'] >,
@@ -44037,6 +44356,7 @@ declare namespace $ {
 		plugins( ): readonly(any)[]
 		sub( ): readonly(any)[]
 		Shape( id: any): $bog_figmol_app_canvas_shape
+		Cursor( id: any): $bog_figmol_app_canvas_cursor
 		Marquee( ): $mol_view
 		Guide_x( ): $mol_view
 		Guide_y( ): $mol_view
@@ -44094,6 +44414,24 @@ declare namespace $.$$ {
         shape_kids(id: string): readonly $mol_view[];
         shape_selected(id: string): boolean;
         /**
+         * Colour of whoever else has this node picked, empty when nobody has.
+         *
+         * Drawn on the shape rather than as a rectangle over it, and that is the
+         * whole reason the frame is right: a node inside an auto layout is placed
+         * by the frame that holds it, so its coordinates say nothing and a
+         * rectangle drawn from them would sit somewhere else entirely.
+         */
+        shape_mark(id: string): string;
+        /**
+         * Colour per node picked by somebody else — worked out in one pass and
+         * read by every shape, rather than every shape walking everybody.
+         *
+         * Whoever picked it last wins a node two people have picked. Showing both
+         * would mean two rings on one box, which reads as a border rather than as
+         * a selection.
+         */
+        marks(): Readonly<Record<string, string>>;
+        /**
          * Grips are drawn for a single element only. Several at once would need a
          * box around the lot of them and a resize that divides itself up between
          * them — worth doing, and not by pretending each one is alone.
@@ -44130,6 +44468,24 @@ declare namespace $.$$ {
          * and the handler writing such a cell would find it reset a moment later.
          */
         overlay(): readonly $mol_view[];
+        /**
+         * Everybody whose pointer belongs on what is drawn right now: on this
+         * page, or in this component master, and over the sheet at all.
+         *
+         * A room that has not arrived yet is nobody. The atom subscribed to what
+         * it read before suspending and comes back on its own.
+         */
+        cursor_ids(): readonly string[];
+        /**
+         * Where to put somebody's pointer, in screen pixels.
+         *
+         * Screen and not sheet: the overlay is not scaled, so a cursor stays the
+         * same size however far the page is zoomed out — and panning moves it
+         * along, `pan_x` and the zoom being read right here.
+         */
+        cursor_transform(lord: string): string;
+        cursor_color(lord: string): string;
+        cursor_name(lord: string): string;
         /** Sheet coordinate as a screen one, inside the canvas box. */
         screen_x(sheet_x: number): number;
         screen_y(sheet_y: number): number;
@@ -44313,6 +44669,14 @@ declare namespace $.$$ {
         moved(): boolean;
         pointer_down(event?: PointerEvent): null;
         pan_start(): void;
+        /** Tells the channel where the pointer is, in sheet pixels. */
+        live_point(event: PointerEvent): void;
+        /**
+         * The pointer has left the canvas, so there is nothing to show anybody:
+         * a cursor frozen at the edge of the sheet would be a lie about where its
+         * owner is looking.
+         */
+        pointer_out(event?: PointerEvent): null;
         /**
          * A press on a shape: what it does to the selection, and what gesture it
          * starts.
@@ -51097,6 +51461,358 @@ declare namespace $ {
 }
 
 declare namespace $ {
+    const $bog_figmol_schema_mate_base: Omit<typeof $giper_baza_dict, "prototype"> & {
+        new (...args: any[]): $mol_type_override<$giper_baza_dict, {
+            readonly Name: (auto?: any) => $giper_baza_atom_text | null;
+            readonly Spot: (auto?: any) => $giper_baza_atom_text | null;
+            readonly Pick: (auto?: any) => $giper_baza_atom_text | null;
+        }>;
+        path: string;
+    } & {
+        schema: {
+            [x: string]: typeof $giper_baza_pawn;
+        } & {
+            /** Whatever the person calls themselves, empty until they say. */
+            readonly Name: typeof $giper_baza_atom_text;
+            /**
+             * Where they are, packed by `$bog_figmol_live`: the page or the component
+             * master they have open, the cursor in sheet pixels, and the wall clock of
+             * the write.
+             *
+             * One register rather than four: the cursor goes out many times a second,
+             * and every field would be a unit of its own on every one of them.
+             */
+            readonly Spot: typeof $giper_baza_atom_text;
+            /** Nodes they have picked, by link, separated by spaces. */
+            readonly Pick: typeof $giper_baza_atom_text;
+        };
+    };
+    /**
+     * One person looking at the site, as everybody else sees them.
+     *
+     * Every field here is a register its owner alone ever writes: the pawn is
+     * reached by the lord of the browser that made it, so two participants never
+     * touch the same unit and the ordered-list merge the document suffers from
+     * has nothing to merge.
+     */
+    export class $bog_figmol_schema_mate extends $bog_figmol_schema_mate_base {
+    }
+    export {};
+}
+
+declare namespace $ {
+    const $bog_figmol_schema_live_base: {
+        new (): {
+            Value: typeof $bog_figmol_schema_mate;
+            key(key: $giper_baza_vary_type, auto?: any): $bog_figmol_schema_mate;
+            keys(): readonly $giper_baza_vary_type[];
+            dive<Pawn_1 extends typeof $giper_baza_pawn>(key: $giper_baza_vary_type, Pawn: Pawn_1, auto?: any): InstanceType<Pawn_1> | null;
+            [$mol_dev_format_head](): any[];
+            items_vary(next?: readonly $giper_baza_vary_type[], tag?: keyof typeof $giper_baza_unit_sand_tag): readonly $giper_baza_vary_type[];
+            splice(next: readonly $giper_baza_vary_type[], from?: number, to?: number, tag?: keyof typeof $giper_baza_unit_sand_tag): void;
+            find(vary: $giper_baza_vary_type): $giper_baza_unit_sand | null;
+            has(vary: $giper_baza_vary_type, next?: boolean, tag?: keyof typeof $giper_baza_unit_sand_tag): boolean;
+            add(vary: $giper_baza_vary_type, tag?: keyof typeof $giper_baza_unit_sand_tag): void;
+            cut(vary: $giper_baza_vary_type): void;
+            move(from: number, to: number): void;
+            wipe(seat: number): void;
+            pawn_make<Pawn_1 extends typeof $giper_baza_pawn>(Pawn: Pawn_1, vary: $giper_baza_vary_type, tag?: keyof typeof $giper_baza_unit_sand_tag): InstanceType<Pawn_1>;
+            land(): $giper_baza_land;
+            head(): $giper_baza_link;
+            land_link(): $giper_baza_link;
+            link(): $giper_baza_link;
+            toJSON(): string;
+            cast<Pawn_1 extends typeof $giper_baza_pawn>(Pawn: Pawn_1): InstanceType<Pawn_1>;
+            pawns<Pawn_1 extends typeof $giper_baza_pawn>(Pawn: Pawn_1 | null): readonly InstanceType<Pawn_1>[];
+            units(): $giper_baza_unit_sand[];
+            units_of(peer: $giper_baza_link | null): $giper_baza_unit_sand[];
+            meta(next?: $giper_baza_link): $giper_baza_link | null;
+            meta_of(peer: $giper_baza_link | null): $giper_baza_link | null;
+            filled(): boolean;
+            can_change(): boolean;
+            last_change(): $mol_time_moment | null;
+            authors(): $giper_baza_auth_pass[];
+            get $(): $;
+            set $(next: $);
+            destructor(): void;
+            toString(): string;
+            [Symbol.toStringTag]: string;
+            [$mol_ambient_ref]: $;
+            [Symbol.dispose](): void;
+        };
+        toString(): any;
+        tag: keyof typeof $giper_baza_unit_sand_tag;
+        schema: Record<string, typeof $giper_baza_pawn>;
+        with<This extends typeof $giper_baza_dict, const Schema extends Record<string, {
+            tag: keyof typeof $giper_baza_unit_sand_tag;
+            new (): {};
+        }>>(this: This, schema: Schema, path?: string): Omit<This, "prototype"> & {
+            new (...args: any[]): $mol_type_override<InstanceType<This>, { readonly [Key in keyof Schema]: (auto?: any) => InstanceType<Schema[Key]> | null; }>;
+            path: string;
+        } & {
+            schema: {
+                [x: string]: typeof $giper_baza_pawn;
+            } & Schema;
+        };
+        of<Init extends new (...args: any[]) => any>(init: Init): {
+            new (): {
+                items(next?: readonly (Init extends typeof $mol_schema_any ? Init : {
+                    new (value?: any): {
+                        constructor: Function;
+                        toString(): string;
+                        toLocaleString(): string;
+                        valueOf(): Object;
+                        hasOwnProperty(v: PropertyKey): boolean;
+                        isPrototypeOf(v: Object): boolean;
+                        propertyIsEnumerable(v: PropertyKey): boolean;
+                    };
+                    Class: Init;
+                    toString(): string;
+                    guard<This extends typeof $mol_schema_any, Value>(this: This, value: Value): Value & This["default"];
+                    cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                    default: InstanceType<Init>;
+                    check<This extends typeof $mol_schema_any, Value_1>(this: This, value: Value_1): value is Value_1 & This["default"];
+                    [Symbol.toStringTag]: string;
+                    [$mol_key_handle](): string;
+                    [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                    getPrototypeOf(o: any): any;
+                    getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                    getOwnPropertyNames(o: any): string[];
+                    create(o: object | null): any;
+                    create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                    defineProperty<T>(o: T, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T;
+                    defineProperties<T>(o: T, properties: PropertyDescriptorMap & ThisType<any>): T;
+                    seal<T>(o: T): T;
+                    freeze<T extends Function>(f: T): T;
+                    freeze<T extends {
+                        [idx: string]: U | null | undefined | object;
+                    }, U extends string | bigint | number | boolean | symbol>(o: T): Readonly<T>;
+                    freeze<T>(o: T): Readonly<T>;
+                    preventExtensions<T>(o: T): T;
+                    isSealed(o: any): boolean;
+                    isFrozen(o: any): boolean;
+                    isExtensible(o: any): boolean;
+                    keys(o: object): string[];
+                    keys(o: {}): string[];
+                    assign<T extends {}, U_1>(target: T, source: U_1): T & U_1;
+                    assign<T extends {}, U_2, V>(target: T, source1: U_2, source2: V): T & U_2 & V;
+                    assign<T extends {}, U_3, V_1, W>(target: T, source1: U_3, source2: V_1, source3: W): T & U_3 & V_1 & W;
+                    assign(target: object, ...sources: any[]): any;
+                    getOwnPropertySymbols(o: any): symbol[];
+                    is(value1: any, value2: any): boolean;
+                    setPrototypeOf(o: any, proto: object | null): any;
+                    values<T>(o: {
+                        [s: string]: T;
+                    } | ArrayLike<T>): T[];
+                    values(o: {}): any[];
+                    entries<T>(o: {
+                        [s: string]: T;
+                    } | ArrayLike<T>): [string, T][];
+                    entries(o: {}): [string, any][];
+                    getOwnPropertyDescriptors<T>(o: T): { [P in keyof T]: TypedPropertyDescriptor<T[P]>; } & {
+                        [x: string]: PropertyDescriptor;
+                    };
+                    fromEntries<T = any>(entries: Iterable<readonly [PropertyKey, T]>): {
+                        [k: string]: T;
+                    };
+                    fromEntries(entries: Iterable<readonly any[]>): any;
+                    hasOwn(o: object, v: PropertyKey): boolean;
+                    groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                })["default"][]): readonly (Init extends typeof $mol_schema_any ? Init : {
+                    new (value?: any): {
+                        constructor: Function;
+                        toString(): string;
+                        toLocaleString(): string;
+                        valueOf(): Object;
+                        hasOwnProperty(v: PropertyKey): boolean;
+                        isPrototypeOf(v: Object): boolean;
+                        propertyIsEnumerable(v: PropertyKey): boolean;
+                    };
+                    Class: Init;
+                    toString(): string;
+                    guard<This extends typeof $mol_schema_any, Value>(this: This, value: Value): Value & This["default"];
+                    cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                    default: InstanceType<Init>;
+                    check<This extends typeof $mol_schema_any, Value_1>(this: This, value: Value_1): value is Value_1 & This["default"];
+                    [Symbol.toStringTag]: string;
+                    [$mol_key_handle](): string;
+                    [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                    getPrototypeOf(o: any): any;
+                    getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                    getOwnPropertyNames(o: any): string[];
+                    create(o: object | null): any;
+                    create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                    defineProperty<T_1>(o: T_1, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T_1;
+                    defineProperties<T_1>(o: T_1, properties: PropertyDescriptorMap & ThisType<any>): T_1;
+                    seal<T_1>(o: T_1): T_1;
+                    freeze<T_1 extends Function>(f: T_1): T_1;
+                    freeze<T_1 extends {
+                        [idx: string]: U | null | undefined | object;
+                    }, U extends string | bigint | number | boolean | symbol>(o: T_1): Readonly<T_1>;
+                    freeze<T_1>(o: T_1): Readonly<T_1>;
+                    preventExtensions<T_1>(o: T_1): T_1;
+                    isSealed(o: any): boolean;
+                    isFrozen(o: any): boolean;
+                    isExtensible(o: any): boolean;
+                    keys(o: object): string[];
+                    keys(o: {}): string[];
+                    assign<T_1 extends {}, U_1>(target: T_1, source: U_1): T_1 & U_1;
+                    assign<T_1 extends {}, U_2, V>(target: T_1, source1: U_2, source2: V): T_1 & U_2 & V;
+                    assign<T_1 extends {}, U_3, V_1, W>(target: T_1, source1: U_3, source2: V_1, source3: W): T_1 & U_3 & V_1 & W;
+                    assign(target: object, ...sources: any[]): any;
+                    getOwnPropertySymbols(o: any): symbol[];
+                    is(value1: any, value2: any): boolean;
+                    setPrototypeOf(o: any, proto: object | null): any;
+                    values<T_1>(o: {
+                        [s: string]: T_1;
+                    } | ArrayLike<T_1>): T_1[];
+                    values(o: {}): any[];
+                    entries<T_1>(o: {
+                        [s: string]: T_1;
+                    } | ArrayLike<T_1>): [string, T_1][];
+                    entries(o: {}): [string, any][];
+                    getOwnPropertyDescriptors<T_1>(o: T_1): { [P in keyof T_1]: TypedPropertyDescriptor<T_1[P]>; } & {
+                        [x: string]: PropertyDescriptor;
+                    };
+                    fromEntries<T_1 = any>(entries: Iterable<readonly [PropertyKey, T_1]>): {
+                        [k: string]: T_1;
+                    };
+                    fromEntries(entries: Iterable<readonly any[]>): any;
+                    hasOwn(o: object, v: PropertyKey): boolean;
+                    groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                })["default"][];
+                items_vary(next?: readonly $giper_baza_vary_type[], tag?: keyof typeof $giper_baza_unit_sand_tag): readonly $giper_baza_vary_type[];
+                splice(next: readonly $giper_baza_vary_type[], from?: number, to?: number, tag?: keyof typeof $giper_baza_unit_sand_tag): void;
+                find(vary: $giper_baza_vary_type): $giper_baza_unit_sand | null;
+                has(vary: $giper_baza_vary_type, next?: boolean, tag?: keyof typeof $giper_baza_unit_sand_tag): boolean;
+                add(vary: $giper_baza_vary_type, tag?: keyof typeof $giper_baza_unit_sand_tag): void;
+                cut(vary: $giper_baza_vary_type): void;
+                move(from: number, to: number): void;
+                wipe(seat: number): void;
+                pawn_make<Pawn_1 extends typeof $giper_baza_pawn>(Pawn: Pawn_1, vary: $giper_baza_vary_type, tag?: keyof typeof $giper_baza_unit_sand_tag): InstanceType<Pawn_1>;
+                [$mol_dev_format_head](): any[];
+                land(): $giper_baza_land;
+                head(): $giper_baza_link;
+                land_link(): $giper_baza_link;
+                link(): $giper_baza_link;
+                toJSON(): string;
+                cast<Pawn_1 extends typeof $giper_baza_pawn>(Pawn: Pawn_1): InstanceType<Pawn_1>;
+                pawns<Pawn_1 extends typeof $giper_baza_pawn>(Pawn: Pawn_1 | null): readonly InstanceType<Pawn_1>[];
+                units(): $giper_baza_unit_sand[];
+                units_of(peer: $giper_baza_link | null): $giper_baza_unit_sand[];
+                meta(next?: $giper_baza_link): $giper_baza_link | null;
+                meta_of(peer: $giper_baza_link | null): $giper_baza_link | null;
+                filled(): boolean;
+                can_change(): boolean;
+                last_change(): $mol_time_moment | null;
+                authors(): $giper_baza_auth_pass[];
+                get $(): $;
+                set $(next: $);
+                destructor(): void;
+                toString(): string;
+                [Symbol.toStringTag]: string;
+                [$mol_ambient_ref]: $;
+                [Symbol.dispose](): void;
+            };
+            Item: Init extends typeof $mol_schema_any ? Init : {
+                new (value?: any): {
+                    constructor: Function;
+                    toString(): string;
+                    toLocaleString(): string;
+                    valueOf(): Object;
+                    hasOwnProperty(v: PropertyKey): boolean;
+                    isPrototypeOf(v: Object): boolean;
+                    propertyIsEnumerable(v: PropertyKey): boolean;
+                };
+                Class: Init;
+                toString(): string;
+                guard<This extends typeof $mol_schema_any, Value>(this: This, value: Value): Value & This["default"];
+                cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                default: InstanceType<Init>;
+                check<This extends typeof $mol_schema_any, Value_1>(this: This, value: Value_1): value is Value_1 & This["default"];
+                [Symbol.toStringTag]: string;
+                [$mol_key_handle](): string;
+                [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                getPrototypeOf(o: any): any;
+                getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                getOwnPropertyNames(o: any): string[];
+                create(o: object | null): any;
+                create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                defineProperty<T_1>(o: T_1, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T_1;
+                defineProperties<T_1>(o: T_1, properties: PropertyDescriptorMap & ThisType<any>): T_1;
+                seal<T_1>(o: T_1): T_1;
+                freeze<T_1 extends Function>(f: T_1): T_1;
+                freeze<T_1 extends {
+                    [idx: string]: U | null | undefined | object;
+                }, U extends string | bigint | number | boolean | symbol>(o: T_1): Readonly<T_1>;
+                freeze<T_1>(o: T_1): Readonly<T_1>;
+                preventExtensions<T_1>(o: T_1): T_1;
+                isSealed(o: any): boolean;
+                isFrozen(o: any): boolean;
+                isExtensible(o: any): boolean;
+                keys(o: object): string[];
+                keys(o: {}): string[];
+                assign<T_1 extends {}, U_1>(target: T_1, source: U_1): T_1 & U_1;
+                assign<T_1 extends {}, U_2, V>(target: T_1, source1: U_2, source2: V): T_1 & U_2 & V;
+                assign<T_1 extends {}, U_3, V_1, W>(target: T_1, source1: U_3, source2: V_1, source3: W): T_1 & U_3 & V_1 & W;
+                assign(target: object, ...sources: any[]): any;
+                getOwnPropertySymbols(o: any): symbol[];
+                is(value1: any, value2: any): boolean;
+                setPrototypeOf(o: any, proto: object | null): any;
+                values<T_1>(o: {
+                    [s: string]: T_1;
+                } | ArrayLike<T_1>): T_1[];
+                values(o: {}): any[];
+                entries<T_1>(o: {
+                    [s: string]: T_1;
+                } | ArrayLike<T_1>): [string, T_1][];
+                entries(o: {}): [string, any][];
+                getOwnPropertyDescriptors<T_1>(o: T_1): { [P in keyof T_1]: TypedPropertyDescriptor<T_1[P]>; } & {
+                    [x: string]: PropertyDescriptor;
+                };
+                fromEntries<T_1 = any>(entries: Iterable<readonly [PropertyKey, T_1]>): {
+                    [k: string]: T_1;
+                };
+                fromEntries(entries: Iterable<readonly any[]>): any;
+                hasOwn(o: object, v: PropertyKey): boolean;
+                groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+            };
+            toString(): any;
+            tag: keyof typeof $giper_baza_unit_sand_tag;
+            of<Init extends new (...args: any[]) => any>(init: Init): /*elided*/ any;
+            meta: null | $giper_baza_link;
+            make<This extends typeof $mol_object>(this: This, config: Partial<InstanceType<This>>): InstanceType<This>;
+            $: $;
+            create<Instance>(this: new (init?: (instance: any) => void) => Instance, init?: (instance: $mol_type_writable<Instance>) => void): Instance;
+            toJSON(): any;
+            destructor(): void;
+            [Symbol.toPrimitive](): any;
+            [$mol_key_handle](): any;
+        };
+        meta: null | $giper_baza_link;
+        make<This extends typeof $mol_object>(this: This, config: Partial<InstanceType<This>>): InstanceType<This>;
+        $: $;
+        create<Instance>(this: new (init?: (instance: any) => void) => Instance, init?: (instance: $mol_type_writable<Instance>) => void): Instance;
+        toJSON(): any;
+        destructor(): void;
+        [Symbol.toPrimitive](): any;
+        [$mol_key_handle](): any;
+    };
+    /**
+     * Everybody present at a site, by the lord of their browser.
+     *
+     * Root pawn of a Land of its own, grabbed with public writing rights — which
+     * is the whole reason it is not part of the site: the document stays readable
+     * and nothing but readable for a visitor, while presence needs everyone to
+     * write. Nobody writes anybody else's key, so the only shared write in here
+     * is the one that puts a key in, once per person.
+     */
+    export class $bog_figmol_schema_live extends $bog_figmol_schema_live_base {
+    }
+    export {};
+}
+
+declare namespace $ {
     const $bog_figmol_schema_site_base: Omit<typeof $giper_baza_entity, "prototype"> & {
         new (...args: any[]): $mol_type_override<$giper_baza_entity, {
             readonly Pages: (auto?: any) => {
@@ -51192,6 +51908,47 @@ declare namespace $ {
                 move(from: number, to: number): void;
                 wipe(seat: number): void;
                 pawn_make<Pawn_1 extends typeof $giper_baza_pawn>(Pawn: Pawn_1, vary: $giper_baza_vary_type, tag?: keyof typeof $giper_baza_unit_sand_tag): InstanceType<Pawn_1>;
+                land(): $giper_baza_land;
+                head(): $giper_baza_link;
+                land_link(): $giper_baza_link;
+                link(): $giper_baza_link;
+                toJSON(): string;
+                cast<Pawn_1 extends typeof $giper_baza_pawn>(Pawn: Pawn_1): InstanceType<Pawn_1>;
+                pawns<Pawn_1 extends typeof $giper_baza_pawn>(Pawn: Pawn_1 | null): readonly InstanceType<Pawn_1>[];
+                units(): $giper_baza_unit_sand[];
+                units_of(peer: $giper_baza_link | null): $giper_baza_unit_sand[];
+                meta(next?: $giper_baza_link): $giper_baza_link | null;
+                meta_of(peer: $giper_baza_link | null): $giper_baza_link | null;
+                filled(): boolean;
+                can_change(): boolean;
+                last_change(): $mol_time_moment | null;
+                authors(): $giper_baza_auth_pass[];
+                get $(): $;
+                set $(next: $);
+                destructor(): void;
+                toString(): string;
+                [Symbol.toStringTag]: string;
+                [$mol_ambient_ref]: $;
+                [Symbol.dispose](): void;
+            } | null;
+            readonly Live: (auto?: any) => {
+                Value: Value;
+                remote(next?: $bog_figmol_schema_live | null | undefined): $bog_figmol_schema_live | null;
+                remote_of(peer: $giper_baza_link | null, next?: $bog_figmol_schema_live | null | undefined): $bog_figmol_schema_live | null;
+                ensure(config?: null | $giper_baza_rank_preset | $giper_baza_land): $bog_figmol_schema_live | null;
+                ensure_of(peer: $giper_baza_link | null, config?: null | $giper_baza_rank_preset | $giper_baza_land): $bog_figmol_schema_live | null;
+                ensure_here(peer: $giper_baza_link | null): void;
+                ensure_area(peer: $giper_baza_link | null, land: $giper_baza_land): void;
+                ensure_lord(peer: $giper_baza_link | null, preset: $giper_baza_rank_preset): void;
+                remote_ensure(preset?: $giper_baza_rank_preset): $bog_figmol_schema_live | null;
+                local_ensure(): $bog_figmol_schema_live | null;
+                val(next?: $giper_baza_link | null | undefined): $giper_baza_link | null;
+                val_of(peer: $giper_baza_link | null, next?: $giper_baza_link | null | undefined): $giper_baza_link | null;
+                pick_unit(peer: $giper_baza_link | null): $giper_baza_unit_sand | undefined;
+                vary(next?: $giper_baza_vary_type): $giper_baza_vary_type;
+                vary_of(peer: $giper_baza_link | null, next?: $giper_baza_vary_type): $giper_baza_vary_type;
+                selection(lord: $giper_baza_link, next?: readonly [begin: number, end: number]): number[] | readonly [begin: number, end: number];
+                [$mol_dev_format_head](): any[];
                 land(): $giper_baza_land;
                 head(): $giper_baza_link;
                 land_link(): $giper_baza_link;
@@ -52926,6 +53683,1329 @@ declare namespace $ {
                 [Symbol.toPrimitive](): any;
                 [$mol_key_handle](): any;
             };
+            /**
+             * Where everybody looking at this site says so — a Land of its own,
+             * writable by anybody holding the link.
+             *
+             * Separate on purpose: the site is readable and nothing more for a
+             * visitor, and presence would be impossible without letting them write.
+             * Keeping the two apart means a cursor can never reach the document.
+             */
+            readonly Live: {
+                new (): {
+                    Value: () => typeof $bog_figmol_schema_live;
+                    remote(next?: $bog_figmol_schema_live | null | undefined): $bog_figmol_schema_live | null;
+                    remote_of(peer: $giper_baza_link | null, next?: $bog_figmol_schema_live | null | undefined): $bog_figmol_schema_live | null;
+                    ensure(config?: null | $giper_baza_rank_preset | $giper_baza_land): $bog_figmol_schema_live | null;
+                    ensure_of(peer: $giper_baza_link | null, config?: null | $giper_baza_rank_preset | $giper_baza_land): $bog_figmol_schema_live | null;
+                    ensure_here(peer: $giper_baza_link | null): void;
+                    ensure_area(peer: $giper_baza_link | null, land: $giper_baza_land): void;
+                    ensure_lord(peer: $giper_baza_link | null, preset: $giper_baza_rank_preset): void;
+                    remote_ensure(preset?: $giper_baza_rank_preset): $bog_figmol_schema_live | null;
+                    local_ensure(): $bog_figmol_schema_live | null;
+                    val(next?: $giper_baza_link | null | undefined): $giper_baza_link | null;
+                    val_of(peer: $giper_baza_link | null, next?: $giper_baza_link | null | undefined): $giper_baza_link | null;
+                    pick_unit(peer: $giper_baza_link | null): $giper_baza_unit_sand | undefined;
+                    vary(next?: $giper_baza_vary_type): $giper_baza_vary_type;
+                    vary_of(peer: $giper_baza_link | null, next?: $giper_baza_vary_type): $giper_baza_vary_type;
+                    selection(lord: $giper_baza_link, next?: readonly [begin: number, end: number]): number[] | readonly [begin: number, end: number];
+                    [$mol_dev_format_head](): any[];
+                    land(): $giper_baza_land;
+                    head(): $giper_baza_link;
+                    land_link(): $giper_baza_link;
+                    link(): $giper_baza_link;
+                    toJSON(): string;
+                    cast<Pawn_1 extends typeof $giper_baza_pawn>(Pawn: Pawn_1): InstanceType<Pawn_1>;
+                    pawns<Pawn_1 extends typeof $giper_baza_pawn>(Pawn: Pawn_1 | null): readonly InstanceType<Pawn_1>[];
+                    units(): $giper_baza_unit_sand[];
+                    units_of(peer: $giper_baza_link | null): $giper_baza_unit_sand[];
+                    meta(next?: $giper_baza_link): $giper_baza_link | null;
+                    meta_of(peer: $giper_baza_link | null): $giper_baza_link | null;
+                    filled(): boolean;
+                    can_change(): boolean;
+                    last_change(): $mol_time_moment | null;
+                    authors(): $giper_baza_auth_pass[];
+                    get $(): $;
+                    set $(next: $);
+                    destructor(): void;
+                    toString(): string;
+                    [Symbol.toStringTag]: string;
+                    [$mol_ambient_ref]: $;
+                    [Symbol.dispose](): void;
+                };
+                toString(): any;
+                to<const Value extends unknown>(Value: Value): {
+                    new (): {
+                        Value: Value;
+                        remote(next?: $mol_type_result<$mol_type_result<Value>> | null | undefined): $mol_type_result<$mol_type_result<Value>> | null;
+                        remote_of(peer: $giper_baza_link | null, next?: $mol_type_result<$mol_type_result<Value>> | null | undefined): $mol_type_result<$mol_type_result<Value>> | null;
+                        ensure(config?: null | $giper_baza_rank_preset | $giper_baza_land): $mol_type_result<$mol_type_result<Value>> | null;
+                        ensure_of(peer: $giper_baza_link | null, config?: null | $giper_baza_rank_preset | $giper_baza_land): $mol_type_result<$mol_type_result<Value>> | null;
+                        ensure_here(peer: $giper_baza_link | null): void;
+                        ensure_area(peer: $giper_baza_link | null, land: $giper_baza_land): void;
+                        ensure_lord(peer: $giper_baza_link | null, preset: $giper_baza_rank_preset): void;
+                        remote_ensure(preset?: $giper_baza_rank_preset): $mol_type_result<$mol_type_result<Value>> | null;
+                        local_ensure(): $mol_type_result<$mol_type_result<Value>> | null;
+                        val(next?: $giper_baza_link | null | undefined): $giper_baza_link | null;
+                        val_of(peer: $giper_baza_link | null, next?: $giper_baza_link | null | undefined): $giper_baza_link | null;
+                        pick_unit(peer: $giper_baza_link | null): $giper_baza_unit_sand | undefined;
+                        vary(next?: $giper_baza_vary_type): $giper_baza_vary_type;
+                        vary_of(peer: $giper_baza_link | null, next?: $giper_baza_vary_type): $giper_baza_vary_type;
+                        selection(lord: $giper_baza_link, next?: readonly [begin: number, end: number]): number[] | readonly [begin: number, end: number];
+                        [$mol_dev_format_head](): any[];
+                        land(): $giper_baza_land;
+                        head(): $giper_baza_link;
+                        land_link(): $giper_baza_link;
+                        link(): $giper_baza_link;
+                        toJSON(): string;
+                        cast<Pawn_1 extends typeof $giper_baza_pawn>(Pawn: Pawn_1): InstanceType<Pawn_1>;
+                        pawns<Pawn_1 extends typeof $giper_baza_pawn>(Pawn: Pawn_1 | null): readonly InstanceType<Pawn_1>[];
+                        units(): $giper_baza_unit_sand[];
+                        units_of(peer: $giper_baza_link | null): $giper_baza_unit_sand[];
+                        meta(next?: $giper_baza_link): $giper_baza_link | null;
+                        meta_of(peer: $giper_baza_link | null): $giper_baza_link | null;
+                        filled(): boolean;
+                        can_change(): boolean;
+                        last_change(): $mol_time_moment | null;
+                        authors(): $giper_baza_auth_pass[];
+                        get $(): $;
+                        set $(next: $);
+                        destructor(): void;
+                        toString(): string;
+                        [Symbol.toStringTag]: string;
+                        [$mol_ambient_ref]: $;
+                        [Symbol.dispose](): void;
+                    };
+                    toString(): any;
+                    to<const Value extends unknown>(Value: Value): /*elided*/ any;
+                    Schema: {
+                        new (value?: any): {
+                            constructor: Function;
+                            toString(): string;
+                            toLocaleString(): string;
+                            valueOf(): Object;
+                            hasOwnProperty(v: PropertyKey): boolean;
+                            isPrototypeOf(v: Object): boolean;
+                            propertyIsEnumerable(v: PropertyKey): boolean;
+                        };
+                        Some: {
+                            new (value?: any): {
+                                constructor: Function;
+                                toString(): string;
+                                toLocaleString(): string;
+                                valueOf(): Object;
+                                hasOwnProperty(v: PropertyKey): boolean;
+                                isPrototypeOf(v: Object): boolean;
+                                propertyIsEnumerable(v: PropertyKey): boolean;
+                            };
+                            Class: typeof $giper_baza_link;
+                            toString(): string;
+                            guard<This extends typeof $mol_schema_any, Value_1>(this: This, value: Value_1): Value_1 & This["default"];
+                            cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                            default: $giper_baza_link;
+                            check<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                            [Symbol.toStringTag]: string;
+                            [$mol_key_handle](): string;
+                            [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_3>(this: This, value: Value_3): value is Value_3 & This["default"];
+                            getPrototypeOf(o: any): any;
+                            getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                            getOwnPropertyNames(o: any): string[];
+                            create(o: object | null): any;
+                            create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                            defineProperty<T>(o: T, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T;
+                            defineProperties<T>(o: T, properties: PropertyDescriptorMap & ThisType<any>): T;
+                            seal<T>(o: T): T;
+                            freeze<T extends Function>(f: T): T;
+                            freeze<T extends {
+                                [idx: string]: U | null | undefined | object;
+                            }, U extends string | bigint | number | boolean | symbol>(o: T): Readonly<T>;
+                            freeze<T>(o: T): Readonly<T>;
+                            preventExtensions<T>(o: T): T;
+                            isSealed(o: any): boolean;
+                            isFrozen(o: any): boolean;
+                            isExtensible(o: any): boolean;
+                            keys(o: object): string[];
+                            keys(o: {}): string[];
+                            assign<T extends {}, U_1>(target: T, source: U_1): T & U_1;
+                            assign<T extends {}, U_2, V>(target: T, source1: U_2, source2: V): T & U_2 & V;
+                            assign<T extends {}, U_3, V_1, W>(target: T, source1: U_3, source2: V_1, source3: W): T & U_3 & V_1 & W;
+                            assign(target: object, ...sources: any[]): any;
+                            getOwnPropertySymbols(o: any): symbol[];
+                            is(value1: any, value2: any): boolean;
+                            setPrototypeOf(o: any, proto: object | null): any;
+                            values<T>(o: {
+                                [s: string]: T;
+                            } | ArrayLike<T>): T[];
+                            values(o: {}): any[];
+                            entries<T>(o: {
+                                [s: string]: T;
+                            } | ArrayLike<T>): [string, T][];
+                            entries(o: {}): [string, any][];
+                            getOwnPropertyDescriptors<T>(o: T): { [P in keyof T]: TypedPropertyDescriptor<T[P]>; } & {
+                                [x: string]: PropertyDescriptor;
+                            };
+                            fromEntries<T = any>(entries: Iterable<readonly [PropertyKey, T]>): {
+                                [k: string]: T;
+                            };
+                            fromEntries(entries: Iterable<readonly any[]>): any;
+                            hasOwn(o: object, v: PropertyKey): boolean;
+                            groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                        };
+                        toString(): string;
+                        guard<This extends typeof $mol_schema_any, Value_4>(this: This, value: Value_4): Value_4 & This["default"];
+                        default: $giper_baza_link | null;
+                        check<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                        cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                        [Symbol.toStringTag]: string;
+                        [$mol_key_handle](): string;
+                        [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_3>(this: This, value: Value_3): value is Value_3 & This["default"];
+                        getPrototypeOf(o: any): any;
+                        getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                        getOwnPropertyNames(o: any): string[];
+                        create(o: object | null): any;
+                        create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                        defineProperty<T_1>(o: T_1, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T_1;
+                        defineProperties<T_1>(o: T_1, properties: PropertyDescriptorMap & ThisType<any>): T_1;
+                        seal<T_1>(o: T_1): T_1;
+                        freeze<T_1 extends Function>(f: T_1): T_1;
+                        freeze<T_1 extends {
+                            [idx: string]: U | null | undefined | object;
+                        }, U extends string | bigint | number | boolean | symbol>(o: T_1): Readonly<T_1>;
+                        freeze<T_1>(o: T_1): Readonly<T_1>;
+                        preventExtensions<T_1>(o: T_1): T_1;
+                        isSealed(o: any): boolean;
+                        isFrozen(o: any): boolean;
+                        isExtensible(o: any): boolean;
+                        keys(o: object): string[];
+                        keys(o: {}): string[];
+                        assign<T_1 extends {}, U_1>(target: T_1, source: U_1): T_1 & U_1;
+                        assign<T_1 extends {}, U_2, V>(target: T_1, source1: U_2, source2: V): T_1 & U_2 & V;
+                        assign<T_1 extends {}, U_3, V_1, W>(target: T_1, source1: U_3, source2: V_1, source3: W): T_1 & U_3 & V_1 & W;
+                        assign(target: object, ...sources: any[]): any;
+                        getOwnPropertySymbols(o: any): symbol[];
+                        is(value1: any, value2: any): boolean;
+                        setPrototypeOf(o: any, proto: object | null): any;
+                        values<T_1>(o: {
+                            [s: string]: T_1;
+                        } | ArrayLike<T_1>): T_1[];
+                        values(o: {}): any[];
+                        entries<T_1>(o: {
+                            [s: string]: T_1;
+                        } | ArrayLike<T_1>): [string, T_1][];
+                        entries(o: {}): [string, any][];
+                        getOwnPropertyDescriptors<T_1>(o: T_1): { [P in keyof T_1]: TypedPropertyDescriptor<T_1[P]>; } & {
+                            [x: string]: PropertyDescriptor;
+                        };
+                        fromEntries<T_1 = any>(entries: Iterable<readonly [PropertyKey, T_1]>): {
+                            [k: string]: T_1;
+                        };
+                        fromEntries(entries: Iterable<readonly any[]>): any;
+                        hasOwn(o: object, v: PropertyKey): boolean;
+                        groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                    };
+                    tag: keyof typeof $giper_baza_unit_sand_tag;
+                    of<Init extends new (...args: any[]) => any>(init: Init): {
+                        new (): {
+                            val(next?: (Init extends typeof $mol_schema_any ? Init : {
+                                new (value?: any): {
+                                    constructor: Function;
+                                    toString(): string;
+                                    toLocaleString(): string;
+                                    valueOf(): Object;
+                                    hasOwnProperty(v: PropertyKey): boolean;
+                                    isPrototypeOf(v: Object): boolean;
+                                    propertyIsEnumerable(v: PropertyKey): boolean;
+                                };
+                                Class: Init;
+                                toString(): string;
+                                guard<This extends typeof $mol_schema_any, Value_1>(this: This, value: Value_1): Value_1 & This["default"];
+                                cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                                default: InstanceType<Init>;
+                                check<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                                [Symbol.toStringTag]: string;
+                                [$mol_key_handle](): string;
+                                [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_3>(this: This, value: Value_3): value is Value_3 & This["default"];
+                                getPrototypeOf(o: any): any;
+                                getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                                getOwnPropertyNames(o: any): string[];
+                                create(o: object | null): any;
+                                create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                                defineProperty<T_1>(o: T_1, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T_1;
+                                defineProperties<T_1>(o: T_1, properties: PropertyDescriptorMap & ThisType<any>): T_1;
+                                seal<T_1>(o: T_1): T_1;
+                                freeze<T_1 extends Function>(f: T_1): T_1;
+                                freeze<T_1 extends {
+                                    [idx: string]: U | null | undefined | object;
+                                }, U extends string | bigint | number | boolean | symbol>(o: T_1): Readonly<T_1>;
+                                freeze<T_1>(o: T_1): Readonly<T_1>;
+                                preventExtensions<T_1>(o: T_1): T_1;
+                                isSealed(o: any): boolean;
+                                isFrozen(o: any): boolean;
+                                isExtensible(o: any): boolean;
+                                keys(o: object): string[];
+                                keys(o: {}): string[];
+                                assign<T_1 extends {}, U_1>(target: T_1, source: U_1): T_1 & U_1;
+                                assign<T_1 extends {}, U_2, V>(target: T_1, source1: U_2, source2: V): T_1 & U_2 & V;
+                                assign<T_1 extends {}, U_3, V_1, W>(target: T_1, source1: U_3, source2: V_1, source3: W): T_1 & U_3 & V_1 & W;
+                                assign(target: object, ...sources: any[]): any;
+                                getOwnPropertySymbols(o: any): symbol[];
+                                is(value1: any, value2: any): boolean;
+                                setPrototypeOf(o: any, proto: object | null): any;
+                                values<T_1>(o: {
+                                    [s: string]: T_1;
+                                } | ArrayLike<T_1>): T_1[];
+                                values(o: {}): any[];
+                                entries<T_1>(o: {
+                                    [s: string]: T_1;
+                                } | ArrayLike<T_1>): [string, T_1][];
+                                entries(o: {}): [string, any][];
+                                getOwnPropertyDescriptors<T_1>(o: T_1): { [P in keyof T_1]: TypedPropertyDescriptor<T_1[P]>; } & {
+                                    [x: string]: PropertyDescriptor;
+                                };
+                                fromEntries<T_1 = any>(entries: Iterable<readonly [PropertyKey, T_1]>): {
+                                    [k: string]: T_1;
+                                };
+                                fromEntries(entries: Iterable<readonly any[]>): any;
+                                hasOwn(o: object, v: PropertyKey): boolean;
+                                groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                            })["default"] | null): ((Init extends typeof $mol_schema_any ? Init : {
+                                new (value?: any): {
+                                    constructor: Function;
+                                    toString(): string;
+                                    toLocaleString(): string;
+                                    valueOf(): Object;
+                                    hasOwnProperty(v: PropertyKey): boolean;
+                                    isPrototypeOf(v: Object): boolean;
+                                    propertyIsEnumerable(v: PropertyKey): boolean;
+                                };
+                                Class: Init;
+                                toString(): string;
+                                guard<This extends typeof $mol_schema_any, Value_1>(this: This, value: Value_1): Value_1 & This["default"];
+                                cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                                default: InstanceType<Init>;
+                                check<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                                [Symbol.toStringTag]: string;
+                                [$mol_key_handle](): string;
+                                [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_3>(this: This, value: Value_3): value is Value_3 & This["default"];
+                                getPrototypeOf(o: any): any;
+                                getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                                getOwnPropertyNames(o: any): string[];
+                                create(o: object | null): any;
+                                create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                                defineProperty<T_1>(o: T_1, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T_1;
+                                defineProperties<T_1>(o: T_1, properties: PropertyDescriptorMap & ThisType<any>): T_1;
+                                seal<T_1>(o: T_1): T_1;
+                                freeze<T_1 extends Function>(f: T_1): T_1;
+                                freeze<T_1 extends {
+                                    [idx: string]: U | null | undefined | object;
+                                }, U extends string | bigint | number | boolean | symbol>(o: T_1): Readonly<T_1>;
+                                freeze<T_1>(o: T_1): Readonly<T_1>;
+                                preventExtensions<T_1>(o: T_1): T_1;
+                                isSealed(o: any): boolean;
+                                isFrozen(o: any): boolean;
+                                isExtensible(o: any): boolean;
+                                keys(o: object): string[];
+                                keys(o: {}): string[];
+                                assign<T_1 extends {}, U_1>(target: T_1, source: U_1): T_1 & U_1;
+                                assign<T_1 extends {}, U_2, V>(target: T_1, source1: U_2, source2: V): T_1 & U_2 & V;
+                                assign<T_1 extends {}, U_3, V_1, W>(target: T_1, source1: U_3, source2: V_1, source3: W): T_1 & U_3 & V_1 & W;
+                                assign(target: object, ...sources: any[]): any;
+                                getOwnPropertySymbols(o: any): symbol[];
+                                is(value1: any, value2: any): boolean;
+                                setPrototypeOf(o: any, proto: object | null): any;
+                                values<T_1>(o: {
+                                    [s: string]: T_1;
+                                } | ArrayLike<T_1>): T_1[];
+                                values(o: {}): any[];
+                                entries<T_1>(o: {
+                                    [s: string]: T_1;
+                                } | ArrayLike<T_1>): [string, T_1][];
+                                entries(o: {}): [string, any][];
+                                getOwnPropertyDescriptors<T_1>(o: T_1): { [P in keyof T_1]: TypedPropertyDescriptor<T_1[P]>; } & {
+                                    [x: string]: PropertyDescriptor;
+                                };
+                                fromEntries<T_1 = any>(entries: Iterable<readonly [PropertyKey, T_1]>): {
+                                    [k: string]: T_1;
+                                };
+                                fromEntries(entries: Iterable<readonly any[]>): any;
+                                hasOwn(o: object, v: PropertyKey): boolean;
+                                groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                            })["default"] | null) | null;
+                            val_of(peer: $giper_baza_link | null, next?: (Init extends typeof $mol_schema_any ? Init : {
+                                new (value?: any): {
+                                    constructor: Function;
+                                    toString(): string;
+                                    toLocaleString(): string;
+                                    valueOf(): Object;
+                                    hasOwnProperty(v: PropertyKey): boolean;
+                                    isPrototypeOf(v: Object): boolean;
+                                    propertyIsEnumerable(v: PropertyKey): boolean;
+                                };
+                                Class: Init;
+                                toString(): string;
+                                guard<This extends typeof $mol_schema_any, Value_1>(this: This, value: Value_1): Value_1 & This["default"];
+                                cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                                default: InstanceType<Init>;
+                                check<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                                [Symbol.toStringTag]: string;
+                                [$mol_key_handle](): string;
+                                [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_3>(this: This, value: Value_3): value is Value_3 & This["default"];
+                                getPrototypeOf(o: any): any;
+                                getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                                getOwnPropertyNames(o: any): string[];
+                                create(o: object | null): any;
+                                create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                                defineProperty<T_1>(o: T_1, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T_1;
+                                defineProperties<T_1>(o: T_1, properties: PropertyDescriptorMap & ThisType<any>): T_1;
+                                seal<T_1>(o: T_1): T_1;
+                                freeze<T_1 extends Function>(f: T_1): T_1;
+                                freeze<T_1 extends {
+                                    [idx: string]: U | null | undefined | object;
+                                }, U extends string | bigint | number | boolean | symbol>(o: T_1): Readonly<T_1>;
+                                freeze<T_1>(o: T_1): Readonly<T_1>;
+                                preventExtensions<T_1>(o: T_1): T_1;
+                                isSealed(o: any): boolean;
+                                isFrozen(o: any): boolean;
+                                isExtensible(o: any): boolean;
+                                keys(o: object): string[];
+                                keys(o: {}): string[];
+                                assign<T_1 extends {}, U_1>(target: T_1, source: U_1): T_1 & U_1;
+                                assign<T_1 extends {}, U_2, V>(target: T_1, source1: U_2, source2: V): T_1 & U_2 & V;
+                                assign<T_1 extends {}, U_3, V_1, W>(target: T_1, source1: U_3, source2: V_1, source3: W): T_1 & U_3 & V_1 & W;
+                                assign(target: object, ...sources: any[]): any;
+                                getOwnPropertySymbols(o: any): symbol[];
+                                is(value1: any, value2: any): boolean;
+                                setPrototypeOf(o: any, proto: object | null): any;
+                                values<T_1>(o: {
+                                    [s: string]: T_1;
+                                } | ArrayLike<T_1>): T_1[];
+                                values(o: {}): any[];
+                                entries<T_1>(o: {
+                                    [s: string]: T_1;
+                                } | ArrayLike<T_1>): [string, T_1][];
+                                entries(o: {}): [string, any][];
+                                getOwnPropertyDescriptors<T_1>(o: T_1): { [P in keyof T_1]: TypedPropertyDescriptor<T_1[P]>; } & {
+                                    [x: string]: PropertyDescriptor;
+                                };
+                                fromEntries<T_1 = any>(entries: Iterable<readonly [PropertyKey, T_1]>): {
+                                    [k: string]: T_1;
+                                };
+                                fromEntries(entries: Iterable<readonly any[]>): any;
+                                hasOwn(o: object, v: PropertyKey): boolean;
+                                groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                            })["default"] | null): ((Init extends typeof $mol_schema_any ? Init : {
+                                new (value?: any): {
+                                    constructor: Function;
+                                    toString(): string;
+                                    toLocaleString(): string;
+                                    valueOf(): Object;
+                                    hasOwnProperty(v: PropertyKey): boolean;
+                                    isPrototypeOf(v: Object): boolean;
+                                    propertyIsEnumerable(v: PropertyKey): boolean;
+                                };
+                                Class: Init;
+                                toString(): string;
+                                guard<This extends typeof $mol_schema_any, Value_1>(this: This, value: Value_1): Value_1 & This["default"];
+                                cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                                default: InstanceType<Init>;
+                                check<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                                [Symbol.toStringTag]: string;
+                                [$mol_key_handle](): string;
+                                [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_3>(this: This, value: Value_3): value is Value_3 & This["default"];
+                                getPrototypeOf(o: any): any;
+                                getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                                getOwnPropertyNames(o: any): string[];
+                                create(o: object | null): any;
+                                create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                                defineProperty<T_1>(o: T_1, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T_1;
+                                defineProperties<T_1>(o: T_1, properties: PropertyDescriptorMap & ThisType<any>): T_1;
+                                seal<T_1>(o: T_1): T_1;
+                                freeze<T_1 extends Function>(f: T_1): T_1;
+                                freeze<T_1 extends {
+                                    [idx: string]: U | null | undefined | object;
+                                }, U extends string | bigint | number | boolean | symbol>(o: T_1): Readonly<T_1>;
+                                freeze<T_1>(o: T_1): Readonly<T_1>;
+                                preventExtensions<T_1>(o: T_1): T_1;
+                                isSealed(o: any): boolean;
+                                isFrozen(o: any): boolean;
+                                isExtensible(o: any): boolean;
+                                keys(o: object): string[];
+                                keys(o: {}): string[];
+                                assign<T_1 extends {}, U_1>(target: T_1, source: U_1): T_1 & U_1;
+                                assign<T_1 extends {}, U_2, V>(target: T_1, source1: U_2, source2: V): T_1 & U_2 & V;
+                                assign<T_1 extends {}, U_3, V_1, W>(target: T_1, source1: U_3, source2: V_1, source3: W): T_1 & U_3 & V_1 & W;
+                                assign(target: object, ...sources: any[]): any;
+                                getOwnPropertySymbols(o: any): symbol[];
+                                is(value1: any, value2: any): boolean;
+                                setPrototypeOf(o: any, proto: object | null): any;
+                                values<T_1>(o: {
+                                    [s: string]: T_1;
+                                } | ArrayLike<T_1>): T_1[];
+                                values(o: {}): any[];
+                                entries<T_1>(o: {
+                                    [s: string]: T_1;
+                                } | ArrayLike<T_1>): [string, T_1][];
+                                entries(o: {}): [string, any][];
+                                getOwnPropertyDescriptors<T_1>(o: T_1): { [P in keyof T_1]: TypedPropertyDescriptor<T_1[P]>; } & {
+                                    [x: string]: PropertyDescriptor;
+                                };
+                                fromEntries<T_1 = any>(entries: Iterable<readonly [PropertyKey, T_1]>): {
+                                    [k: string]: T_1;
+                                };
+                                fromEntries(entries: Iterable<readonly any[]>): any;
+                                hasOwn(o: object, v: PropertyKey): boolean;
+                                groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                            })["default"] | null) | null;
+                            pick_unit(peer: $giper_baza_link | null): $giper_baza_unit_sand | undefined;
+                            vary(next?: $giper_baza_vary_type): $giper_baza_vary_type;
+                            vary_of(peer: $giper_baza_link | null, next?: $giper_baza_vary_type): $giper_baza_vary_type;
+                            selection(lord: $giper_baza_link, next?: readonly [begin: number, end: number]): number[] | readonly [begin: number, end: number];
+                            [$mol_dev_format_head](): any[];
+                            land(): $giper_baza_land;
+                            head(): $giper_baza_link;
+                            land_link(): $giper_baza_link;
+                            link(): $giper_baza_link;
+                            toJSON(): string;
+                            cast<Pawn_1 extends typeof $giper_baza_pawn>(Pawn: Pawn_1): InstanceType<Pawn_1>;
+                            pawns<Pawn_1 extends typeof $giper_baza_pawn>(Pawn: Pawn_1 | null): readonly InstanceType<Pawn_1>[];
+                            units(): $giper_baza_unit_sand[];
+                            units_of(peer: $giper_baza_link | null): $giper_baza_unit_sand[];
+                            meta(next?: $giper_baza_link): $giper_baza_link | null;
+                            meta_of(peer: $giper_baza_link | null): $giper_baza_link | null;
+                            filled(): boolean;
+                            can_change(): boolean;
+                            last_change(): $mol_time_moment | null;
+                            authors(): $giper_baza_auth_pass[];
+                            get $(): $;
+                            set $(next: $);
+                            destructor(): void;
+                            toString(): string;
+                            [Symbol.toStringTag]: string;
+                            [$mol_ambient_ref]: $;
+                            [Symbol.dispose](): void;
+                        };
+                        Schema: {
+                            new (value?: any): {
+                                constructor: Function;
+                                toString(): string;
+                                toLocaleString(): string;
+                                valueOf(): Object;
+                                hasOwnProperty(v: PropertyKey): boolean;
+                                isPrototypeOf(v: Object): boolean;
+                                propertyIsEnumerable(v: PropertyKey): boolean;
+                            };
+                            Some: Init extends typeof $mol_schema_any ? Init : {
+                                new (value?: any): {
+                                    constructor: Function;
+                                    toString(): string;
+                                    toLocaleString(): string;
+                                    valueOf(): Object;
+                                    hasOwnProperty(v: PropertyKey): boolean;
+                                    isPrototypeOf(v: Object): boolean;
+                                    propertyIsEnumerable(v: PropertyKey): boolean;
+                                };
+                                Class: Init;
+                                toString(): string;
+                                guard<This extends typeof $mol_schema_any, Value_1>(this: This, value: Value_1): Value_1 & This["default"];
+                                cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                                default: InstanceType<Init>;
+                                check<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                                [Symbol.toStringTag]: string;
+                                [$mol_key_handle](): string;
+                                [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_3>(this: This, value: Value_3): value is Value_3 & This["default"];
+                                getPrototypeOf(o: any): any;
+                                getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                                getOwnPropertyNames(o: any): string[];
+                                create(o: object | null): any;
+                                create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                                defineProperty<T_1>(o: T_1, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T_1;
+                                defineProperties<T_1>(o: T_1, properties: PropertyDescriptorMap & ThisType<any>): T_1;
+                                seal<T_1>(o: T_1): T_1;
+                                freeze<T_1 extends Function>(f: T_1): T_1;
+                                freeze<T_1 extends {
+                                    [idx: string]: U | null | undefined | object;
+                                }, U extends string | bigint | number | boolean | symbol>(o: T_1): Readonly<T_1>;
+                                freeze<T_1>(o: T_1): Readonly<T_1>;
+                                preventExtensions<T_1>(o: T_1): T_1;
+                                isSealed(o: any): boolean;
+                                isFrozen(o: any): boolean;
+                                isExtensible(o: any): boolean;
+                                keys(o: object): string[];
+                                keys(o: {}): string[];
+                                assign<T_1 extends {}, U_1>(target: T_1, source: U_1): T_1 & U_1;
+                                assign<T_1 extends {}, U_2, V>(target: T_1, source1: U_2, source2: V): T_1 & U_2 & V;
+                                assign<T_1 extends {}, U_3, V_1, W>(target: T_1, source1: U_3, source2: V_1, source3: W): T_1 & U_3 & V_1 & W;
+                                assign(target: object, ...sources: any[]): any;
+                                getOwnPropertySymbols(o: any): symbol[];
+                                is(value1: any, value2: any): boolean;
+                                setPrototypeOf(o: any, proto: object | null): any;
+                                values<T_1>(o: {
+                                    [s: string]: T_1;
+                                } | ArrayLike<T_1>): T_1[];
+                                values(o: {}): any[];
+                                entries<T_1>(o: {
+                                    [s: string]: T_1;
+                                } | ArrayLike<T_1>): [string, T_1][];
+                                entries(o: {}): [string, any][];
+                                getOwnPropertyDescriptors<T_1>(o: T_1): { [P in keyof T_1]: TypedPropertyDescriptor<T_1[P]>; } & {
+                                    [x: string]: PropertyDescriptor;
+                                };
+                                fromEntries<T_1 = any>(entries: Iterable<readonly [PropertyKey, T_1]>): {
+                                    [k: string]: T_1;
+                                };
+                                fromEntries(entries: Iterable<readonly any[]>): any;
+                                hasOwn(o: object, v: PropertyKey): boolean;
+                                groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                            };
+                            toString(): string;
+                            guard<This extends typeof $mol_schema_any, Value_4>(this: This, value: Value_4): Value_4 & This["default"];
+                            default: (Init extends typeof $mol_schema_any ? Init : {
+                                new (value?: any): {
+                                    constructor: Function;
+                                    toString(): string;
+                                    toLocaleString(): string;
+                                    valueOf(): Object;
+                                    hasOwnProperty(v: PropertyKey): boolean;
+                                    isPrototypeOf(v: Object): boolean;
+                                    propertyIsEnumerable(v: PropertyKey): boolean;
+                                };
+                                Class: Init;
+                                toString(): string;
+                                guard<This extends typeof $mol_schema_any, Value_1>(this: This, value: Value_1): Value_1 & This["default"];
+                                cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                                default: InstanceType<Init>;
+                                check<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                                [Symbol.toStringTag]: string;
+                                [$mol_key_handle](): string;
+                                [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_3>(this: This, value: Value_3): value is Value_3 & This["default"];
+                                getPrototypeOf(o: any): any;
+                                getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                                getOwnPropertyNames(o: any): string[];
+                                create(o: object | null): any;
+                                create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                                defineProperty<T_1>(o: T_1, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T_1;
+                                defineProperties<T_1>(o: T_1, properties: PropertyDescriptorMap & ThisType<any>): T_1;
+                                seal<T_1>(o: T_1): T_1;
+                                freeze<T_1 extends Function>(f: T_1): T_1;
+                                freeze<T_1 extends {
+                                    [idx: string]: U | null | undefined | object;
+                                }, U extends string | bigint | number | boolean | symbol>(o: T_1): Readonly<T_1>;
+                                freeze<T_1>(o: T_1): Readonly<T_1>;
+                                preventExtensions<T_1>(o: T_1): T_1;
+                                isSealed(o: any): boolean;
+                                isFrozen(o: any): boolean;
+                                isExtensible(o: any): boolean;
+                                keys(o: object): string[];
+                                keys(o: {}): string[];
+                                assign<T_1 extends {}, U_1>(target: T_1, source: U_1): T_1 & U_1;
+                                assign<T_1 extends {}, U_2, V>(target: T_1, source1: U_2, source2: V): T_1 & U_2 & V;
+                                assign<T_1 extends {}, U_3, V_1, W>(target: T_1, source1: U_3, source2: V_1, source3: W): T_1 & U_3 & V_1 & W;
+                                assign(target: object, ...sources: any[]): any;
+                                getOwnPropertySymbols(o: any): symbol[];
+                                is(value1: any, value2: any): boolean;
+                                setPrototypeOf(o: any, proto: object | null): any;
+                                values<T_1>(o: {
+                                    [s: string]: T_1;
+                                } | ArrayLike<T_1>): T_1[];
+                                values(o: {}): any[];
+                                entries<T_1>(o: {
+                                    [s: string]: T_1;
+                                } | ArrayLike<T_1>): [string, T_1][];
+                                entries(o: {}): [string, any][];
+                                getOwnPropertyDescriptors<T_1>(o: T_1): { [P in keyof T_1]: TypedPropertyDescriptor<T_1[P]>; } & {
+                                    [x: string]: PropertyDescriptor;
+                                };
+                                fromEntries<T_1 = any>(entries: Iterable<readonly [PropertyKey, T_1]>): {
+                                    [k: string]: T_1;
+                                };
+                                fromEntries(entries: Iterable<readonly any[]>): any;
+                                hasOwn(o: object, v: PropertyKey): boolean;
+                                groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                            })["default"] | null;
+                            check<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                            cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                            [Symbol.toStringTag]: string;
+                            [$mol_key_handle](): string;
+                            [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_3>(this: This, value: Value_3): value is Value_3 & This["default"];
+                            getPrototypeOf(o: any): any;
+                            getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                            getOwnPropertyNames(o: any): string[];
+                            create(o: object | null): any;
+                            create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                            defineProperty<T_1>(o: T_1, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T_1;
+                            defineProperties<T_1>(o: T_1, properties: PropertyDescriptorMap & ThisType<any>): T_1;
+                            seal<T_1>(o: T_1): T_1;
+                            freeze<T_1 extends Function>(f: T_1): T_1;
+                            freeze<T_1 extends {
+                                [idx: string]: U | null | undefined | object;
+                            }, U extends string | bigint | number | boolean | symbol>(o: T_1): Readonly<T_1>;
+                            freeze<T_1>(o: T_1): Readonly<T_1>;
+                            preventExtensions<T_1>(o: T_1): T_1;
+                            isSealed(o: any): boolean;
+                            isFrozen(o: any): boolean;
+                            isExtensible(o: any): boolean;
+                            keys(o: object): string[];
+                            keys(o: {}): string[];
+                            assign<T_1 extends {}, U_1>(target: T_1, source: U_1): T_1 & U_1;
+                            assign<T_1 extends {}, U_2, V>(target: T_1, source1: U_2, source2: V): T_1 & U_2 & V;
+                            assign<T_1 extends {}, U_3, V_1, W>(target: T_1, source1: U_3, source2: V_1, source3: W): T_1 & U_3 & V_1 & W;
+                            assign(target: object, ...sources: any[]): any;
+                            getOwnPropertySymbols(o: any): symbol[];
+                            is(value1: any, value2: any): boolean;
+                            setPrototypeOf(o: any, proto: object | null): any;
+                            values<T_1>(o: {
+                                [s: string]: T_1;
+                            } | ArrayLike<T_1>): T_1[];
+                            values(o: {}): any[];
+                            entries<T_1>(o: {
+                                [s: string]: T_1;
+                            } | ArrayLike<T_1>): [string, T_1][];
+                            entries(o: {}): [string, any][];
+                            getOwnPropertyDescriptors<T_1>(o: T_1): { [P in keyof T_1]: TypedPropertyDescriptor<T_1[P]>; } & {
+                                [x: string]: PropertyDescriptor;
+                            };
+                            fromEntries<T_1 = any>(entries: Iterable<readonly [PropertyKey, T_1]>): {
+                                [k: string]: T_1;
+                            };
+                            fromEntries(entries: Iterable<readonly any[]>): any;
+                            hasOwn(o: object, v: PropertyKey): boolean;
+                            groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                        };
+                        toString(): any;
+                        tag: keyof typeof $giper_baza_unit_sand_tag;
+                        of<Init extends new (...args: any[]) => any>(init: Init): /*elided*/ any;
+                        meta: null | $giper_baza_link;
+                        make<This extends typeof $mol_object>(this: This, config: Partial<InstanceType<This>>): InstanceType<This>;
+                        $: $;
+                        create<Instance>(this: new (init?: (instance: any) => void) => Instance, init?: (instance: $mol_type_writable<Instance>) => void): Instance;
+                        toJSON(): any;
+                        destructor(): void;
+                        [Symbol.toPrimitive](): any;
+                        [$mol_key_handle](): any;
+                    };
+                    meta: null | $giper_baza_link;
+                    make<This extends typeof $mol_object>(this: This, config: Partial<InstanceType<This>>): InstanceType<This>;
+                    $: $;
+                    create<Instance>(this: new (init?: (instance: any) => void) => Instance, init?: (instance: $mol_type_writable<Instance>) => void): Instance;
+                    toJSON(): any;
+                    destructor(): void;
+                    [Symbol.toPrimitive](): any;
+                    [$mol_key_handle](): any;
+                };
+                Schema: {
+                    new (value?: any): {
+                        constructor: Function;
+                        toString(): string;
+                        toLocaleString(): string;
+                        valueOf(): Object;
+                        hasOwnProperty(v: PropertyKey): boolean;
+                        isPrototypeOf(v: Object): boolean;
+                        propertyIsEnumerable(v: PropertyKey): boolean;
+                    };
+                    Some: {
+                        new (value?: any): {
+                            constructor: Function;
+                            toString(): string;
+                            toLocaleString(): string;
+                            valueOf(): Object;
+                            hasOwnProperty(v: PropertyKey): boolean;
+                            isPrototypeOf(v: Object): boolean;
+                            propertyIsEnumerable(v: PropertyKey): boolean;
+                        };
+                        Class: typeof $giper_baza_link;
+                        toString(): string;
+                        guard<This extends typeof $mol_schema_any, Value>(this: This, value: Value): Value & This["default"];
+                        cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                        default: $giper_baza_link;
+                        check<This extends typeof $mol_schema_any, Value>(this: This, value: Value): value is Value & This["default"];
+                        [Symbol.toStringTag]: string;
+                        [$mol_key_handle](): string;
+                        [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value>(this: This, value: Value): value is Value & This["default"];
+                        getPrototypeOf(o: any): any;
+                        getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                        getOwnPropertyNames(o: any): string[];
+                        create(o: object | null): any;
+                        create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                        defineProperty<T>(o: T, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T;
+                        defineProperties<T>(o: T, properties: PropertyDescriptorMap & ThisType<any>): T;
+                        seal<T>(o: T): T;
+                        freeze<T extends Function>(f: T): T;
+                        freeze<T extends {
+                            [idx: string]: U | null | undefined | object;
+                        }, U extends string | bigint | number | boolean | symbol>(o: T): Readonly<T>;
+                        freeze<T>(o: T): Readonly<T>;
+                        preventExtensions<T>(o: T): T;
+                        isSealed(o: any): boolean;
+                        isFrozen(o: any): boolean;
+                        isExtensible(o: any): boolean;
+                        keys(o: object): string[];
+                        keys(o: {}): string[];
+                        assign<T extends {}, U>(target: T, source: U): T & U;
+                        assign<T extends {}, U, V>(target: T, source1: U, source2: V): T & U & V;
+                        assign<T extends {}, U, V, W>(target: T, source1: U, source2: V, source3: W): T & U & V & W;
+                        assign(target: object, ...sources: any[]): any;
+                        getOwnPropertySymbols(o: any): symbol[];
+                        is(value1: any, value2: any): boolean;
+                        setPrototypeOf(o: any, proto: object | null): any;
+                        values<T>(o: {
+                            [s: string]: T;
+                        } | ArrayLike<T>): T[];
+                        values(o: {}): any[];
+                        entries<T>(o: {
+                            [s: string]: T;
+                        } | ArrayLike<T>): [string, T][];
+                        entries(o: {}): [string, any][];
+                        getOwnPropertyDescriptors<T>(o: T): { [P in keyof T]: TypedPropertyDescriptor<T[P]>; } & {
+                            [x: string]: PropertyDescriptor;
+                        };
+                        fromEntries<T = any>(entries: Iterable<readonly [PropertyKey, T]>): {
+                            [k: string]: T;
+                        };
+                        fromEntries(entries: Iterable<readonly any[]>): any;
+                        hasOwn(o: object, v: PropertyKey): boolean;
+                        groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                    };
+                    toString(): string;
+                    guard<This extends typeof $mol_schema_any, Value>(this: This, value: Value): Value & This["default"];
+                    default: $giper_baza_link | null;
+                    check<This extends typeof $mol_schema_any, Value>(this: This, value: Value): value is Value & This["default"];
+                    cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                    [Symbol.toStringTag]: string;
+                    [$mol_key_handle](): string;
+                    [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value>(this: This, value: Value): value is Value & This["default"];
+                    getPrototypeOf(o: any): any;
+                    getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                    getOwnPropertyNames(o: any): string[];
+                    create(o: object | null): any;
+                    create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                    defineProperty<T>(o: T, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T;
+                    defineProperties<T>(o: T, properties: PropertyDescriptorMap & ThisType<any>): T;
+                    seal<T>(o: T): T;
+                    freeze<T extends Function>(f: T): T;
+                    freeze<T extends {
+                        [idx: string]: U | null | undefined | object;
+                    }, U extends string | bigint | number | boolean | symbol>(o: T): Readonly<T>;
+                    freeze<T>(o: T): Readonly<T>;
+                    preventExtensions<T>(o: T): T;
+                    isSealed(o: any): boolean;
+                    isFrozen(o: any): boolean;
+                    isExtensible(o: any): boolean;
+                    keys(o: object): string[];
+                    keys(o: {}): string[];
+                    assign<T extends {}, U>(target: T, source: U): T & U;
+                    assign<T extends {}, U, V>(target: T, source1: U, source2: V): T & U & V;
+                    assign<T extends {}, U, V, W>(target: T, source1: U, source2: V, source3: W): T & U & V & W;
+                    assign(target: object, ...sources: any[]): any;
+                    getOwnPropertySymbols(o: any): symbol[];
+                    is(value1: any, value2: any): boolean;
+                    setPrototypeOf(o: any, proto: object | null): any;
+                    values<T>(o: {
+                        [s: string]: T;
+                    } | ArrayLike<T>): T[];
+                    values(o: {}): any[];
+                    entries<T>(o: {
+                        [s: string]: T;
+                    } | ArrayLike<T>): [string, T][];
+                    entries(o: {}): [string, any][];
+                    getOwnPropertyDescriptors<T>(o: T): { [P in keyof T]: TypedPropertyDescriptor<T[P]>; } & {
+                        [x: string]: PropertyDescriptor;
+                    };
+                    fromEntries<T = any>(entries: Iterable<readonly [PropertyKey, T]>): {
+                        [k: string]: T;
+                    };
+                    fromEntries(entries: Iterable<readonly any[]>): any;
+                    hasOwn(o: object, v: PropertyKey): boolean;
+                    groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                };
+                tag: keyof typeof $giper_baza_unit_sand_tag;
+                of<Init extends new (...args: any[]) => any>(init: Init): {
+                    new (): {
+                        val(next?: (Init extends typeof $mol_schema_any ? Init : {
+                            new (value?: any): {
+                                constructor: Function;
+                                toString(): string;
+                                toLocaleString(): string;
+                                valueOf(): Object;
+                                hasOwnProperty(v: PropertyKey): boolean;
+                                isPrototypeOf(v: Object): boolean;
+                                propertyIsEnumerable(v: PropertyKey): boolean;
+                            };
+                            Class: Init;
+                            toString(): string;
+                            guard<This extends typeof $mol_schema_any, Value>(this: This, value: Value): Value & This["default"];
+                            cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                            default: InstanceType<Init>;
+                            check<This extends typeof $mol_schema_any, Value_1>(this: This, value: Value_1): value is Value_1 & This["default"];
+                            [Symbol.toStringTag]: string;
+                            [$mol_key_handle](): string;
+                            [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                            getPrototypeOf(o: any): any;
+                            getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                            getOwnPropertyNames(o: any): string[];
+                            create(o: object | null): any;
+                            create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                            defineProperty<T>(o: T, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T;
+                            defineProperties<T>(o: T, properties: PropertyDescriptorMap & ThisType<any>): T;
+                            seal<T>(o: T): T;
+                            freeze<T extends Function>(f: T): T;
+                            freeze<T extends {
+                                [idx: string]: U | null | undefined | object;
+                            }, U extends string | bigint | number | boolean | symbol>(o: T): Readonly<T>;
+                            freeze<T>(o: T): Readonly<T>;
+                            preventExtensions<T>(o: T): T;
+                            isSealed(o: any): boolean;
+                            isFrozen(o: any): boolean;
+                            isExtensible(o: any): boolean;
+                            keys(o: object): string[];
+                            keys(o: {}): string[];
+                            assign<T extends {}, U_1>(target: T, source: U_1): T & U_1;
+                            assign<T extends {}, U_2, V>(target: T, source1: U_2, source2: V): T & U_2 & V;
+                            assign<T extends {}, U_3, V_1, W>(target: T, source1: U_3, source2: V_1, source3: W): T & U_3 & V_1 & W;
+                            assign(target: object, ...sources: any[]): any;
+                            getOwnPropertySymbols(o: any): symbol[];
+                            is(value1: any, value2: any): boolean;
+                            setPrototypeOf(o: any, proto: object | null): any;
+                            values<T>(o: {
+                                [s: string]: T;
+                            } | ArrayLike<T>): T[];
+                            values(o: {}): any[];
+                            entries<T>(o: {
+                                [s: string]: T;
+                            } | ArrayLike<T>): [string, T][];
+                            entries(o: {}): [string, any][];
+                            getOwnPropertyDescriptors<T>(o: T): { [P in keyof T]: TypedPropertyDescriptor<T[P]>; } & {
+                                [x: string]: PropertyDescriptor;
+                            };
+                            fromEntries<T = any>(entries: Iterable<readonly [PropertyKey, T]>): {
+                                [k: string]: T;
+                            };
+                            fromEntries(entries: Iterable<readonly any[]>): any;
+                            hasOwn(o: object, v: PropertyKey): boolean;
+                            groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                        })["default"] | null): ((Init extends typeof $mol_schema_any ? Init : {
+                            new (value?: any): {
+                                constructor: Function;
+                                toString(): string;
+                                toLocaleString(): string;
+                                valueOf(): Object;
+                                hasOwnProperty(v: PropertyKey): boolean;
+                                isPrototypeOf(v: Object): boolean;
+                                propertyIsEnumerable(v: PropertyKey): boolean;
+                            };
+                            Class: Init;
+                            toString(): string;
+                            guard<This extends typeof $mol_schema_any, Value>(this: This, value: Value): Value & This["default"];
+                            cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                            default: InstanceType<Init>;
+                            check<This extends typeof $mol_schema_any, Value_1>(this: This, value: Value_1): value is Value_1 & This["default"];
+                            [Symbol.toStringTag]: string;
+                            [$mol_key_handle](): string;
+                            [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                            getPrototypeOf(o: any): any;
+                            getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                            getOwnPropertyNames(o: any): string[];
+                            create(o: object | null): any;
+                            create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                            defineProperty<T_1>(o: T_1, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T_1;
+                            defineProperties<T_1>(o: T_1, properties: PropertyDescriptorMap & ThisType<any>): T_1;
+                            seal<T_1>(o: T_1): T_1;
+                            freeze<T_1 extends Function>(f: T_1): T_1;
+                            freeze<T_1 extends {
+                                [idx: string]: U | null | undefined | object;
+                            }, U extends string | bigint | number | boolean | symbol>(o: T_1): Readonly<T_1>;
+                            freeze<T_1>(o: T_1): Readonly<T_1>;
+                            preventExtensions<T_1>(o: T_1): T_1;
+                            isSealed(o: any): boolean;
+                            isFrozen(o: any): boolean;
+                            isExtensible(o: any): boolean;
+                            keys(o: object): string[];
+                            keys(o: {}): string[];
+                            assign<T_1 extends {}, U_1>(target: T_1, source: U_1): T_1 & U_1;
+                            assign<T_1 extends {}, U_2, V>(target: T_1, source1: U_2, source2: V): T_1 & U_2 & V;
+                            assign<T_1 extends {}, U_3, V_1, W>(target: T_1, source1: U_3, source2: V_1, source3: W): T_1 & U_3 & V_1 & W;
+                            assign(target: object, ...sources: any[]): any;
+                            getOwnPropertySymbols(o: any): symbol[];
+                            is(value1: any, value2: any): boolean;
+                            setPrototypeOf(o: any, proto: object | null): any;
+                            values<T_1>(o: {
+                                [s: string]: T_1;
+                            } | ArrayLike<T_1>): T_1[];
+                            values(o: {}): any[];
+                            entries<T_1>(o: {
+                                [s: string]: T_1;
+                            } | ArrayLike<T_1>): [string, T_1][];
+                            entries(o: {}): [string, any][];
+                            getOwnPropertyDescriptors<T_1>(o: T_1): { [P in keyof T_1]: TypedPropertyDescriptor<T_1[P]>; } & {
+                                [x: string]: PropertyDescriptor;
+                            };
+                            fromEntries<T_1 = any>(entries: Iterable<readonly [PropertyKey, T_1]>): {
+                                [k: string]: T_1;
+                            };
+                            fromEntries(entries: Iterable<readonly any[]>): any;
+                            hasOwn(o: object, v: PropertyKey): boolean;
+                            groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                        })["default"] | null) | null;
+                        val_of(peer: $giper_baza_link | null, next?: (Init extends typeof $mol_schema_any ? Init : {
+                            new (value?: any): {
+                                constructor: Function;
+                                toString(): string;
+                                toLocaleString(): string;
+                                valueOf(): Object;
+                                hasOwnProperty(v: PropertyKey): boolean;
+                                isPrototypeOf(v: Object): boolean;
+                                propertyIsEnumerable(v: PropertyKey): boolean;
+                            };
+                            Class: Init;
+                            toString(): string;
+                            guard<This extends typeof $mol_schema_any, Value>(this: This, value: Value): Value & This["default"];
+                            cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                            default: InstanceType<Init>;
+                            check<This extends typeof $mol_schema_any, Value_1>(this: This, value: Value_1): value is Value_1 & This["default"];
+                            [Symbol.toStringTag]: string;
+                            [$mol_key_handle](): string;
+                            [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                            getPrototypeOf(o: any): any;
+                            getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                            getOwnPropertyNames(o: any): string[];
+                            create(o: object | null): any;
+                            create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                            defineProperty<T_1>(o: T_1, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T_1;
+                            defineProperties<T_1>(o: T_1, properties: PropertyDescriptorMap & ThisType<any>): T_1;
+                            seal<T_1>(o: T_1): T_1;
+                            freeze<T_1 extends Function>(f: T_1): T_1;
+                            freeze<T_1 extends {
+                                [idx: string]: U | null | undefined | object;
+                            }, U extends string | bigint | number | boolean | symbol>(o: T_1): Readonly<T_1>;
+                            freeze<T_1>(o: T_1): Readonly<T_1>;
+                            preventExtensions<T_1>(o: T_1): T_1;
+                            isSealed(o: any): boolean;
+                            isFrozen(o: any): boolean;
+                            isExtensible(o: any): boolean;
+                            keys(o: object): string[];
+                            keys(o: {}): string[];
+                            assign<T_1 extends {}, U_1>(target: T_1, source: U_1): T_1 & U_1;
+                            assign<T_1 extends {}, U_2, V>(target: T_1, source1: U_2, source2: V): T_1 & U_2 & V;
+                            assign<T_1 extends {}, U_3, V_1, W>(target: T_1, source1: U_3, source2: V_1, source3: W): T_1 & U_3 & V_1 & W;
+                            assign(target: object, ...sources: any[]): any;
+                            getOwnPropertySymbols(o: any): symbol[];
+                            is(value1: any, value2: any): boolean;
+                            setPrototypeOf(o: any, proto: object | null): any;
+                            values<T_1>(o: {
+                                [s: string]: T_1;
+                            } | ArrayLike<T_1>): T_1[];
+                            values(o: {}): any[];
+                            entries<T_1>(o: {
+                                [s: string]: T_1;
+                            } | ArrayLike<T_1>): [string, T_1][];
+                            entries(o: {}): [string, any][];
+                            getOwnPropertyDescriptors<T_1>(o: T_1): { [P in keyof T_1]: TypedPropertyDescriptor<T_1[P]>; } & {
+                                [x: string]: PropertyDescriptor;
+                            };
+                            fromEntries<T_1 = any>(entries: Iterable<readonly [PropertyKey, T_1]>): {
+                                [k: string]: T_1;
+                            };
+                            fromEntries(entries: Iterable<readonly any[]>): any;
+                            hasOwn(o: object, v: PropertyKey): boolean;
+                            groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                        })["default"] | null): ((Init extends typeof $mol_schema_any ? Init : {
+                            new (value?: any): {
+                                constructor: Function;
+                                toString(): string;
+                                toLocaleString(): string;
+                                valueOf(): Object;
+                                hasOwnProperty(v: PropertyKey): boolean;
+                                isPrototypeOf(v: Object): boolean;
+                                propertyIsEnumerable(v: PropertyKey): boolean;
+                            };
+                            Class: Init;
+                            toString(): string;
+                            guard<This extends typeof $mol_schema_any, Value>(this: This, value: Value): Value & This["default"];
+                            cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                            default: InstanceType<Init>;
+                            check<This extends typeof $mol_schema_any, Value_1>(this: This, value: Value_1): value is Value_1 & This["default"];
+                            [Symbol.toStringTag]: string;
+                            [$mol_key_handle](): string;
+                            [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                            getPrototypeOf(o: any): any;
+                            getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                            getOwnPropertyNames(o: any): string[];
+                            create(o: object | null): any;
+                            create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                            defineProperty<T_1>(o: T_1, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T_1;
+                            defineProperties<T_1>(o: T_1, properties: PropertyDescriptorMap & ThisType<any>): T_1;
+                            seal<T_1>(o: T_1): T_1;
+                            freeze<T_1 extends Function>(f: T_1): T_1;
+                            freeze<T_1 extends {
+                                [idx: string]: U | null | undefined | object;
+                            }, U extends string | bigint | number | boolean | symbol>(o: T_1): Readonly<T_1>;
+                            freeze<T_1>(o: T_1): Readonly<T_1>;
+                            preventExtensions<T_1>(o: T_1): T_1;
+                            isSealed(o: any): boolean;
+                            isFrozen(o: any): boolean;
+                            isExtensible(o: any): boolean;
+                            keys(o: object): string[];
+                            keys(o: {}): string[];
+                            assign<T_1 extends {}, U_1>(target: T_1, source: U_1): T_1 & U_1;
+                            assign<T_1 extends {}, U_2, V>(target: T_1, source1: U_2, source2: V): T_1 & U_2 & V;
+                            assign<T_1 extends {}, U_3, V_1, W>(target: T_1, source1: U_3, source2: V_1, source3: W): T_1 & U_3 & V_1 & W;
+                            assign(target: object, ...sources: any[]): any;
+                            getOwnPropertySymbols(o: any): symbol[];
+                            is(value1: any, value2: any): boolean;
+                            setPrototypeOf(o: any, proto: object | null): any;
+                            values<T_1>(o: {
+                                [s: string]: T_1;
+                            } | ArrayLike<T_1>): T_1[];
+                            values(o: {}): any[];
+                            entries<T_1>(o: {
+                                [s: string]: T_1;
+                            } | ArrayLike<T_1>): [string, T_1][];
+                            entries(o: {}): [string, any][];
+                            getOwnPropertyDescriptors<T_1>(o: T_1): { [P in keyof T_1]: TypedPropertyDescriptor<T_1[P]>; } & {
+                                [x: string]: PropertyDescriptor;
+                            };
+                            fromEntries<T_1 = any>(entries: Iterable<readonly [PropertyKey, T_1]>): {
+                                [k: string]: T_1;
+                            };
+                            fromEntries(entries: Iterable<readonly any[]>): any;
+                            hasOwn(o: object, v: PropertyKey): boolean;
+                            groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                        })["default"] | null) | null;
+                        pick_unit(peer: $giper_baza_link | null): $giper_baza_unit_sand | undefined;
+                        vary(next?: $giper_baza_vary_type): $giper_baza_vary_type;
+                        vary_of(peer: $giper_baza_link | null, next?: $giper_baza_vary_type): $giper_baza_vary_type;
+                        selection(lord: $giper_baza_link, next?: readonly [begin: number, end: number]): number[] | readonly [begin: number, end: number];
+                        [$mol_dev_format_head](): any[];
+                        land(): $giper_baza_land;
+                        head(): $giper_baza_link;
+                        land_link(): $giper_baza_link;
+                        link(): $giper_baza_link;
+                        toJSON(): string;
+                        cast<Pawn_1 extends typeof $giper_baza_pawn>(Pawn: Pawn_1): InstanceType<Pawn_1>;
+                        pawns<Pawn_1 extends typeof $giper_baza_pawn>(Pawn: Pawn_1 | null): readonly InstanceType<Pawn_1>[];
+                        units(): $giper_baza_unit_sand[];
+                        units_of(peer: $giper_baza_link | null): $giper_baza_unit_sand[];
+                        meta(next?: $giper_baza_link): $giper_baza_link | null;
+                        meta_of(peer: $giper_baza_link | null): $giper_baza_link | null;
+                        filled(): boolean;
+                        can_change(): boolean;
+                        last_change(): $mol_time_moment | null;
+                        authors(): $giper_baza_auth_pass[];
+                        get $(): $;
+                        set $(next: $);
+                        destructor(): void;
+                        toString(): string;
+                        [Symbol.toStringTag]: string;
+                        [$mol_ambient_ref]: $;
+                        [Symbol.dispose](): void;
+                    };
+                    Schema: {
+                        new (value?: any): {
+                            constructor: Function;
+                            toString(): string;
+                            toLocaleString(): string;
+                            valueOf(): Object;
+                            hasOwnProperty(v: PropertyKey): boolean;
+                            isPrototypeOf(v: Object): boolean;
+                            propertyIsEnumerable(v: PropertyKey): boolean;
+                        };
+                        Some: Init extends typeof $mol_schema_any ? Init : {
+                            new (value?: any): {
+                                constructor: Function;
+                                toString(): string;
+                                toLocaleString(): string;
+                                valueOf(): Object;
+                                hasOwnProperty(v: PropertyKey): boolean;
+                                isPrototypeOf(v: Object): boolean;
+                                propertyIsEnumerable(v: PropertyKey): boolean;
+                            };
+                            Class: Init;
+                            toString(): string;
+                            guard<This extends typeof $mol_schema_any, Value>(this: This, value: Value): Value & This["default"];
+                            cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                            default: InstanceType<Init>;
+                            check<This extends typeof $mol_schema_any, Value_1>(this: This, value: Value_1): value is Value_1 & This["default"];
+                            [Symbol.toStringTag]: string;
+                            [$mol_key_handle](): string;
+                            [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                            getPrototypeOf(o: any): any;
+                            getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                            getOwnPropertyNames(o: any): string[];
+                            create(o: object | null): any;
+                            create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                            defineProperty<T_1>(o: T_1, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T_1;
+                            defineProperties<T_1>(o: T_1, properties: PropertyDescriptorMap & ThisType<any>): T_1;
+                            seal<T_1>(o: T_1): T_1;
+                            freeze<T_1 extends Function>(f: T_1): T_1;
+                            freeze<T_1 extends {
+                                [idx: string]: U | null | undefined | object;
+                            }, U extends string | bigint | number | boolean | symbol>(o: T_1): Readonly<T_1>;
+                            freeze<T_1>(o: T_1): Readonly<T_1>;
+                            preventExtensions<T_1>(o: T_1): T_1;
+                            isSealed(o: any): boolean;
+                            isFrozen(o: any): boolean;
+                            isExtensible(o: any): boolean;
+                            keys(o: object): string[];
+                            keys(o: {}): string[];
+                            assign<T_1 extends {}, U_1>(target: T_1, source: U_1): T_1 & U_1;
+                            assign<T_1 extends {}, U_2, V>(target: T_1, source1: U_2, source2: V): T_1 & U_2 & V;
+                            assign<T_1 extends {}, U_3, V_1, W>(target: T_1, source1: U_3, source2: V_1, source3: W): T_1 & U_3 & V_1 & W;
+                            assign(target: object, ...sources: any[]): any;
+                            getOwnPropertySymbols(o: any): symbol[];
+                            is(value1: any, value2: any): boolean;
+                            setPrototypeOf(o: any, proto: object | null): any;
+                            values<T_1>(o: {
+                                [s: string]: T_1;
+                            } | ArrayLike<T_1>): T_1[];
+                            values(o: {}): any[];
+                            entries<T_1>(o: {
+                                [s: string]: T_1;
+                            } | ArrayLike<T_1>): [string, T_1][];
+                            entries(o: {}): [string, any][];
+                            getOwnPropertyDescriptors<T_1>(o: T_1): { [P in keyof T_1]: TypedPropertyDescriptor<T_1[P]>; } & {
+                                [x: string]: PropertyDescriptor;
+                            };
+                            fromEntries<T_1 = any>(entries: Iterable<readonly [PropertyKey, T_1]>): {
+                                [k: string]: T_1;
+                            };
+                            fromEntries(entries: Iterable<readonly any[]>): any;
+                            hasOwn(o: object, v: PropertyKey): boolean;
+                            groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                        };
+                        toString(): string;
+                        guard<This extends typeof $mol_schema_any, Value_3>(this: This, value: Value_3): Value_3 & This["default"];
+                        default: (Init extends typeof $mol_schema_any ? Init : {
+                            new (value?: any): {
+                                constructor: Function;
+                                toString(): string;
+                                toLocaleString(): string;
+                                valueOf(): Object;
+                                hasOwnProperty(v: PropertyKey): boolean;
+                                isPrototypeOf(v: Object): boolean;
+                                propertyIsEnumerable(v: PropertyKey): boolean;
+                            };
+                            Class: Init;
+                            toString(): string;
+                            guard<This extends typeof $mol_schema_any, Value>(this: This, value: Value): Value & This["default"];
+                            cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                            default: InstanceType<Init>;
+                            check<This extends typeof $mol_schema_any, Value_1>(this: This, value: Value_1): value is Value_1 & This["default"];
+                            [Symbol.toStringTag]: string;
+                            [$mol_key_handle](): string;
+                            [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                            getPrototypeOf(o: any): any;
+                            getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                            getOwnPropertyNames(o: any): string[];
+                            create(o: object | null): any;
+                            create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                            defineProperty<T_1>(o: T_1, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T_1;
+                            defineProperties<T_1>(o: T_1, properties: PropertyDescriptorMap & ThisType<any>): T_1;
+                            seal<T_1>(o: T_1): T_1;
+                            freeze<T_1 extends Function>(f: T_1): T_1;
+                            freeze<T_1 extends {
+                                [idx: string]: U | null | undefined | object;
+                            }, U extends string | bigint | number | boolean | symbol>(o: T_1): Readonly<T_1>;
+                            freeze<T_1>(o: T_1): Readonly<T_1>;
+                            preventExtensions<T_1>(o: T_1): T_1;
+                            isSealed(o: any): boolean;
+                            isFrozen(o: any): boolean;
+                            isExtensible(o: any): boolean;
+                            keys(o: object): string[];
+                            keys(o: {}): string[];
+                            assign<T_1 extends {}, U_1>(target: T_1, source: U_1): T_1 & U_1;
+                            assign<T_1 extends {}, U_2, V>(target: T_1, source1: U_2, source2: V): T_1 & U_2 & V;
+                            assign<T_1 extends {}, U_3, V_1, W>(target: T_1, source1: U_3, source2: V_1, source3: W): T_1 & U_3 & V_1 & W;
+                            assign(target: object, ...sources: any[]): any;
+                            getOwnPropertySymbols(o: any): symbol[];
+                            is(value1: any, value2: any): boolean;
+                            setPrototypeOf(o: any, proto: object | null): any;
+                            values<T_1>(o: {
+                                [s: string]: T_1;
+                            } | ArrayLike<T_1>): T_1[];
+                            values(o: {}): any[];
+                            entries<T_1>(o: {
+                                [s: string]: T_1;
+                            } | ArrayLike<T_1>): [string, T_1][];
+                            entries(o: {}): [string, any][];
+                            getOwnPropertyDescriptors<T_1>(o: T_1): { [P in keyof T_1]: TypedPropertyDescriptor<T_1[P]>; } & {
+                                [x: string]: PropertyDescriptor;
+                            };
+                            fromEntries<T_1 = any>(entries: Iterable<readonly [PropertyKey, T_1]>): {
+                                [k: string]: T_1;
+                            };
+                            fromEntries(entries: Iterable<readonly any[]>): any;
+                            hasOwn(o: object, v: PropertyKey): boolean;
+                            groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                        })["default"] | null;
+                        check<This extends typeof $mol_schema_any, Value_1>(this: This, value: Value_1): value is Value_1 & This["default"];
+                        cast<This extends typeof $mol_schema_any>(this: This, value: unknown): This["default"];
+                        [Symbol.toStringTag]: string;
+                        [$mol_key_handle](): string;
+                        [Symbol.hasInstance]<This extends typeof $mol_schema_any, Value_2>(this: This, value: Value_2): value is Value_2 & This["default"];
+                        getPrototypeOf(o: any): any;
+                        getOwnPropertyDescriptor(o: any, p: PropertyKey): PropertyDescriptor | undefined;
+                        getOwnPropertyNames(o: any): string[];
+                        create(o: object | null): any;
+                        create(o: object | null, properties: PropertyDescriptorMap & ThisType<any>): any;
+                        defineProperty<T_1>(o: T_1, p: PropertyKey, attributes: PropertyDescriptor & ThisType<any>): T_1;
+                        defineProperties<T_1>(o: T_1, properties: PropertyDescriptorMap & ThisType<any>): T_1;
+                        seal<T_1>(o: T_1): T_1;
+                        freeze<T_1 extends Function>(f: T_1): T_1;
+                        freeze<T_1 extends {
+                            [idx: string]: U | null | undefined | object;
+                        }, U extends string | bigint | number | boolean | symbol>(o: T_1): Readonly<T_1>;
+                        freeze<T_1>(o: T_1): Readonly<T_1>;
+                        preventExtensions<T_1>(o: T_1): T_1;
+                        isSealed(o: any): boolean;
+                        isFrozen(o: any): boolean;
+                        isExtensible(o: any): boolean;
+                        keys(o: object): string[];
+                        keys(o: {}): string[];
+                        assign<T_1 extends {}, U_1>(target: T_1, source: U_1): T_1 & U_1;
+                        assign<T_1 extends {}, U_2, V>(target: T_1, source1: U_2, source2: V): T_1 & U_2 & V;
+                        assign<T_1 extends {}, U_3, V_1, W>(target: T_1, source1: U_3, source2: V_1, source3: W): T_1 & U_3 & V_1 & W;
+                        assign(target: object, ...sources: any[]): any;
+                        getOwnPropertySymbols(o: any): symbol[];
+                        is(value1: any, value2: any): boolean;
+                        setPrototypeOf(o: any, proto: object | null): any;
+                        values<T_1>(o: {
+                            [s: string]: T_1;
+                        } | ArrayLike<T_1>): T_1[];
+                        values(o: {}): any[];
+                        entries<T_1>(o: {
+                            [s: string]: T_1;
+                        } | ArrayLike<T_1>): [string, T_1][];
+                        entries(o: {}): [string, any][];
+                        getOwnPropertyDescriptors<T_1>(o: T_1): { [P in keyof T_1]: TypedPropertyDescriptor<T_1[P]>; } & {
+                            [x: string]: PropertyDescriptor;
+                        };
+                        fromEntries<T_1 = any>(entries: Iterable<readonly [PropertyKey, T_1]>): {
+                            [k: string]: T_1;
+                        };
+                        fromEntries(entries: Iterable<readonly any[]>): any;
+                        hasOwn(o: object, v: PropertyKey): boolean;
+                        groupBy<K extends PropertyKey, T>(items: Iterable<T>, keySelector: (item: T, index: number) => K): Partial<Record<K, T[]>>;
+                    };
+                    toString(): any;
+                    tag: keyof typeof $giper_baza_unit_sand_tag;
+                    of<Init extends new (...args: any[]) => any>(init: Init): /*elided*/ any;
+                    meta: null | $giper_baza_link;
+                    make<This extends typeof $mol_object>(this: This, config: Partial<InstanceType<This>>): InstanceType<This>;
+                    $: $;
+                    create<Instance>(this: new (init?: (instance: any) => void) => Instance, init?: (instance: $mol_type_writable<Instance>) => void): Instance;
+                    toJSON(): any;
+                    destructor(): void;
+                    [Symbol.toPrimitive](): any;
+                    [$mol_key_handle](): any;
+                };
+                meta: null | $giper_baza_link;
+                make<This extends typeof $mol_object>(this: This, config: Partial<InstanceType<This>>): InstanceType<This>;
+                $: $;
+                create<Instance>(this: new (init?: (instance: any) => void) => Instance, init?: (instance: $mol_type_writable<Instance>) => void): Instance;
+                toJSON(): any;
+                destructor(): void;
+                [Symbol.toPrimitive](): any;
+                [$mol_key_handle](): any;
+            };
         };
     };
     /**
@@ -53424,149 +55504,170 @@ declare namespace $ {
 		,
 		ReturnType< $mol_view['sub'] >
 	>
-	type $mol_view__dom_name_bog_figmol_app_7 = $mol_type_enforce<
+	type $bog_figmol_live__store_bog_figmol_app_7 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app['store'] >
+		,
+		ReturnType< $bog_figmol_live['store'] >
+	>
+	type $bog_figmol_live__picked_bog_figmol_app_8 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app['selection'] >
+		,
+		ReturnType< $bog_figmol_live['picked'] >
+	>
+	type $mol_view__dom_name_bog_figmol_app_9 = $mol_type_enforce<
 		string
 		,
 		ReturnType< $mol_view['dom_name'] >
 	>
-	type $mol_view__sub_bog_figmol_app_8 = $mol_type_enforce<
+	type $mol_view__sub_bog_figmol_app_10 = $mol_type_enforce<
 		readonly(any)[]
 		,
 		ReturnType< $mol_view['sub'] >
 	>
-	type $bog_theme_toggle__theme_auto_bog_figmol_app_9 = $mol_type_enforce<
+	type $bog_figmol_app_mates__live_bog_figmol_app_11 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app['live'] >
+		,
+		ReturnType< $bog_figmol_app_mates['live'] >
+	>
+	type $bog_theme_toggle__theme_auto_bog_figmol_app_12 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['Theme'] >
 		,
 		ReturnType< $bog_theme_toggle['theme_auto'] >
 	>
-	type $mol_button_copy__text_bog_figmol_app_10 = $mol_type_enforce<
+	type $mol_button_copy__text_bog_figmol_app_13 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['share_uri'] >
 		,
 		ReturnType< $mol_button_copy['text'] >
 	>
-	type $mol_button_copy__hint_bog_figmol_app_11 = $mol_type_enforce<
+	type $mol_button_copy__hint_bog_figmol_app_14 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['share_hint'] >
 		,
 		ReturnType< $mol_button_copy['hint'] >
 	>
-	type $mol_button_copy__title_bog_figmol_app_12 = $mol_type_enforce<
+	type $mol_button_copy__title_bog_figmol_app_15 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['share_label'] >
 		,
 		ReturnType< $mol_button_copy['title'] >
 	>
-	type $mol_button_minor__click_bog_figmol_app_13 = $mol_type_enforce<
+	type $mol_button_minor__click_bog_figmol_app_16 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['publish_toggle'] >
 		,
 		ReturnType< $mol_button_minor['click'] >
 	>
-	type $mol_button_minor__title_bog_figmol_app_14 = $mol_type_enforce<
+	type $mol_button_minor__title_bog_figmol_app_17 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['publish_label'] >
 		,
 		ReturnType< $mol_button_minor['title'] >
 	>
-	type $mol_view__sub_bog_figmol_app_15 = $mol_type_enforce<
+	type $mol_view__sub_bog_figmol_app_18 = $mol_type_enforce<
 		readonly(any)[]
 		,
 		ReturnType< $mol_view['sub'] >
 	>
-	type $mol_link__arg_bog_figmol_app_16 = $mol_type_enforce<
+	type $mol_link__arg_bog_figmol_app_19 = $mol_type_enforce<
 		({ 
 			'site': any,
 		}) 
 		,
 		ReturnType< $mol_link['arg'] >
 	>
-	type $mol_link__title_bog_figmol_app_17 = $mol_type_enforce<
+	type $mol_link__title_bog_figmol_app_20 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['mine_label'] >
 		,
 		ReturnType< $mol_link['title'] >
 	>
-	type $bog_figmol_app_tools__tool_bog_figmol_app_18 = $mol_type_enforce<
+	type $bog_figmol_app_tools__tool_bog_figmol_app_21 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['tool'] >
 		,
 		ReturnType< $bog_figmol_app_tools['tool'] >
 	>
-	type $bog_figmol_app_side__store_bog_figmol_app_19 = $mol_type_enforce<
+	type $bog_figmol_app_side__store_bog_figmol_app_22 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['store'] >
 		,
 		ReturnType< $bog_figmol_app_side['store'] >
 	>
-	type $bog_figmol_app_side__editable_bog_figmol_app_20 = $mol_type_enforce<
+	type $bog_figmol_app_side__editable_bog_figmol_app_23 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['editable'] >
 		,
 		ReturnType< $bog_figmol_app_side['editable'] >
 	>
-	type $bog_figmol_app_side__spot_bog_figmol_app_21 = $mol_type_enforce<
+	type $bog_figmol_app_side__spot_bog_figmol_app_24 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['drop_spot'] >
 		,
 		ReturnType< $bog_figmol_app_side['spot'] >
 	>
-	type $bog_figmol_app_side__selected_bog_figmol_app_22 = $mol_type_enforce<
+	type $bog_figmol_app_side__selected_bog_figmol_app_25 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['selected'] >
 		,
 		ReturnType< $bog_figmol_app_side['selected'] >
 	>
-	type $bog_figmol_app_side__selection_bog_figmol_app_23 = $mol_type_enforce<
+	type $bog_figmol_app_side__selection_bog_figmol_app_26 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['selection'] >
 		,
 		ReturnType< $bog_figmol_app_side['selection'] >
 	>
-	type $bog_figmol_app_canvas__store_bog_figmol_app_24 = $mol_type_enforce<
+	type $bog_figmol_app_canvas__store_bog_figmol_app_27 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['store'] >
 		,
 		ReturnType< $bog_figmol_app_canvas['store'] >
 	>
-	type $bog_figmol_app_canvas__editable_bog_figmol_app_25 = $mol_type_enforce<
+	type $bog_figmol_app_canvas__live_bog_figmol_app_28 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app['live'] >
+		,
+		ReturnType< $bog_figmol_app_canvas['live'] >
+	>
+	type $bog_figmol_app_canvas__editable_bog_figmol_app_29 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['editable'] >
 		,
 		ReturnType< $bog_figmol_app_canvas['editable'] >
 	>
-	type $bog_figmol_app_canvas__tool_bog_figmol_app_26 = $mol_type_enforce<
+	type $bog_figmol_app_canvas__tool_bog_figmol_app_30 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['tool'] >
 		,
 		ReturnType< $bog_figmol_app_canvas['tool'] >
 	>
-	type $bog_figmol_app_canvas__selection_bog_figmol_app_27 = $mol_type_enforce<
+	type $bog_figmol_app_canvas__selection_bog_figmol_app_31 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['selection'] >
 		,
 		ReturnType< $bog_figmol_app_canvas['selection'] >
 	>
-	type $bog_figmol_app_inspector__store_bog_figmol_app_28 = $mol_type_enforce<
+	type $bog_figmol_app_inspector__store_bog_figmol_app_32 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['store'] >
 		,
 		ReturnType< $bog_figmol_app_inspector['store'] >
 	>
-	type $bog_figmol_app_inspector__selected_bog_figmol_app_29 = $mol_type_enforce<
+	type $bog_figmol_app_inspector__selected_bog_figmol_app_33 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['selected'] >
 		,
 		ReturnType< $bog_figmol_app_inspector['selected'] >
 	>
-	type $bog_figmol_app_inspector__selection_bog_figmol_app_30 = $mol_type_enforce<
+	type $bog_figmol_app_inspector__selection_bog_figmol_app_34 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['selection'] >
 		,
 		ReturnType< $bog_figmol_app_inspector['selection'] >
 	>
-	type $bog_figmol_app_inspector__arrange_bog_figmol_app_31 = $mol_type_enforce<
+	type $bog_figmol_app_inspector__arrange_bog_figmol_app_35 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['arrange'] >
 		,
 		ReturnType< $bog_figmol_app_inspector['arrange'] >
 	>
-	type $bog_figmol_deploy_publish__files_bog_figmol_app_32 = $mol_type_enforce<
+	type $bog_figmol_deploy_publish__files_bog_figmol_app_36 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['publish_files'] >
 		,
 		ReturnType< $bog_figmol_deploy_publish['files'] >
 	>
-	type $bog_figmol_deploy_publish__name_bog_figmol_app_33 = $mol_type_enforce<
+	type $bog_figmol_deploy_publish__name_bog_figmol_app_37 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['publish_name'] >
 		,
 		ReturnType< $bog_figmol_deploy_publish['name'] >
 	>
-	type $bog_figmol_app_start__store_bog_figmol_app_34 = $mol_type_enforce<
+	type $bog_figmol_app_start__store_bog_figmol_app_38 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['store'] >
 		,
 		ReturnType< $bog_figmol_app_start['store'] >
 	>
 	export class $bog_figmol_app extends $mol_view {
+		selection( next?: readonly(string)[] ): readonly(string)[]
 		Theme( ): $bog_theme_auto
 		head_tools( ): readonly($mol_view)[]
 		Head( ): $mol_view
@@ -53583,17 +55684,18 @@ declare namespace $ {
 		editable( ): boolean
 		drop_spot( ): readonly(number)[]
 		selected( next?: string ): string
-		selection( next?: readonly(string)[] ): readonly(string)[]
 		arrange( next?: string ): string
 		publish_files( ): Record<string, any>
 		publish_name( next?: string ): string
 		store( ): $bog_figmol_store
+		live( ): $bog_figmol_live
 		title( ): string
 		publishing( next?: boolean ): boolean
 		plugins( ): readonly(any)[]
 		sub( ): readonly(any)[]
 		Title( ): $mol_view
 		Status( ): $giper_baza_status
+		Mates( ): $bog_figmol_app_mates
 		Theme_toggle( ): $bog_theme_toggle
 		Share( ): $mol_button_copy
 		Publish_toggle( ): $mol_button_minor
@@ -53640,6 +55742,25 @@ declare namespace $.$$ {
          * happens once for as long as the app is on screen.
          */
         auto(): void;
+        /**
+         * Whether the room has been asked for already.
+         *
+         * A plain field for the same reason `oauth_seen` is one: `auto` belongs to
+         * a memoized render and is re-entered whenever anything it reads changes,
+         * and a cell reset along with it would grab a second Land.
+         */
+        live_seen: boolean;
+        /**
+         * Makes the room the first time the owner opens this site, in a fiber of
+         * its own — grabbing a Land runs Proof of Work, and the task belongs to
+         * whoever asked for it. A visitor asks for nothing: the link to the room
+         * lives in the site, and writing there is not theirs to do.
+         *
+         * A window with no site yet asks for nothing either, which is why `auto`
+         * only calls this once there is one: it reads the site and is re-entered
+         * when one appears, so pressing "create a site" opens the room right after.
+         */
+        live_open(): void;
         /**
          * The node a single-element panel talks about: the last one picked.
          *

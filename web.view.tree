@@ -1916,6 +1916,21 @@ $giper_baza_app $mol_book2_catalog
 				<= Spread_close
 	placeholders /
 
+$bog_figmol_app_mates $mol_view
+	live $bog_figmol_live
+	sub <= chips /$mol_view
+	- \Name this browser goes by. Sits among the others rather than in a settings
+	- \panel: it is only worth saying when there is somebody to say it to.
+	Name $mol_string
+		value? <=> name? \
+		hint <= name_hint @ \You
+	Chip* $mol_view
+		sub /
+			<= Dot* $mol_view
+				style *
+					backgroundColor <= chip_color* \
+			<= chip_name* \
+
 $bog_theme_picker_row $mol_button_minor
 	theme_name \
 	title <= theme_name
@@ -2165,6 +2180,8 @@ $bog_figmol_app_canvas_shape $mol_view
 	- \Grips are drawn for somebody who can actually drag them
 	editable true
 	selected false
+	- \Colour of whoever else has this picked, empty when nobody else has
+	mark \
 	- \Grips are for one element at a time — a group is framed and moved, not sized
 	grips true
 	editing false
@@ -2195,6 +2212,7 @@ $bog_figmol_app_canvas_shape $mol_view
 		fontSize <= style_font_size \
 		fontWeight <= style_weight \
 		textAlign <= style_text_align \
+		boxShadow <= style_mark \
 	sub <= content /
 	Label $mol_view
 		sub /
@@ -2278,8 +2296,25 @@ $bog_figmol_app_canvas_shape $mol_view
 			^
 			figmol_handle \e
 
+$bog_figmol_app_canvas_cursor $mol_view
+	- \Colour of the participant this cursor belongs to
+	color \#0091ff
+	- \What they are called
+	mate_name \
+	sub /
+		<= Arrow $mol_view
+			style *
+				borderBottomColor <= color
+		<= Label $mol_view
+			style *
+				backgroundColor <= color
+			sub /
+				<= mate_name
+
 $bog_figmol_app_canvas $mol_view
 	store $bog_figmol_store
+	- \Who else is looking at this site, and where their cursor is
+	live $bog_figmol_live
 	- \A site opened by somebody else's link is drawn, panned and read, never moved
 	editable true
 	tool? \select
@@ -2309,6 +2344,7 @@ $bog_figmol_app_canvas $mol_view
 		pointermove?event <=> pointer_move?event null
 		pointerup?event <=> pointer_up?event null
 		pointercancel?event <=> pointer_up?event null
+		pointerleave?event <=> pointer_out?event null
 		lostpointercapture?event <=> pointer_up?event null
 		dblclick?event <=> pointer_edit?event null
 		wheel?event <=> wheel_zoom?event null
@@ -2344,11 +2380,19 @@ $bog_figmol_app_canvas $mol_view
 		editable <= editable true
 		id <= shape_id* \
 		selected <= shape_selected* false
+		mark <= shape_mark* \
 		grips <= shape_grips* false
 		editing <= shape_editing* false
 		dropping <= shape_dropping* false
 		kids <= shape_kids* /$mol_view
 		rect <= shape_rect* /number
+	- \Pointer of somebody else, moved by a transform in screen pixels: a cursor
+	- \is at a place on the page, and the page is drawn at whatever zoom it is.
+	Cursor* $bog_figmol_app_canvas_cursor
+		color <= cursor_color* \
+		mate_name <= cursor_name* \
+		style *
+			transform <= cursor_transform* \
 	- \Rubber band of a selection drag. Lives on the sheet, so it is drawn in
 	- \sheet pixels and the viewport transform carries it along.
 	Marquee $mol_view
@@ -3100,6 +3144,11 @@ $bog_figmol_deploy $mol_page
 
 $bog_figmol_app $mol_view
 	store $bog_figmol_store
+	- \Presence: who else has this site open and where their cursor is. Reads the
+	- \selection rather than being told about it — it changes from four places.
+	live $bog_figmol_live
+		store <= store
+		picked <= selection /string
 	title @ \Figmol
 	- \Armed tool: select | text | image | button | rect | frame
 	tool? \select
@@ -3132,6 +3181,8 @@ $bog_figmol_app $mol_view
 		sub /
 			<= title
 	Status $giper_baza_status
+	Mates $bog_figmol_app_mates
+		live <= live
 	Theme_toggle $bog_theme_toggle
 		theme_auto <= Theme
 	- \Address of this very site for somebody else. Read only for them until the
@@ -3160,6 +3211,7 @@ $bog_figmol_app $mol_view
 		selection <= selection /string
 	Canvas $bog_figmol_app_canvas
 		store <= store
+		live <= live
 		editable <= editable true
 		tool? <=> tool? \select
 		selection? <=> selection? /string

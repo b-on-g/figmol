@@ -16860,6 +16860,446 @@ var $;
 })($ || ($ = {}));
 
 ;
+"use strict";
+var $;
+(function ($) {
+    /**
+     * Anybody holding the link writes, and no Proof of Work on the way in: a
+     * cursor goes out many times a second, and a proof per move would cost more
+     * than the whole editor.
+     */
+    const preset_live = [[null, $giper_baza_rank_post('just')]];
+    /** How often this browser is allowed to say where its cursor is. */
+    const live_flush = 60;
+    /** How often it says so anyway, having nothing new to report. */
+    const live_beat = 2000;
+    /**
+     * Silence after which somebody is taken to have left.
+     *
+     * Generous, and it has to be: a browser throttles the timers of a tab nobody
+     * is looking at, and the beat of a window left open on another screen arrives
+     * every ten seconds or so rather than every two. Somebody who has closed the
+     * tab lingers for this long, which is a fair price for not blinking out
+     * everybody who looked away.
+     */
+    const live_gone = 20000;
+    /**
+     * Silence after which a cursor stops being drawn, the person staying in the
+     * list all the same.
+     *
+     * A pointer is a place somebody is looking at right now, and one that has not
+     * moved for a while is a claim the window can no longer support. Presence is
+     * a fact and outlives it.
+     */
+    const live_idle = 6000;
+    /** How often presence is judged again. */
+    const live_step = 1000;
+    /**
+     * How far the clock of a writer may be from ours and still be believed.
+     *
+     * Only ever used to throw away what is plainly old — a pawn left in the room
+     * by somebody who was here yesterday. Without it a cold load would show
+     * every visitor the site ever had, until each of them went quiet in turn.
+     */
+    const live_stale = 300_000;
+    /** Fields of a packed spot, in order: place, x, y, wall clock. */
+    const live_split = '|';
+    /** Where the name of this browser is kept. */
+    const live_name = 'bog_figmol_live_name';
+    /**
+     * Who else is looking at this site, and where their cursor is.
+     *
+     * Everything travels through a Land of its own, grabbed by the owner and
+     * writable by anybody holding the link. The site itself stays readable and
+     * nothing more for a visitor — which is the point: presence is not allowed
+     * anywhere near the document, whose ordered lists do not survive two writers
+     * (see the note on co-editing in the README).
+     *
+     * Inside that Land nobody writes anybody else's pawn either. A participant
+     * owns the key named after their lord and the three registers under it, so
+     * the only shared write in the whole channel is putting that key in, once
+     * per person — a plain CRDT insert with a fresh self, which merges.
+     *
+     * Nothing that returns a Baza object is memoized: `@$mol_mem` makes the atom
+     * the owner of what it returns, and destructing a Land walks into a circular
+     * subscription.
+     */
+    class $bog_figmol_live extends $mol_object2 {
+        // === Wiring ==============================================================
+        /**
+         * The document this presence is about. Handed in by the app, which owns
+         * the one instance of both.
+         */
+        store() {
+            return $mol_fail(new Error(`${this} has no store`));
+        }
+        /**
+         * What this browser has picked. Bound to the selection of the editor, so
+         * the channel reads it rather than being told — the selection changes from
+         * the canvas, the layer tree, the palette and the undo journal alike.
+         */
+        picked() {
+            return [];
+        }
+        /** Who this browser is, in the eyes of the Baza. */
+        lord() {
+            return this.$.$giper_baza_auth.current().pass().lord().str;
+        }
+        /**
+         * What this browser calls itself.
+         *
+         * Kept beside the browser rather than in the document: the same person in
+         * two tabs is two participants with two cursors, and naming them is a
+         * property of the window they are in.
+         */
+        name(next) {
+            if (next !== undefined)
+                this.dirty = true;
+            return this.$.$mol_state_local.value(live_name, next) ?? '';
+        }
+        /** What the canvas is showing: a component master takes over from a page. */
+        place() {
+            const store = this.store();
+            return store.comp_current() || store.page_current();
+        }
+        // === Room ================================================================
+        /** Where everybody says where they are, `null` until there is one. */
+        room() {
+            return this.store().site()?.Live()?.remote() ?? null;
+        }
+        /** Somebody's pawn in the room, `null` when they have never been here. */
+        mate(lord) {
+            const room = this.room();
+            if (!room || !lord)
+                return null;
+            return (room.key(lord) ?? null);
+        }
+        /** This browser's own pawn, put in the room the first time it is asked for. */
+        mine() {
+            const room = this.room();
+            if (!room)
+                return null;
+            return (room.key(this.lord(), null) ?? null);
+        }
+        /**
+         * Makes the room, and does nothing at all for a visitor: the link to it
+         * lives in the site, and a visitor may not write there.
+         *
+         * Must run in a fiber of its own — grabbing a Land runs Proof of Work,
+         * whose task belongs to the fiber that asked for it. A render would begin
+         * the proof afresh on every retry and never finish one.
+         */
+        room_make() {
+            const store = this.store();
+            const site = store.site();
+            if (!site)
+                return null;
+            const made = site.Live()?.remote();
+            if (made)
+                return made;
+            if (!store.writable())
+                return null;
+            const room = site.Live(null).ensure(preset_live);
+            // Rights travel as a Gift, and a Gift nobody has signed yet is refused
+            // by whoever receives it — leaving every visitor with the rank a Land
+            // hands out by default, which is reading. Signing is lazy, so it is
+            // asked for here, while the fiber that grabbed the Land is still alive.
+            if (room)
+                room.land().units_saving();
+            return room;
+        }
+        // === Reading =============================================================
+        /** Everybody who has ever been in the room, this browser included. */
+        lords() {
+            const room = this.room();
+            if (!room)
+                return [];
+            return room.keys().map(key => String(key));
+        }
+        /**
+         * Everybody but this browser who has said something lately.
+         *
+         * A room that has not arrived yet is nobody rather than a broken header:
+         * the atom subscribed to the reads it made before suspending, and comes
+         * back on its own once they resolve.
+         */
+        mates() {
+            try {
+                const me = this.lord();
+                return this.lords().filter(lord => lord !== me && this.here(lord));
+            }
+            catch (error) {
+                if (!$mol_promise_like(error))
+                    $mol_fail_log(error);
+                return [];
+            }
+        }
+        /**
+         * Everybody whose cursor belongs on what the canvas is drawing now: same
+         * page or same component master, and heard from recently enough for the
+         * position to still mean something.
+         */
+        crowd(place) {
+            if (!place)
+                return [];
+            return this.mates().filter(lord => this.spot(lord).place === place && this.awake(lord));
+        }
+        /** Whether somebody has moved lately enough to be drawn where they were. */
+        awake(lord) {
+            const now = this.$.$mol_state_time.now(live_step);
+            return now - this.seen(lord) < live_idle;
+        }
+        /** Whether somebody is still around. */
+        here(lord) {
+            const spot = this.spot(lord);
+            if (!spot.wall)
+                return false;
+            const now = this.$.$mol_state_time.now(live_step);
+            if (Math.abs(now - spot.wall) > live_stale)
+                return false;
+            return now - this.seen(lord) < live_gone;
+        }
+        /**
+         * When this browser last saw that person say anything, by this browser's
+         * own clock.
+         *
+         * The cell is recomputed exactly when their registers change and never
+         * otherwise, so the answer needs no bookkeeping — and no agreement between
+         * two clocks, which two machines do not have.
+         */
+        seen(lord) {
+            this.spot(lord);
+            this.pick(lord);
+            return Date.now();
+        }
+        /** Where somebody is, as they last said. */
+        spot(lord) {
+            return $bog_figmol_live.spot_read(this.mate(lord)?.Spot()?.val() ?? '');
+        }
+        /** What somebody has picked. */
+        pick(lord) {
+            return $bog_figmol_live.pick_read(this.mate(lord)?.Pick()?.val() ?? '');
+        }
+        /** What to call somebody: their own name, or the short of their lord. */
+        title(lord) {
+            const name = (this.mate(lord)?.Name()?.val() ?? '').trim();
+            return name || $bog_figmol_live.label(lord);
+        }
+        /** The colour that is theirs in every browser at once. */
+        color(lord) {
+            return $bog_figmol_live.color(lord);
+        }
+        // === Writing =============================================================
+        /**
+         * Where the pointer is, in sheet pixels, and whether it is over the sheet
+         * at all.
+         *
+         * Plain fields: a cursor moving repaints nothing here, and a cell written
+         * by one event handler and read by another is reset between the two — the
+         * fiber of the previous event is its only subscriber, and the next event
+         * kills it.
+         */
+        spot_x = null;
+        spot_y = null;
+        /** What went out last, so an unchanged cursor costs one comparison. */
+        sent_body = '';
+        sent_pick = '';
+        sent_time = 0;
+        /** Whether something that is not the cursor has changed. */
+        dirty = false;
+        /** Whether a write has ever reached the room. */
+        ready = false;
+        /** Whether the beat is running, and what to stop. */
+        timer = null;
+        /** Where the pointer is now. `null` twice means it has left the sheet. */
+        point(x, y) {
+            this.spot_x = x;
+            this.spot_y = y;
+        }
+        /**
+         * Starts the beat, once.
+         *
+         * Called from the render of the app, which is why the guard is a plain
+         * field and not an atom: a render re-runs, and a cell reset along with it
+         * would leave a second timer running beside the first.
+         */
+        start() {
+            if (this.timer)
+                return;
+            this.timer = setInterval(() => this.tick(), live_flush);
+            // Looking away takes the pointer with it. A hidden tab has its timers
+            // throttled to a crawl and could not say so a moment later, so it says
+            // so while it still can.
+            const doc = this.$.$mol_dom_context.document;
+            doc?.addEventListener('visibilitychange', () => {
+                if (doc.hidden)
+                    this.point(null, null);
+            });
+        }
+        destructor() {
+            if (this.timer)
+                clearInterval(this.timer);
+            this.timer = null;
+            super.destructor();
+        }
+        /**
+         * Decides whether anything is worth writing — many times a second, and
+         * without touching the Baza when it is not.
+         *
+         * Reading the editor from here may suspend while the site loads. That is
+         * not an error and not worth a line in the log: the next tick asks again.
+         */
+        tick() {
+            let place = '';
+            let picked = [];
+            try {
+                place = this.place();
+                picked = this.picked();
+            }
+            catch (error) {
+                if (!$mol_promise_like(error))
+                    $mol_fail_log(error);
+                return;
+            }
+            const body = $bog_figmol_live.spot_pack(place, this.spot_x, this.spot_y, 0);
+            const pick = $bog_figmol_live.pick_pack(picked);
+            const now = Date.now();
+            const still = body === this.sent_body && pick === this.sent_pick && !this.dirty;
+            const due = now - this.sent_time >= live_beat;
+            // Until a write has got through once, the room is still on its way, and
+            // a fiber per cursor move would only pile up on the same Land — each of
+            // them killed by the next tick and left waiting forever. A beat apart is
+            // often enough to notice the room has arrived.
+            if (!due && (still || !this.ready))
+                return;
+            this.sent_body = body;
+            this.sent_pick = pick;
+            this.sent_time = now;
+            this.dirty = false;
+            // A fiber of its own, and a new one every time: the previous is killed
+            // with it, so a write still waiting on the Land is dropped in favour of
+            // where the cursor is now. Stale positions are of no interest to
+            // anybody.
+            $mol_wire_async(this).flush().catch((error) => {
+                if (!$mol_promise_like(error))
+                    $mol_fail_log(error);
+            });
+        }
+        /**
+         * Says where this browser is. Never decorated — `tick` hands it a fiber.
+         *
+         * Every register is written unconditionally: an atom whose value has not
+         * changed posts nothing, so the deduplication is already done a level
+         * below and doing it again here would only be a second place to get wrong.
+         */
+        flush() {
+            const mate = this.mine();
+            if (!mate)
+                return;
+            mate.Spot(null).val($bog_figmol_live.spot_pack(this.place(), this.spot_x, this.spot_y, Date.now()));
+            mate.Pick(null).val($bog_figmol_live.pick_pack(this.picked()));
+            mate.Name(null).val(this.name());
+            this.ready = true;
+        }
+        // === Packing =============================================================
+        /**
+         * Colours participants are given, in the order the palette hands them out.
+         * Picked to stay apart on a white sheet and on a dark one alike.
+         */
+        static colors = [
+            '#e5484d',
+            '#f76b15',
+            '#ffb224',
+            '#30a46c',
+            '#0091ff',
+            '#8e4ec6',
+            '#e93d82',
+            '#12a594',
+        ];
+        /**
+         * Which colour of the palette a lord gets.
+         *
+         * A hash rather than a counter, so every browser works the answer out for
+         * itself and two of them never disagree about who is red.
+         */
+        static slot(lord) {
+            let hash = 0;
+            for (let at = 0; at < lord.length; ++at) {
+                hash = (Math.imul(hash, 31) + lord.charCodeAt(at)) >>> 0;
+            }
+            return hash % this.colors.length;
+        }
+        static color(lord) {
+            return this.colors[this.slot(lord)];
+        }
+        /** What to call somebody who has not said. */
+        static label(lord) {
+            return lord.slice(0, 4) || '?';
+        }
+        /** Packs where somebody is into the one register that carries it. */
+        static spot_pack(place, x, y, wall) {
+            const off = x === null || y === null || !Number.isFinite(x) || !Number.isFinite(y);
+            return [
+                place,
+                off ? '' : String(Math.round(x)),
+                off ? '' : String(Math.round(y)),
+                String(wall),
+            ].join(live_split);
+        }
+        static spot_read(raw) {
+            const parts = raw.split(live_split);
+            const x = Number(parts[1]);
+            const y = Number(parts[2]);
+            const wall = Number(parts[3]);
+            return {
+                place: parts[0] ?? '',
+                x: parts[1] && Number.isFinite(x) ? x : null,
+                y: parts[2] && Number.isFinite(y) ? y : null,
+                wall: Number.isFinite(wall) ? wall : 0,
+            };
+        }
+        /** Links of the picked nodes. They never contain a space. */
+        static pick_pack(ids) {
+            return ids.join(' ');
+        }
+        static pick_read(raw) {
+            return raw ? raw.split(' ').filter(Boolean) : [];
+        }
+    }
+    __decorate([
+        $mol_action
+    ], $bog_figmol_live.prototype, "room_make", null);
+    __decorate([
+        $mol_mem
+    ], $bog_figmol_live.prototype, "lords", null);
+    __decorate([
+        $mol_mem
+    ], $bog_figmol_live.prototype, "mates", null);
+    __decorate([
+        $mol_mem_key
+    ], $bog_figmol_live.prototype, "crowd", null);
+    __decorate([
+        $mol_mem_key
+    ], $bog_figmol_live.prototype, "awake", null);
+    __decorate([
+        $mol_mem_key
+    ], $bog_figmol_live.prototype, "here", null);
+    __decorate([
+        $mol_mem_key
+    ], $bog_figmol_live.prototype, "seen", null);
+    __decorate([
+        $mol_mem_key
+    ], $bog_figmol_live.prototype, "spot", null);
+    __decorate([
+        $mol_mem_key
+    ], $bog_figmol_live.prototype, "pick", null);
+    __decorate([
+        $mol_mem_key
+    ], $bog_figmol_live.prototype, "title", null);
+    $.$bog_figmol_live = $bog_figmol_live;
+})($ || ($ = {}));
+
+;
 	($.$mol_ghost) = class $mol_ghost extends ($.$mol_view) {
 		Sub(){
 			const obj = new this.$.$mol_view();
@@ -20417,6 +20857,166 @@ var $;
 var $;
 (function ($) {
     $mol_style_attach("giper/baza/status/status.view.css", "[giper_baza_status_option_row] {\n\tpadding: var(--mol_gap_text);\n}\n\n[giper_baza_status_well] {\n\tcolor: var(--mol_theme_current);\n}\n\n[giper_baza_status_fail] {\n\tcolor: var(--mol_theme_focus);\n}\n\n[giper_baza_status][mol_view_error=\"Promise\"] {\n\tanimation: giper_baza_status_wait 1s linear infinite;\n}\n\n@keyframes giper_baza_status_wait {\n\tfrom {\n\t\topacity: 1;\n\t}\n\tto {\n\t\topacity: .5;\n\t}\n}\n");
+})($ || ($ = {}));
+
+;
+	($.$bog_figmol_app_mates) = class $bog_figmol_app_mates extends ($.$mol_view) {
+		chips(){
+			return [];
+		}
+		name(next){
+			if(next !== undefined) return next;
+			return "";
+		}
+		name_hint(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_mates_name_hint"));
+		}
+		chip_color(id){
+			return "";
+		}
+		Dot(id){
+			const obj = new this.$.$mol_view();
+			(obj.style) = () => ({"backgroundColor": (this.chip_color(id))});
+			return obj;
+		}
+		chip_name(id){
+			return "";
+		}
+		live(){
+			const obj = new this.$.$bog_figmol_live();
+			return obj;
+		}
+		sub(){
+			return (this.chips());
+		}
+		Name(){
+			const obj = new this.$.$mol_string();
+			(obj.value) = (next) => ((this.name(next)));
+			(obj.hint) = () => ((this.name_hint()));
+			return obj;
+		}
+		Chip(id){
+			const obj = new this.$.$mol_view();
+			(obj.sub) = () => ([(this.Dot(id)), (this.chip_name(id))]);
+			return obj;
+		}
+	};
+	($mol_mem(($.$bog_figmol_app_mates.prototype), "name"));
+	($mol_mem_key(($.$bog_figmol_app_mates.prototype), "Dot"));
+	($mol_mem(($.$bog_figmol_app_mates.prototype), "live"));
+	($mol_mem(($.$bog_figmol_app_mates.prototype), "Name"));
+	($mol_mem_key(($.$bog_figmol_app_mates.prototype), "Chip"));
+
+
+;
+"use strict";
+
+
+;
+"use strict";
+var $;
+(function ($) {
+    var $$;
+    (function ($$) {
+        /**
+         * Who else is looking at this site: a coloured dot and a name each.
+         *
+         * Empty while nobody else is around, and the field for one's own name goes
+         * with it — a header of a lone editor has nothing to say about company, and
+         * a name nobody will read is not worth a control.
+         */
+        class $bog_figmol_app_mates extends $.$bog_figmol_app_mates {
+            chips() {
+                const mates = this.live().mates();
+                if (!mates.length)
+                    return [];
+                return [this.Name(), ...mates.map(lord => this.Chip(lord))];
+            }
+            name(next) {
+                return this.live().name(next);
+            }
+            chip_color(lord) {
+                return this.live().color(lord);
+            }
+            chip_name(lord) {
+                return this.live().title(lord);
+            }
+        }
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_app_mates.prototype, "chips", null);
+        $$.$bog_figmol_app_mates = $bog_figmol_app_mates;
+    })($$ = $.$$ || ($.$$ = {}));
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    $mol_style_define($bog_figmol_app_mates, {
+        flex: {
+            direction: 'row',
+            shrink: 0,
+        },
+        align: {
+            items: 'center',
+        },
+        gap: '0.25rem',
+        /** Short on purpose: a name is a word, and the header is not a form. */
+        Name: {
+            flex: {
+                shrink: 0,
+            },
+            width: '6rem',
+            padding: {
+                top: '0.125rem',
+                bottom: '0.125rem',
+                left: '0.375rem',
+                right: '0.375rem',
+            },
+            font: {
+                size: '0.75rem',
+            },
+        },
+        Chip: {
+            flex: {
+                direction: 'row',
+                shrink: 0,
+            },
+            align: {
+                items: 'center',
+            },
+            gap: '0.25rem',
+            padding: {
+                top: '0.125rem',
+                bottom: '0.125rem',
+                left: '0.375rem',
+                right: '0.5rem',
+            },
+            background: {
+                color: $mol_theme.back,
+            },
+            borderRadius: '999px',
+            color: $mol_theme.text,
+            font: {
+                size: '0.75rem',
+            },
+            whiteSpace: 'nowrap',
+            maxWidth: '8rem',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+        },
+        Dot: {
+            flex: {
+                shrink: 0,
+            },
+            width: '0.5rem',
+            height: '0.5rem',
+            minWidth: '0.5rem',
+            minHeight: '0.5rem',
+            borderRadius: '50%',
+        },
+    });
 })($ || ($ = {}));
 
 ;
@@ -24136,6 +24736,9 @@ var $;
 		style_text_align(){
 			return "";
 		}
+		style_mark(){
+			return "";
+		}
 		content(){
 			return [];
 		}
@@ -24196,6 +24799,9 @@ var $;
 		selected(){
 			return false;
 		}
+		mark(){
+			return "";
+		}
 		grips(){
 			return true;
 		}
@@ -24232,7 +24838,8 @@ var $;
 				"background": (this.style_back()), 
 				"fontSize": (this.style_font_size()), 
 				"fontWeight": (this.style_weight()), 
-				"textAlign": (this.style_text_align())
+				"textAlign": (this.style_text_align()), 
+				"boxShadow": (this.style_mark())
 			};
 		}
 		sub(){
@@ -24526,6 +25133,22 @@ var $;
             }
             inner_align() {
                 return this.inner_direction() ? this.align_style() : '';
+            }
+            /**
+             * Ring around the shape when somebody else has it picked, in their colour.
+             *
+             * Written here rather than left to the stylesheet because the ring this
+             * browser draws for its own selection is a shadow too, and one property
+             * cannot come from two places: an empty answer hands the shape back to
+             * the rule behind `figmol_selected`, and a full one spells both rings out.
+             */
+            style_mark() {
+                const mark = this.mark();
+                if (!mark)
+                    return '';
+                if (!this.selected())
+                    return '0 0 0 2px ' + mark;
+                return '0 0 0 2px #2f7ff7, 0 0 0 4px ' + mark;
             }
             style_color() {
                 return this.store().color(this.id());
@@ -24888,6 +25511,117 @@ var $;
 })($ || ($ = {}));
 
 ;
+	($.$bog_figmol_app_canvas_cursor) = class $bog_figmol_app_canvas_cursor extends ($.$mol_view) {
+		Arrow(){
+			const obj = new this.$.$mol_view();
+			(obj.style) = () => ({"borderBottomColor": (this.color())});
+			return obj;
+		}
+		Label(){
+			const obj = new this.$.$mol_view();
+			(obj.style) = () => ({"backgroundColor": (this.color())});
+			(obj.sub) = () => ([(this.mate_name())]);
+			return obj;
+		}
+		color(){
+			return "#0091ff";
+		}
+		mate_name(){
+			return "";
+		}
+		sub(){
+			return [(this.Arrow()), (this.Label())];
+		}
+	};
+	($mol_mem(($.$bog_figmol_app_canvas_cursor.prototype), "Arrow"));
+	($mol_mem(($.$bog_figmol_app_canvas_cursor.prototype), "Label"));
+
+
+;
+"use strict";
+
+
+;
+"use strict";
+var $;
+(function ($) {
+    $mol_style_define($bog_figmol_app_canvas_cursor, {
+        /**
+         * Sits at the top left of the overlay and is carried to where it belongs
+         * by a transform, which the canvas writes in screen pixels.
+         *
+         * The transform is what moves rather than `left` and `top`, and it is
+         * eased: positions arrive some tens of milliseconds apart, and a pointer
+         * that jumped between them would read as a stutter rather than as a hand.
+         */
+        display: 'block',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: 0,
+        height: 0,
+        padding: 0,
+        pointerEvents: 'none',
+        zIndex: 20,
+        transition: 'transform 0.12s linear',
+        /**
+         * The pointer itself: a triangle made of borders, turned so that its tip
+         * sits exactly where the cursor is. The colour comes down as an inline
+         * style, since it belongs to the person rather than to the component.
+         */
+        Arrow: {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: 0,
+            height: 0,
+            padding: 0,
+            border: {
+                left: {
+                    width: '5px',
+                    style: 'solid',
+                    color: 'transparent',
+                },
+                right: {
+                    width: '5px',
+                    style: 'solid',
+                    color: 'transparent',
+                },
+                bottom: {
+                    width: '15px',
+                    style: 'solid',
+                    color: '#0091ff',
+                },
+            },
+            transformOrigin: '5px 0',
+            transform: 'rotate( -45deg )',
+            filter: 'drop-shadow( 0 1px 1px #00000059 )',
+        },
+        /** Name tag, hung below and to the right the way every editor hangs it. */
+        Label: {
+            position: 'absolute',
+            top: '14px',
+            left: '10px',
+            padding: {
+                top: '0.0625rem',
+                bottom: '0.0625rem',
+                left: '0.3125rem',
+                right: '0.3125rem',
+            },
+            borderRadius: '0.25rem',
+            color: '#ffffff',
+            font: {
+                size: '0.6875rem',
+            },
+            whiteSpace: 'nowrap',
+            maxWidth: '10rem',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+        },
+    });
+})($ || ($ = {}));
+
+;
 	($.$bog_figmol_app_canvas) = class $bog_figmol_app_canvas extends ($.$mol_view) {
 		armed(){
 			return false;
@@ -24904,6 +25638,10 @@ var $;
 			return null;
 		}
 		pointer_up(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		pointer_out(next){
 			if(next !== undefined) return next;
 			return null;
 		}
@@ -24982,6 +25720,9 @@ var $;
 		shape_selected(id){
 			return false;
 		}
+		shape_mark(id){
+			return "";
+		}
 		shape_grips(id){
 			return false;
 		}
@@ -24996,6 +25737,15 @@ var $;
 		}
 		shape_rect(id){
 			return [];
+		}
+		cursor_color(id){
+			return "";
+		}
+		cursor_name(id){
+			return "";
+		}
+		cursor_transform(id){
+			return "";
 		}
 		marquee_left(){
 			return "";
@@ -25154,6 +25904,10 @@ var $;
 			const obj = new this.$.$bog_figmol_store();
 			return obj;
 		}
+		live(){
+			const obj = new this.$.$bog_figmol_live();
+			return obj;
+		}
 		tool(next){
 			if(next !== undefined) return next;
 			return "select";
@@ -25207,6 +25961,7 @@ var $;
 				"pointermove": (next) => (this.pointer_move(next)), 
 				"pointerup": (next) => (this.pointer_up(next)), 
 				"pointercancel": (next) => (this.pointer_up(next)), 
+				"pointerleave": (next) => (this.pointer_out(next)), 
 				"lostpointercapture": (next) => (this.pointer_up(next)), 
 				"dblclick": (next) => (this.pointer_edit(next)), 
 				"wheel": (next) => (this.wheel_zoom(next)), 
@@ -25225,11 +25980,19 @@ var $;
 			(obj.editable) = () => ((this.editable()));
 			(obj.id) = () => ((this.shape_id(id)));
 			(obj.selected) = () => ((this.shape_selected(id)));
+			(obj.mark) = () => ((this.shape_mark(id)));
 			(obj.grips) = () => ((this.shape_grips(id)));
 			(obj.editing) = () => ((this.shape_editing(id)));
 			(obj.dropping) = () => ((this.shape_dropping(id)));
 			(obj.kids) = () => ((this.shape_kids(id)));
 			(obj.rect) = () => ((this.shape_rect(id)));
+			return obj;
+		}
+		Cursor(id){
+			const obj = new this.$.$bog_figmol_app_canvas_cursor();
+			(obj.color) = () => ((this.cursor_color(id)));
+			(obj.mate_name) = () => ((this.cursor_name(id)));
+			(obj.style) = () => ({"transform": (this.cursor_transform(id))});
 			return obj;
 		}
 		Marquee(){
@@ -25305,6 +26068,7 @@ var $;
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "pointer_down"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "pointer_move"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "pointer_up"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "pointer_out"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "pointer_edit"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "wheel_zoom"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "context_menu"));
@@ -25330,6 +26094,7 @@ var $;
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "menu_drop"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Menu_drop"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "store"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "live"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "tool"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "selection"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "editing"));
@@ -25337,6 +26102,7 @@ var $;
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "pan_x"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "pan_y"));
 	($mol_mem_key(($.$bog_figmol_app_canvas.prototype), "Shape"));
+	($mol_mem_key(($.$bog_figmol_app_canvas.prototype), "Cursor"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Marquee"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Guide_x"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Guide_y"));
@@ -25572,6 +26338,41 @@ var $;
                 return this.selection().includes(id);
             }
             /**
+             * Colour of whoever else has this node picked, empty when nobody has.
+             *
+             * Drawn on the shape rather than as a rectangle over it, and that is the
+             * whole reason the frame is right: a node inside an auto layout is placed
+             * by the frame that holds it, so its coordinates say nothing and a
+             * rectangle drawn from them would sit somewhere else entirely.
+             */
+            shape_mark(id) {
+                return this.marks()[id] ?? '';
+            }
+            /**
+             * Colour per node picked by somebody else — worked out in one pass and
+             * read by every shape, rather than every shape walking everybody.
+             *
+             * Whoever picked it last wins a node two people have picked. Showing both
+             * would mean two rings on one box, which reads as a border rather than as
+             * a selection.
+             */
+            marks() {
+                const res = {};
+                try {
+                    const live = this.live();
+                    for (const lord of live.crowd(live.place())) {
+                        const color = live.color(lord);
+                        for (const id of live.pick(lord))
+                            res[id] = color;
+                    }
+                }
+                catch (error) {
+                    if (!$mol_promise_like(error))
+                        $mol_fail_log(error);
+                }
+                return res;
+            }
+            /**
              * Grips are drawn for a single element only. Several at once would need a
              * box around the lot of them and a resize that divides itself up between
              * them — worth doing, and not by pretending each one is alone.
@@ -25644,6 +26445,7 @@ var $;
                 const guide_x = this.guide_x();
                 const guide_y = this.guide_y();
                 const measures = this.measure_ids();
+                const cursors = this.cursor_ids();
                 const group = this.group_on();
                 const menu = this.menu_on();
                 const res = [];
@@ -25653,11 +26455,53 @@ var $;
                     res.push(this.Guide_y());
                 for (const id of measures)
                     res.push(this.Measure(id));
+                for (const lord of cursors)
+                    res.push(this.Cursor(lord));
                 if (group)
                     res.push(this.Group());
                 if (menu)
                     res.push(this.Menu());
                 return res;
+            }
+            /* --------------------------------------------------------------- cursors */
+            /**
+             * Everybody whose pointer belongs on what is drawn right now: on this
+             * page, or in this component master, and over the sheet at all.
+             *
+             * A room that has not arrived yet is nobody. The atom subscribed to what
+             * it read before suspending and comes back on its own.
+             */
+            cursor_ids() {
+                try {
+                    const live = this.live();
+                    return live.crowd(live.place()).filter(lord => live.spot(lord).x !== null);
+                }
+                catch (error) {
+                    if (!$mol_promise_like(error))
+                        $mol_fail_log(error);
+                    return [];
+                }
+            }
+            /**
+             * Where to put somebody's pointer, in screen pixels.
+             *
+             * Screen and not sheet: the overlay is not scaled, so a cursor stays the
+             * same size however far the page is zoomed out — and panning moves it
+             * along, `pan_x` and the zoom being read right here.
+             */
+            cursor_transform(lord) {
+                const spot = this.live().spot(lord);
+                if (spot.x === null || spot.y === null)
+                    return 'translate( -1000px, -1000px )';
+                const x = Math.round(this.screen_x(spot.x));
+                const y = Math.round(this.screen_y(spot.y));
+                return `translate( ${x}px, ${y}px )`;
+            }
+            cursor_color(lord) {
+                return this.live().color(lord);
+            }
+            cursor_name(lord) {
+                return this.live().title(lord);
             }
             /** Sheet coordinate as a screen one, inside the canvas box. */
             screen_x(sheet_x) {
@@ -26154,6 +26998,20 @@ var $;
                 this.mode = 'pan';
                 this.grab_pan = [this.pan_x(), this.pan_y()];
             }
+            /** Tells the channel where the pointer is, in sheet pixels. */
+            live_point(event) {
+                const point = this.sheet_point(event);
+                this.live().point(point[0], point[1]);
+            }
+            /**
+             * The pointer has left the canvas, so there is nothing to show anybody:
+             * a cursor frozen at the edge of the sheet would be a lie about where its
+             * owner is looking.
+             */
+            pointer_out(event) {
+                this.live().point(null, null);
+                return null;
+            }
             /**
              * A press on a shape: what it does to the selection, and what gesture it
              * starts.
@@ -26387,6 +27245,10 @@ var $;
             pointer_move(event) {
                 if (!event)
                     return null;
+                // Where the pointer is goes to everybody else looking at this site. A
+                // plain field on the channel, which decides on its own how often that
+                // is worth a write — nothing here repaints because of it.
+                this.live_point(event);
                 if (!this.mode) {
                     this.measure_hover(event);
                     return null;
@@ -26971,6 +27833,12 @@ var $;
         ], $bog_figmol_app_canvas.prototype, "shape_selected", null);
         __decorate([
             $mol_mem_key
+        ], $bog_figmol_app_canvas.prototype, "shape_mark", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_app_canvas.prototype, "marks", null);
+        __decorate([
+            $mol_mem_key
         ], $bog_figmol_app_canvas.prototype, "shape_grips", null);
         __decorate([
             $mol_mem_key
@@ -26993,6 +27861,18 @@ var $;
         __decorate([
             $mol_mem
         ], $bog_figmol_app_canvas.prototype, "overlay", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_app_canvas.prototype, "cursor_ids", null);
+        __decorate([
+            $mol_mem_key
+        ], $bog_figmol_app_canvas.prototype, "cursor_transform", null);
+        __decorate([
+            $mol_mem_key
+        ], $bog_figmol_app_canvas.prototype, "cursor_color", null);
+        __decorate([
+            $mol_mem_key
+        ], $bog_figmol_app_canvas.prototype, "cursor_name", null);
         __decorate([
             $mol_mem
         ], $bog_figmol_app_canvas.prototype, "guide_x", null);
@@ -27035,6 +27915,9 @@ var $;
         __decorate([
             $mol_action
         ], $bog_figmol_app_canvas.prototype, "pan_start", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_canvas.prototype, "pointer_out", null);
         __decorate([
             $mol_action
         ], $bog_figmol_app_canvas.prototype, "press_pick", null);
@@ -34410,6 +35293,55 @@ var $;
 var $;
 (function ($) {
     /**
+     * One person looking at the site, as everybody else sees them.
+     *
+     * Every field here is a register its owner alone ever writes: the pawn is
+     * reached by the lord of the browser that made it, so two participants never
+     * touch the same unit and the ordered-list merge the document suffers from
+     * has nothing to merge.
+     */
+    class $bog_figmol_schema_mate extends $giper_baza_dict.with({
+        /** Whatever the person calls themselves, empty until they say. */
+        Name: $giper_baza_atom_text,
+        /**
+         * Where they are, packed by `$bog_figmol_live`: the page or the component
+         * master they have open, the cursor in sheet pixels, and the wall clock of
+         * the write.
+         *
+         * One register rather than four: the cursor goes out many times a second,
+         * and every field would be a unit of its own on every one of them.
+         */
+        Spot: $giper_baza_atom_text,
+        /** Nodes they have picked, by link, separated by spaces. */
+        Pick: $giper_baza_atom_text,
+    }) {
+    }
+    $.$bog_figmol_schema_mate = $bog_figmol_schema_mate;
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    /**
+     * Everybody present at a site, by the lord of their browser.
+     *
+     * Root pawn of a Land of its own, grabbed with public writing rights — which
+     * is the whole reason it is not part of the site: the document stays readable
+     * and nothing but readable for a visitor, while presence needs everyone to
+     * write. Nobody writes anybody else's key, so the only shared write in here
+     * is the one that puts a key in, once per person.
+     */
+    class $bog_figmol_schema_live extends $giper_baza_dict_to($bog_figmol_schema_mate) {
+    }
+    $.$bog_figmol_schema_live = $bog_figmol_schema_live;
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    /**
      * A whole site built in the editor.
      *
      * It is the root pawn of a Land grabbed just for it, reachable from
@@ -34431,6 +35363,15 @@ var $;
          * - `lights` — `light` or `dark`
          */
         Theme: $giper_baza_dict_to($giper_baza_atom_text),
+        /**
+         * Where everybody looking at this site says so — a Land of its own,
+         * writable by anybody holding the link.
+         *
+         * Separate on purpose: the site is readable and nothing more for a
+         * visitor, and presence would be impossible without letting them write.
+         * Keeping the two apart means a cursor can never reach the document.
+         */
+        Live: $giper_baza_atom_link.to(() => $bog_figmol_schema_live),
     }) {
     }
     $.$bog_figmol_schema_site = $bog_figmol_schema_site;
@@ -35713,6 +36654,10 @@ var $;
 
 ;
 	($.$bog_figmol_app) = class $bog_figmol_app extends ($.$mol_view) {
+		selection(next){
+			if(next !== undefined) return next;
+			return [];
+		}
 		Theme(){
 			const obj = new this.$.$bog_theme_auto();
 			(obj.theme_light) = () => ("$mol_theme_calm_light");
@@ -35773,10 +36718,6 @@ var $;
 			if(next !== undefined) return next;
 			return "";
 		}
-		selection(next){
-			if(next !== undefined) return next;
-			return [];
-		}
 		arrange(next){
 			if(next !== undefined) return next;
 			return "";
@@ -35790,6 +36731,12 @@ var $;
 		}
 		store(){
 			const obj = new this.$.$bog_figmol_store();
+			return obj;
+		}
+		live(){
+			const obj = new this.$.$bog_figmol_live();
+			(obj.store) = () => ((this.store()));
+			(obj.picked) = () => ((this.selection()));
 			return obj;
 		}
 		title(){
@@ -35813,6 +36760,11 @@ var $;
 		}
 		Status(){
 			const obj = new this.$.$giper_baza_status();
+			return obj;
+		}
+		Mates(){
+			const obj = new this.$.$bog_figmol_app_mates();
+			(obj.live) = () => ((this.live()));
 			return obj;
 		}
 		Theme_toggle(){
@@ -35861,6 +36813,7 @@ var $;
 		Canvas(){
 			const obj = new this.$.$bog_figmol_app_canvas();
 			(obj.store) = () => ((this.store()));
+			(obj.live) = () => ((this.live()));
 			(obj.editable) = () => ((this.editable()));
 			(obj.tool) = (next) => ((this.tool(next)));
 			(obj.selection) = (next) => ((this.selection(next)));
@@ -35886,19 +36839,21 @@ var $;
 			return obj;
 		}
 	};
+	($mol_mem(($.$bog_figmol_app.prototype), "selection"));
 	($mol_mem(($.$bog_figmol_app.prototype), "Theme"));
 	($mol_mem(($.$bog_figmol_app.prototype), "Head"));
 	($mol_mem(($.$bog_figmol_app.prototype), "Editor"));
 	($mol_mem(($.$bog_figmol_app.prototype), "publish_toggle"));
 	($mol_mem(($.$bog_figmol_app.prototype), "tool"));
 	($mol_mem(($.$bog_figmol_app.prototype), "selected"));
-	($mol_mem(($.$bog_figmol_app.prototype), "selection"));
 	($mol_mem(($.$bog_figmol_app.prototype), "arrange"));
 	($mol_mem(($.$bog_figmol_app.prototype), "publish_name"));
 	($mol_mem(($.$bog_figmol_app.prototype), "store"));
+	($mol_mem(($.$bog_figmol_app.prototype), "live"));
 	($mol_mem(($.$bog_figmol_app.prototype), "publishing"));
 	($mol_mem(($.$bog_figmol_app.prototype), "Title"));
 	($mol_mem(($.$bog_figmol_app.prototype), "Status"));
+	($mol_mem(($.$bog_figmol_app.prototype), "Mates"));
 	($mol_mem(($.$bog_figmol_app.prototype), "Theme_toggle"));
 	($mol_mem(($.$bog_figmol_app.prototype), "Share"));
 	($mol_mem(($.$bog_figmol_app.prototype), "Publish_toggle"));
@@ -36131,8 +37086,9 @@ var $;
              * happens once for as long as the app is on screen.
              */
             auto() {
+                let site = null;
                 try {
-                    this.store().site();
+                    site = this.store().site();
                 }
                 catch (error) {
                     if (!$mol_promise_like(error))
@@ -36140,7 +37096,38 @@ var $;
                 }
                 this.listen();
                 this.oauth_catch();
+                this.live().start();
+                if (site)
+                    this.live_open();
                 super.auto();
+            }
+            /* -------------------------------------------------------------- presence */
+            /**
+             * Whether the room has been asked for already.
+             *
+             * A plain field for the same reason `oauth_seen` is one: `auto` belongs to
+             * a memoized render and is re-entered whenever anything it reads changes,
+             * and a cell reset along with it would grab a second Land.
+             */
+            live_seen = false;
+            /**
+             * Makes the room the first time the owner opens this site, in a fiber of
+             * its own — grabbing a Land runs Proof of Work, and the task belongs to
+             * whoever asked for it. A visitor asks for nothing: the link to the room
+             * lives in the site, and writing there is not theirs to do.
+             *
+             * A window with no site yet asks for nothing either, which is why `auto`
+             * only calls this once there is one: it reads the site and is re-entered
+             * when one appears, so pressing "create a site" opens the room right after.
+             */
+            live_open() {
+                if (this.live_seen)
+                    return;
+                this.live_seen = true;
+                $mol_wire_async(this.live()).room_make().catch((error) => {
+                    if (!$mol_promise_like(error))
+                        $mol_fail_log(error);
+                });
             }
             /* -------------------------------------------------------------- selection */
             /**
@@ -36216,7 +37203,7 @@ var $;
             }
             /* ---------------------------------------------------------------- header */
             head_tools() {
-                const res = [this.Title(), this.Status()];
+                const res = [this.Title(), this.Status(), this.Mates()];
                 if (this.editable())
                     res.push(this.Share(), this.Publish_toggle());
                 else if (this.shared())
@@ -43933,6 +44920,94 @@ var $;
         },
         'boxes that touch have no distance worth drawing'() {
             $mol_assert_like($bog_figmol_magnet.gaps([100, 100, 50, 50], [[150, 100, 50, 50]], false), []);
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    /**
+     * Everything checked here is the part of presence that has no Baza in it:
+     * the palette, the packing of a spot and the reading of it back. The channel
+     * itself needs a Land, two browsers and a network, and is checked by opening
+     * the editor twice.
+     */
+    $mol_test({
+        'A colour belongs to a lord, not to the order they arrived in'() {
+            const one = $bog_figmol_live.color('sQ1nV8kL');
+            const two = $bog_figmol_live.color('sQ1nV8kL');
+            $mol_assert_equal(one, two);
+            $mol_assert_ok($bog_figmol_live.colors.includes(one));
+        },
+        'Every lord gets a colour of the palette, however long its name'() {
+            for (const lord of ['', 'a', 'zzzzzzzzzzzzzzzzzzzzzzzz', '9_-Xq']) {
+                const slot = $bog_figmol_live.slot(lord);
+                $mol_assert_ok(slot >= 0 && slot < $bog_figmol_live.colors.length);
+            }
+        },
+        'The palette is spread rather than crowded into one colour'() {
+            const lords = ['aaa', 'bbb', 'ccc', 'ddd', 'eee', 'fff', 'ggg', 'hhh'];
+            const slots = new Set(lords.map(lord => $bog_figmol_live.slot(lord)));
+            $mol_assert_ok(slots.size > 2);
+        },
+        'Somebody who has not given a name is called by the short of their lord'() {
+            $mol_assert_equal($bog_figmol_live.label('sQ1nV8kL'), 'sQ1n');
+            $mol_assert_equal($bog_figmol_live.label(''), '?');
+        },
+        'A spot survives the trip through the register'() {
+            const packed = $bog_figmol_live.spot_pack('page1', 120.4, -8.6, 1700000000000);
+            const spot = $bog_figmol_live.spot_read(packed);
+            $mol_assert_equal(spot.place, 'page1');
+            $mol_assert_equal(spot.x, 120);
+            $mol_assert_equal(spot.y, -9);
+            $mol_assert_equal(spot.wall, 1700000000000);
+        },
+        'A cursor that is nowhere is packed as nowhere'() {
+            const spot = $bog_figmol_live.spot_read($bog_figmol_live.spot_pack('page1', null, null, 42));
+            $mol_assert_equal(spot.place, 'page1');
+            $mol_assert_equal(spot.x, null);
+            $mol_assert_equal(spot.y, null);
+            $mol_assert_equal(spot.wall, 42);
+        },
+        'A cursor at the origin is a cursor, not an absent one'() {
+            const spot = $bog_figmol_live.spot_read($bog_figmol_live.spot_pack('page1', 0, 0, 42));
+            $mol_assert_equal(spot.x, 0);
+            $mol_assert_equal(spot.y, 0);
+        },
+        'An empty register is somebody who has never said anything'() {
+            const spot = $bog_figmol_live.spot_read('');
+            $mol_assert_equal(spot.place, '');
+            $mol_assert_equal(spot.x, null);
+            $mol_assert_equal(spot.y, null);
+            $mol_assert_equal(spot.wall, 0);
+        },
+        'Rubbish in the register is read as nothing rather than as a cursor'() {
+            const spot = $bog_figmol_live.spot_read('page1|left|down|soon');
+            $mol_assert_equal(spot.place, 'page1');
+            $mol_assert_equal(spot.x, null);
+            $mol_assert_equal(spot.y, null);
+            $mol_assert_equal(spot.wall, 0);
+        },
+        'Two spots differing only by the clock differ as strings'() {
+            const one = $bog_figmol_live.spot_pack('page1', 10, 10, 1);
+            const two = $bog_figmol_live.spot_pack('page1', 10, 10, 2);
+            $mol_assert_ok(one !== two);
+        },
+        'A cursor that has not moved packs the same, so nothing is written'() {
+            const one = $bog_figmol_live.spot_pack('page1', 10.2, 10.4, 0);
+            const two = $bog_figmol_live.spot_pack('page1', 10.1, 10.3, 0);
+            $mol_assert_equal(one, two);
+        },
+        'A selection survives the trip through the register'() {
+            const ids = ['aQ_1', 'bW_2', 'cE_3'];
+            $mol_assert_equal($bog_figmol_live.pick_read($bog_figmol_live.pick_pack(ids)), ids);
+        },
+        'Nothing picked reads back as nothing picked'() {
+            $mol_assert_equal($bog_figmol_live.pick_pack([]), '');
+            $mol_assert_equal($bog_figmol_live.pick_read(''), []);
+            $mol_assert_equal($bog_figmol_live.pick_read('   '), []);
         },
     });
 })($ || ($ = {}));
