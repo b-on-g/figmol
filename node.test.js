@@ -23423,6 +23423,9 @@ var $;
 		selected(){
 			return false;
 		}
+		grips(){
+			return true;
+		}
 		editing(){
 			return false;
 		}
@@ -23553,6 +23556,26 @@ var $;
 			(obj.attr) = () => ({...(this.$.$mol_view.prototype.attr.call(obj)), "figmol_handle": "se"});
 			return obj;
 		}
+		Handle_n(){
+			const obj = new this.$.$mol_view();
+			(obj.attr) = () => ({...(this.$.$mol_view.prototype.attr.call(obj)), "figmol_handle": "n"});
+			return obj;
+		}
+		Handle_s(){
+			const obj = new this.$.$mol_view();
+			(obj.attr) = () => ({...(this.$.$mol_view.prototype.attr.call(obj)), "figmol_handle": "s"});
+			return obj;
+		}
+		Handle_w(){
+			const obj = new this.$.$mol_view();
+			(obj.attr) = () => ({...(this.$.$mol_view.prototype.attr.call(obj)), "figmol_handle": "w"});
+			return obj;
+		}
+		Handle_e(){
+			const obj = new this.$.$mol_view();
+			(obj.attr) = () => ({...(this.$.$mol_view.prototype.attr.call(obj)), "figmol_handle": "e"});
+			return obj;
+		}
 	};
 	($mol_mem(($.$bog_figmol_app_canvas_shape.prototype), "Avatar_icon"));
 	($mol_mem(($.$bog_figmol_app_canvas_shape.prototype), "store"));
@@ -23573,6 +23596,10 @@ var $;
 	($mol_mem(($.$bog_figmol_app_canvas_shape.prototype), "Handle_ne"));
 	($mol_mem(($.$bog_figmol_app_canvas_shape.prototype), "Handle_sw"));
 	($mol_mem(($.$bog_figmol_app_canvas_shape.prototype), "Handle_se"));
+	($mol_mem(($.$bog_figmol_app_canvas_shape.prototype), "Handle_n"));
+	($mol_mem(($.$bog_figmol_app_canvas_shape.prototype), "Handle_s"));
+	($mol_mem(($.$bog_figmol_app_canvas_shape.prototype), "Handle_w"));
+	($mol_mem(($.$bog_figmol_app_canvas_shape.prototype), "Handle_e"));
 
 
 ;
@@ -23760,8 +23787,8 @@ var $;
                 // too would draw every one of them twice.
                 if (!this.wrapped())
                     res.push(...this.kids());
-                if (this.selected() && this.editable())
-                    res.push(this.Handle_nw(), this.Handle_ne(), this.Handle_sw(), this.Handle_se());
+                if (this.selected() && this.editable() && this.grips())
+                    res.push(this.Handle_nw(), this.Handle_ne(), this.Handle_sw(), this.Handle_se(), this.Handle_n(), this.Handle_s(), this.Handle_w(), this.Handle_e());
                 return res;
             }
         }
@@ -23943,6 +23970,47 @@ var $;
             right: '-0.25rem',
             cursor: 'nwse-resize',
         },
+        /**
+         * Side grips sit in the middle of an edge, half of them hanging over it —
+         * the negative margin is what takes the grip's own size back out of the
+         * `50%`, which is measured to its corner.
+         */
+        Handle_n: {
+            ...figmol_handle,
+            top: '-0.25rem',
+            left: '50%',
+            margin: {
+                left: '-0.25rem',
+            },
+            cursor: 'ns-resize',
+        },
+        Handle_s: {
+            ...figmol_handle,
+            bottom: '-0.25rem',
+            left: '50%',
+            margin: {
+                left: '-0.25rem',
+            },
+            cursor: 'ns-resize',
+        },
+        Handle_w: {
+            ...figmol_handle,
+            left: '-0.25rem',
+            top: '50%',
+            margin: {
+                top: '-0.25rem',
+            },
+            cursor: 'ew-resize',
+        },
+        Handle_e: {
+            ...figmol_handle,
+            right: '-0.25rem',
+            top: '50%',
+            margin: {
+                top: '-0.25rem',
+            },
+            cursor: 'ew-resize',
+        },
         '@': {
             figmol_kind: {
                 rect: {
@@ -24027,6 +24095,9 @@ var $;
 		armed(){
 			return false;
 		}
+		grabbing(){
+			return false;
+		}
 		pointer_down(next){
 			if(next !== undefined) return next;
 			return null;
@@ -24106,6 +24177,9 @@ var $;
 		shape_selected(id){
 			return false;
 		}
+		shape_grips(id){
+			return false;
+		}
 		shape_editing(id){
 			return false;
 		}
@@ -24118,6 +24192,18 @@ var $;
 		shape_rect(id){
 			return [];
 		}
+		marquee_left(){
+			return "";
+		}
+		marquee_top(){
+			return "";
+		}
+		marquee_width(){
+			return "";
+		}
+		marquee_height(){
+			return "";
+		}
 		store(){
 			const obj = new this.$.$bog_figmol_store();
 			return obj;
@@ -24126,9 +24212,9 @@ var $;
 			if(next !== undefined) return next;
 			return "select";
 		}
-		selected(next){
+		selection(next){
 			if(next !== undefined) return next;
-			return "";
+			return [];
 		}
 		editing(next){
 			if(next !== undefined) return next;
@@ -24162,7 +24248,8 @@ var $;
 			return {
 				...(super.attr()), 
 				"tabindex": 0, 
-				"figmol_armed": (this.armed())
+				"figmol_armed": (this.armed()), 
+				"figmol_grab": (this.grabbing())
 			};
 		}
 		style(){
@@ -24192,10 +24279,21 @@ var $;
 			(obj.editable) = () => ((this.editable()));
 			(obj.id) = () => ((this.shape_id(id)));
 			(obj.selected) = () => ((this.shape_selected(id)));
+			(obj.grips) = () => ((this.shape_grips(id)));
 			(obj.editing) = () => ((this.shape_editing(id)));
 			(obj.dropping) = () => ((this.shape_dropping(id)));
 			(obj.kids) = () => ((this.shape_kids(id)));
 			(obj.rect) = () => ((this.shape_rect(id)));
+			return obj;
+		}
+		Marquee(){
+			const obj = new this.$.$mol_view();
+			(obj.style) = () => ({
+				"left": (this.marquee_left()), 
+				"top": (this.marquee_top()), 
+				"width": (this.marquee_width()), 
+				"height": (this.marquee_height())
+			});
 			return obj;
 		}
 	};
@@ -24212,12 +24310,13 @@ var $;
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "World"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "store"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "tool"));
-	($mol_mem(($.$bog_figmol_app_canvas.prototype), "selected"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "selection"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "editing"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "zoom"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "pan_x"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "pan_y"));
 	($mol_mem_key(($.$bog_figmol_app_canvas.prototype), "Shape"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Marquee"));
 
 
 ;
@@ -24233,8 +24332,16 @@ var $;
         const figmol_size_min = 8;
         const figmol_zoom_min = 0.1;
         const figmol_zoom_max = 4;
+        /** One press of ⌘+ or ⌘-. */
+        const figmol_zoom_step = 1.25;
+        /** Air left around the page when it is fitted into the window. */
+        const figmol_fit_gap = 48;
+        /** Slack in screen pixels below which a press counts as a click, not a drag. */
+        const figmol_slack = 3;
         /** Kinds whose caption a double click opens for typing, right on the canvas. */
         const figmol_captioned = ['text', 'button', 'bui_button', 'bui_badge', 'bui_alert'];
+        /** Where a field is being typed into, and the canvas keeps its hands off. */
+        const figmol_fields = 'input, textarea, [contenteditable="true"]';
         /**
          * The editing surface.
          *
@@ -24249,15 +24356,37 @@ var $;
          * views handed to it. Selection, editing and the drag in progress therefore
          * stay in one object instead of being threaded down every nesting level.
          *
-         * Dragging is deliberately split in two: the live rectangle sits in the
+         * Dragging is deliberately split in two: the live rectangles sit in the
          * `draft` atom so that a pointermove costs one repaint, and only pointerup
-         * writes it into the Baza. Writing on every move would turn a single drag
+         * writes them into the Baza. Writing on every move would turn a single drag
          * into hundreds of CRDT units.
+         *
+         * The press decides which of four gestures is going on — pan, move, resize
+         * or rubber band — and everything after it only carries that one out.
          */
         class $bog_figmol_app_canvas extends $.$bog_figmol_app_canvas {
+            /**
+             * Keeps the window listeners up for as long as the canvas is mounted.
+             * `listen` is memoized, so they are hooked up once.
+             */
+            auto() {
+                this.listen();
+                super.auto();
+            }
             /* -------------------------------------------------------------- shapes */
+            /**
+             * The page, plus the rubber band while one is being pulled. Whether the
+             * band is there is asked as a flag rather than read off the band itself:
+             * this list would otherwise be rebuilt on every move of the pointer.
+             */
             shapes() {
-                return this.shape_kids(this.store().root_id());
+                const res = [...this.shape_kids(this.store().root_id())];
+                if (this.marquee_on())
+                    res.push(this.Marquee());
+                return res;
+            }
+            marquee_on() {
+                return !!this.marquee();
             }
             shape_id(id) {
                 return id;
@@ -24266,7 +24395,15 @@ var $;
                 return this.store().kids(id).map(kid => this.Shape(kid));
             }
             shape_selected(id) {
-                return this.selected() === id;
+                return this.selection().includes(id);
+            }
+            /**
+             * Grips are drawn for a single element only. Several at once would need a
+             * box around the lot of them and a resize that divides itself up between
+             * them — worth doing, and not by pretending each one is alone.
+             */
+            shape_grips(id) {
+                return this.selection().length === 1 && this.shape_selected(id);
             }
             shape_editing(id) {
                 return this.editing() === id;
@@ -24276,12 +24413,9 @@ var $;
             }
             /** Live rectangle while dragging, stored one otherwise. */
             shape_rect(id) {
-                const draft = this.draft();
-                if (draft?.id === id)
-                    return draft.rect;
-                return this.store().rect(id);
+                return this.draft()?.[id] ?? this.store().rect(id);
             }
-            /** Rectangle of the node under the pointer, alive only during a drag. */
+            /** Rectangles the gesture is drawing, alive only during a drag. */
             draft(next) {
                 return next ?? null;
             }
@@ -24289,9 +24423,44 @@ var $;
             drop_target(next) {
                 return next ?? '';
             }
+            /**
+             * The rubber band, as the two sheet points it was dragged between —
+             * unordered, since the drag may go in any direction.
+             */
+            marquee(next) {
+                return next ?? null;
+            }
+            /** The same band as left, top, width, height. */
+            marquee_box() {
+                const band = this.marquee();
+                if (!band)
+                    return [0, 0, 0, 0];
+                return [
+                    Math.min(band[0], band[2]),
+                    Math.min(band[1], band[3]),
+                    Math.abs(band[2] - band[0]),
+                    Math.abs(band[3] - band[1]),
+                ];
+            }
+            marquee_left() {
+                return this.marquee_box()[0] + 'px';
+            }
+            marquee_top() {
+                return this.marquee_box()[1] + 'px';
+            }
+            marquee_width() {
+                return this.marquee_box()[2] + 'px';
+            }
+            marquee_height() {
+                return this.marquee_box()[3] + 'px';
+            }
             /* ------------------------------------------------------------ measuring */
             armed() {
                 return this.editable() && this.tool() !== 'select';
+            }
+            /** Space is held, so the next drag pans instead of selecting. */
+            grabbing() {
+                return this.space();
             }
             world_transform() {
                 return `translate(${this.pan_x()}px, ${this.pan_y()}px) scale(${this.zoom()})`;
@@ -24301,6 +24470,10 @@ var $;
             }
             sheet_height_style() {
                 return this.sheet_height() + 'px';
+            }
+            /** The visible area of the canvas itself, in screen pixels. */
+            viewport() {
+                return this.dom_node().getBoundingClientRect();
             }
             /**
              * Middle of the visible area, in sheet pixels.
@@ -24414,6 +24587,81 @@ var $;
                 }
                 return res;
             }
+            /* ------------------------------------------------------------ selection */
+            /**
+             * Frame the clicks are currently inside — the one a double click went
+             * into. Empty means the page itself.
+             */
+            scope(next) {
+                return next ?? '';
+            }
+            /** The same, forgotten once the frame it names is gone from the page. */
+            scope_now() {
+                const id = this.scope();
+                if (!id)
+                    return '';
+                return this.store().node_ids().includes(id) ? id : '';
+            }
+            /** Ancestor of `id` that sits directly in `host`, empty when it is elsewhere. */
+            child_of(host, id) {
+                const store = this.store();
+                if (!id || id === host)
+                    return '';
+                for (let cursor = id; cursor; cursor = store.parent(cursor)) {
+                    if (store.parent(cursor) === host)
+                        return cursor;
+                }
+                return '';
+            }
+            /**
+             * What a press on a shape picks out of the whole stack under the pointer.
+             *
+             * A plain click takes the topmost element of the level being edited — the
+             * page itself, or the frame a double click has gone into — so that a card
+             * moves as one thing rather than falling apart into captions. ⌘ takes
+             * whatever is deepest, for the times when that is exactly the point.
+             *
+             * Clicking outside the frame that was entered leaves it, the way stepping
+             * out of a group does everywhere.
+             */
+            pick(deep, event) {
+                if (!deep)
+                    return '';
+                if (event.metaKey || event.ctrlKey)
+                    return deep;
+                const store = this.store();
+                const scope = this.scope_now();
+                const inside = scope && store.inside(deep, scope);
+                if (scope && !inside)
+                    this.scope('');
+                const host = (inside ? scope : '') || store.root_id();
+                return this.child_of(host, deep) || deep;
+            }
+            toggle(id) {
+                const ids = this.selection();
+                this.selection(ids.includes(id) ? ids.filter(other => other !== id) : [...ids, id]);
+            }
+            /** Nodes the rubber band touches, among the children of the current level. */
+            marquee_hits(band) {
+                const store = this.store();
+                const host = this.scope_now() || store.root_id();
+                if (!host)
+                    return [];
+                const sheet = this.Sheet().dom_node().getBoundingClientRect();
+                const zoom = this.zoom();
+                const left = sheet.left + Math.min(band[0], band[2]) * zoom;
+                const right = sheet.left + Math.max(band[0], band[2]) * zoom;
+                const top = sheet.top + Math.min(band[1], band[3]) * zoom;
+                const bottom = sheet.top + Math.max(band[1], band[3]) * zoom;
+                return store.kids(host).filter(id => {
+                    const node = this.shape_dom(id);
+                    if (!node)
+                        return false;
+                    const rect = node.getBoundingClientRect();
+                    return rect.right >= left && rect.left <= right
+                        && rect.bottom >= top && rect.top <= bottom;
+                });
+            }
             /* ----------------------------------------------------- pointer gesture */
             /**
              * Gesture state is kept in plain fields on purpose. A `@$mol_mem` cell
@@ -24423,15 +24671,28 @@ var $;
              */
             mode = '';
             grab_id = '';
+            grab_ids = [];
             grab_corner = '';
             grab_x = 0;
             grab_y = 0;
             last_x = 0;
             last_y = 0;
-            grab_flow = false;
-            grab_rect = [0, 0, 0, 0];
-            grab_sheet = [0, 0];
+            grab_rects = {};
+            grab_flows = {};
+            grab_sheets = {};
             grab_pan = [0, 0];
+            /** Node the press resolved to, and whether it was one of several picked. */
+            grab_pick = '';
+            grab_group = false;
+            /** Selection a shift-dragged rubber band adds to. */
+            grab_base = [];
+            /** Deepest node under the last press — what the double click after it means. */
+            press_deep = '';
+            /** Whether the pointer has travelled far enough for this to be a drag. */
+            moved() {
+                return Math.abs(this.last_x - this.grab_x) > figmol_slack
+                    || Math.abs(this.last_y - this.grab_y) > figmol_slack;
+            }
             pointer_down(event) {
                 if (!event)
                     return null;
@@ -24448,6 +24709,9 @@ var $;
                 this.last_x = event.clientX;
                 this.last_y = event.clientY;
                 this.mode = '';
+                this.grab_id = '';
+                this.grab_ids = [];
+                this.grab_group = false;
                 const tool = this.tool();
                 if (this.editable() && tool !== 'select') {
                     event.preventDefault();
@@ -24470,31 +24734,108 @@ var $;
                     this.editing('');
                 const handle = target.closest('[figmol_handle]');
                 const shape = target.closest('[figmol_node]');
-                const id = shape?.getAttribute('figmol_node') ?? '';
-                // A press on a shape picks it whoever is looking, and starts a drag only
-                // for somebody who may write. Read only, it goes on to pan the sheet.
-                if (id && event.button === 0) {
-                    this.selected(id);
-                    if (this.editable()) {
-                        this.grab_id = id;
-                        this.grab_rect = this.shape_rect(id);
-                        this.grab_flow = this.store().flow(id);
-                        this.grab_sheet = this.node_origin(id);
-                        if (handle) {
-                            this.mode = 'resize';
-                            this.grab_corner = handle.getAttribute('figmol_handle') ?? 'se';
-                        }
-                        else {
-                            this.mode = 'move';
-                        }
-                        return null;
-                    }
+                const deep = shape?.getAttribute('figmol_node') ?? '';
+                this.press_deep = deep;
+                // Panning is a gesture of its own — the middle button, or space held
+                // down, as everywhere else. The plain drag belongs to the selection.
+                if (event.button !== 0 || this.space()) {
+                    this.pan_start();
+                    return null;
                 }
-                if (!id)
-                    this.selected('');
+                // A grip belongs to the shape it hangs off, whatever the click rules
+                // would have picked at that spot.
+                const corner = handle?.getAttribute('figmol_handle') ?? '';
+                const id = handle ? deep : this.pick(deep, event);
+                if (id) {
+                    this.press_pick(id, corner, event);
+                    if (this.editable())
+                        return null;
+                }
+                if (!id && !event.shiftKey)
+                    this.selection([]);
+                // An empty spot pulls a rubber band for somebody who has something to
+                // select, and pans for a visitor who only reads.
+                if (!id && this.editable()) {
+                    const point = this.sheet_point(event);
+                    this.mode = 'marquee';
+                    this.grab_base = event.shiftKey ? this.selection() : [];
+                    this.marquee([point[0], point[1], point[0], point[1]]);
+                    return null;
+                }
+                this.pan_start();
+                return null;
+            }
+            pan_start() {
                 this.mode = 'pan';
                 this.grab_pan = [this.pan_x(), this.pan_y()];
-                return null;
+            }
+            /**
+             * A press on a shape: what it does to the selection, and what gesture it
+             * starts.
+             *
+             * Pressing one member of a group keeps the group — that is how several
+             * things are dragged at once — and the click that turns out not to be a
+             * drag narrows it down later, in `pointer_up`.
+             */
+            press_pick(id, corner, event) {
+                const held = this.selection().includes(id);
+                const many = this.selection().length > 1;
+                if (event.shiftKey && !corner)
+                    this.toggle(id);
+                else if (!held)
+                    this.selection([id]);
+                this.grab_pick = id;
+                this.grab_group = many && held && !event.shiftKey;
+                if (!this.editable())
+                    return;
+                if (event.shiftKey && !corner)
+                    return;
+                if (corner) {
+                    this.mode = 'resize';
+                    this.grab_corner = corner;
+                    this.grab_take([id]);
+                    return;
+                }
+                this.mode = 'move';
+                this.grab_take(event.altKey ? this.clone(this.selection()) : this.selection());
+            }
+            /** Remembers where everything about to be dragged started out. */
+            grab_take(ids) {
+                const store = this.store();
+                this.grab_ids = ids;
+                this.grab_id = ids[ids.length - 1] ?? '';
+                this.grab_rects = {};
+                this.grab_flows = {};
+                this.grab_sheets = {};
+                for (const id of ids) {
+                    this.grab_rects[id] = this.shape_rect(id);
+                    this.grab_flows[id] = store.flow(id);
+                    this.grab_sheets[id] = this.node_origin(id);
+                }
+            }
+            /**
+             * Copies for an Alt drag: the originals stay put and the copies are what
+             * the pointer takes away.
+             *
+             * A duplicate is normally written a step aside so a plain ⌘D lands
+             * somewhere visible. Here that step would be a jump, so the copies are
+             * drafted onto the rectangles of their originals — and the drag writes
+             * where they really end up anyway.
+             */
+            clone(ids) {
+                const store = this.store();
+                const pairs = ids
+                    .map(id => [id, store.node_copy(id)])
+                    .filter(pair => pair[1]);
+                if (!pairs.length)
+                    return ids;
+                const rects = {};
+                for (const [from, made] of pairs)
+                    rects[made] = store.rect(from);
+                this.draft(rects);
+                const made = pairs.map(pair => pair[1]);
+                this.selection(made);
+                return made;
             }
             pointer_move(event) {
                 if (!event)
@@ -24510,21 +24851,34 @@ var $;
                     this.pan_y(this.grab_pan[1] + shift_y);
                     return null;
                 }
+                if (this.mode === 'marquee') {
+                    const band = this.marquee() ?? [0, 0, 0, 0];
+                    const point = this.sheet_point(event);
+                    this.marquee([band[0], band[1], point[0], point[1]]);
+                    return null;
+                }
                 const zoom = this.zoom();
                 const move_x = shift_x / zoom;
                 const move_y = shift_y / zoom;
-                const [x, y, w, h] = this.grab_rect;
                 if (this.mode === 'move') {
-                    this.drop_target(this.frame_at(event, this.grab_id));
-                    // A node inside an auto layout has nowhere to go on its own: the
-                    // frame decides where it sits, and the drag only picks the order.
-                    if (!this.grab_flow)
-                        this.draft({
-                            id: this.grab_id,
-                            rect: [Math.round(x + move_x), Math.round(y + move_y), w, h],
-                        });
+                    // One element looks for a frame to fall into. A group keeps to the
+                    // sheet: several nodes, each with a parent of its own, would need a
+                    // rule for what "into this frame" means for the lot of them.
+                    this.drop_target(this.grab_ids.length === 1 ? this.frame_at(event, this.grab_id) : '');
+                    const rects = {};
+                    for (const id of this.grab_ids) {
+                        // A node inside an auto layout has nowhere to go on its own: the
+                        // frame decides where it sits, and the drag only picks the order.
+                        if (this.grab_flows[id])
+                            continue;
+                        const [x, y, w, h] = this.grab_rects[id] ?? [0, 0, 0, 0];
+                        rects[id] = [Math.round(x + move_x), Math.round(y + move_y), w, h];
+                    }
+                    this.draft(Object.keys(rects).length ? rects : null);
                     return null;
                 }
+                const id = this.grab_id;
+                const [x, y, w, h] = this.grab_rects[id] ?? [0, 0, 0, 0];
                 const corner = this.grab_corner;
                 let x2 = x, y2 = y, w2 = w, h2 = h;
                 if (corner.includes('e'))
@@ -24540,8 +24894,7 @@ var $;
                     y2 = y + h - h2;
                 }
                 this.draft({
-                    id: this.grab_id,
-                    rect: [Math.round(x2), Math.round(y2), Math.round(w2), Math.round(h2)],
+                    [id]: [Math.round(x2), Math.round(y2), Math.round(w2), Math.round(h2)],
                 });
                 return null;
             }
@@ -24558,24 +24911,51 @@ var $;
                     this.last_x = event.clientX;
                     this.last_y = event.clientY;
                 }
-                const moving = this.mode === 'move';
-                const id = this.grab_id;
+                const mode = this.mode;
+                const ids = this.grab_ids;
                 const draft = this.draft();
-                if (moving && id)
-                    this.node_settle(id);
-                else if (draft)
-                    this.store().rect_set(draft.id, draft.rect);
+                if (mode === 'marquee') {
+                    this.marquee_settle();
+                }
+                else if (mode === 'move' && ids.length === 1 && this.grab_id) {
+                    this.node_settle(this.grab_id);
+                }
+                else if (draft) {
+                    const store = this.store();
+                    for (const id of Object.keys(draft))
+                        store.rect_set(id, draft[id]);
+                }
+                // A press on one member of a group is how the group gets dragged, so it
+                // may not narrow the selection down. A press that turned out to be a
+                // plain click may, and that is the only way back to a single element.
+                if (mode === 'move' && this.grab_group && !this.moved())
+                    this.selection([this.grab_pick]);
                 this.mode = '';
                 this.grab_id = '';
+                this.grab_ids = [];
+                this.grab_group = false;
                 this.draft(null);
                 this.drop_target('');
+                this.marquee(null);
                 return null;
             }
+            /** Adds whatever the rubber band caught to whatever it started with. */
+            marquee_settle() {
+                const band = this.marquee();
+                if (!band)
+                    return;
+                const res = [...this.grab_base];
+                for (const id of this.marquee_hits(band)) {
+                    if (!res.includes(id))
+                        res.push(id);
+                }
+                this.selection(res);
+            }
             /**
-             * Commits a finished drag. The frame under the pointer decides where the
-             * node lands: another frame takes it in, the one it already sits in either
-             * reorders it — that is what a drag inside an auto layout means — or just
-             * moves it about.
+             * Commits a finished drag of a single element. The frame under the pointer
+             * decides where the node lands: another frame takes it in, the one it
+             * already sits in either reorders it — that is what a drag inside an auto
+             * layout means — or just moves it about.
              *
              * Coordinates are recomputed against the new frame, from where the shape
              * actually was on screen rather than from its stored X and Y. Inside an
@@ -24592,12 +24972,14 @@ var $;
                 const draft = this.draft();
                 if (target === parent && !store.auto_layout(target)) {
                     if (draft)
-                        store.rect_set(draft.id, draft.rect);
+                        for (const key of Object.keys(draft))
+                            store.rect_set(key, draft[key]);
                     return;
                 }
                 const zoom = this.zoom();
-                const sheet_x = this.grab_sheet[0] + (this.last_x - this.grab_x) / zoom;
-                const sheet_y = this.grab_sheet[1] + (this.last_y - this.grab_y) / zoom;
+                const grab = this.grab_sheets[id] ?? [0, 0];
+                const sheet_x = grab[0] + (this.last_x - this.grab_x) / zoom;
+                const sheet_y = grab[1] + (this.last_y - this.grab_y) / zoom;
                 const origin = this.node_origin(target);
                 store.node_reparent(id, target, index, sheet_x - origin[0], sheet_y - origin[1]);
             }
@@ -24620,37 +25002,65 @@ var $;
                         : '';
                 const id = store.node_add(kind, parent, point[0] - origin[0], point[1] - origin[1], text);
                 if (id)
-                    this.selected(id);
+                    this.selection([id]);
             }
             /**
-             * Double click opens the caption for typing. The editor lives inside the
-             * shape, so what gets edited is what is seen; focus is handed over through
-             * `bring()`, which waits for the field to be in the document.
+             * Double click goes one level deeper, into the frame under the pointer —
+             * and opens the caption for typing when what it reaches is an element that
+             * has one and is already picked. That is two presses on a text: the first
+             * one selects it inside its frame, the second one starts the typing.
              *
              * What was double clicked cannot simply be read off the event. The press
              * that came first captured the pointer on the canvas, and the browser
              * retargets the click events that follow onto whatever holds the capture —
-             * so `event.target` is the canvas itself. The press already resolved the
-             * shape and selected it, which is the answer being looked for here; the hit
-             * test stays as the first guess for the cases where nothing was captured.
+             * so `event.target` is the canvas itself. The press remembered what was
+             * under it, which is the answer being looked for here; the hit test stays
+             * as the first guess for the cases where nothing was captured.
              */
             pointer_edit(event) {
                 if (!event)
                     return null;
                 if (!this.editable())
                     return null;
+                const store = this.store();
                 const target = event.target;
                 const shape = target.closest('[figmol_node]');
-                const id = shape?.getAttribute('figmol_node') || this.selected();
-                if (!id)
+                const deep = shape?.getAttribute('figmol_node') || this.press_deep;
+                const picked = this.selection();
+                const current = picked.length === 1 ? picked[0] : '';
+                if (current
+                    && figmol_captioned.includes(store.kind(current))
+                    && (!deep || store.inside(deep, current))) {
+                    event.preventDefault();
+                    this.editing(current);
+                    this.Shape(current).Editor().bring();
                     return null;
-                if (!figmol_captioned.includes(this.store().kind(id)))
+                }
+                if (!deep)
+                    return null;
+                const host = this.scope_now() || store.root_id();
+                const outer = this.child_of(host, deep);
+                // Nothing deeper to go into: what is under the pointer is already a
+                // child of the level being edited.
+                if (!outer || outer === deep)
                     return null;
                 event.preventDefault();
-                this.selected(id);
-                this.editing(id);
-                this.Shape(id).Editor().bring();
+                this.scope(outer);
+                const inner = this.child_of(outer, deep);
+                if (inner)
+                    this.selection([inner]);
                 return null;
+            }
+            /* ---------------------------------------------------------------- zoom */
+            /** Scales about a point of the viewport, keeping what is under it in place. */
+            zoom_at(next, screen_x, screen_y) {
+                const zoom = this.zoom();
+                const step = Math.min(figmol_zoom_max, Math.max(figmol_zoom_min, next));
+                const world_x = (screen_x - this.pan_x()) / zoom;
+                const world_y = (screen_y - this.pan_y()) / zoom;
+                this.pan_x(screen_x - world_x * step);
+                this.pan_y(screen_y - world_y * step);
+                this.zoom(step);
             }
             wheel_zoom(event) {
                 if (!event)
@@ -24662,16 +25072,94 @@ var $;
                     return null;
                 }
                 const rect = this.dom_node().getBoundingClientRect();
-                const screen_x = event.clientX - rect.left;
-                const screen_y = event.clientY - rect.top;
-                const zoom = this.zoom();
-                const zoom_next = Math.min(figmol_zoom_max, Math.max(figmol_zoom_min, zoom * Math.exp(-event.deltaY / 400)));
-                const world_x = (screen_x - this.pan_x()) / zoom;
-                const world_y = (screen_y - this.pan_y()) / zoom;
-                this.pan_x(screen_x - world_x * zoom_next);
-                this.pan_y(screen_y - world_y * zoom_next);
-                this.zoom(zoom_next);
+                this.zoom_at(this.zoom() * Math.exp(-event.deltaY / 400), event.clientX - rect.left, event.clientY - rect.top);
                 return null;
+            }
+            /** One step of ⌘+ or ⌘-, about the middle of the window. */
+            zoom_step(dir) {
+                const view = this.viewport();
+                const next = this.zoom() * (dir > 0 ? figmol_zoom_step : 1 / figmol_zoom_step);
+                this.zoom_at(next, view.width / 2, view.height / 2);
+            }
+            /** Back to life size, ⌘0, without losing the spot being looked at. */
+            zoom_reset() {
+                const view = this.viewport();
+                this.zoom_at(1, view.width / 2, view.height / 2);
+            }
+            /**
+             * Fits everything on the page into the window, ⇧1.
+             *
+             * The box is measured off the screen rather than taken from the stored
+             * coordinates: inside an auto layout those say nothing, and the point of
+             * this is to show what is actually drawn.
+             */
+            zoom_fit() {
+                const view = this.viewport();
+                const box = this.content_box();
+                if (!box[2] || !box[3])
+                    return;
+                const zoom = Math.min(figmol_zoom_max, Math.max(figmol_zoom_min, Math.min((view.width - figmol_fit_gap * 2) / box[2], (view.height - figmol_fit_gap * 2) / box[3])));
+                this.zoom(zoom);
+                this.pan_x((view.width - box[2] * zoom) / 2 - box[0] * zoom);
+                this.pan_y((view.height - box[3] * zoom) / 2 - box[1] * zoom);
+            }
+            /** What is drawn on the page, as one rectangle in sheet pixels. */
+            content_box() {
+                const store = this.store();
+                const sheet = this.Sheet().dom_node().getBoundingClientRect();
+                const zoom = this.zoom();
+                let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+                for (const id of store.kids(store.root_id())) {
+                    const node = this.shape_dom(id);
+                    if (!node)
+                        continue;
+                    const rect = node.getBoundingClientRect();
+                    left = Math.min(left, (rect.left - sheet.left) / zoom);
+                    top = Math.min(top, (rect.top - sheet.top) / zoom);
+                    right = Math.max(right, (rect.right - sheet.left) / zoom);
+                    bottom = Math.max(bottom, (rect.bottom - sheet.top) / zoom);
+                }
+                // An empty page still has a sheet, and fitting that is a fair answer.
+                if (!(right > left) || !(bottom > top)) {
+                    return [0, 0, this.sheet_width(), this.sheet_height()];
+                }
+                return [left, top, right - left, bottom - top];
+            }
+            /* ------------------------------------------------------------ keyboard */
+            /**
+             * Space held down turns the next drag into a pan, the way it does in every
+             * editor with a canvas. The listener is on the window: the canvas only
+             * hears the keys when it holds the focus, and reaching for space before
+             * reaching for the mouse is the whole point of the gesture.
+             */
+            listen() {
+                const win = this.$.$mol_dom_context;
+                win.addEventListener('keydown', (event) => this.space_key(event, true));
+                win.addEventListener('keyup', (event) => this.space_key(event, false));
+                // Leaving the window with space down would otherwise come back to a
+                // canvas that pans and never stops.
+                win.addEventListener('blur', () => {
+                    if (this.space())
+                        $mol_wire_async(this).space(false);
+                });
+                return null;
+            }
+            space(next) {
+                return next ?? false;
+            }
+            space_key(event, down) {
+                if (event.code !== 'Space')
+                    return;
+                const node = event.target;
+                if (node?.closest?.(figmol_fields))
+                    return;
+                if (down === this.space())
+                    return;
+                // Space scrolls the page otherwise, and the canvas is what it would
+                // scroll away from.
+                if (down)
+                    event.preventDefault();
+                $mol_wire_async(this).space(down);
             }
             context_menu(event) {
                 event?.preventDefault();
@@ -24679,20 +25167,23 @@ var $;
             }
             deselect(next) {
                 this.editing('');
-                this.selected('');
+                this.scope('');
+                this.selection([]);
                 return null;
             }
-            /** Delete removes the selected element — unless a caption is being typed. */
+            /** Delete removes everything selected — unless a caption is being typed. */
             drop(next) {
                 if (!this.editable())
                     return null;
                 if (this.editing())
                     return null;
-                const id = this.selected();
-                if (!id)
+                const ids = this.selection();
+                if (!ids.length)
                     return null;
-                this.store().node_drop(id);
-                this.selected('');
+                const store = this.store();
+                for (const id of ids)
+                    store.node_drop(id);
+                this.selection([]);
                 return null;
             }
         }
@@ -24700,11 +25191,17 @@ var $;
             $mol_mem
         ], $bog_figmol_app_canvas.prototype, "shapes", null);
         __decorate([
+            $mol_mem
+        ], $bog_figmol_app_canvas.prototype, "marquee_on", null);
+        __decorate([
             $mol_mem_key
         ], $bog_figmol_app_canvas.prototype, "shape_kids", null);
         __decorate([
             $mol_mem_key
         ], $bog_figmol_app_canvas.prototype, "shape_selected", null);
+        __decorate([
+            $mol_mem_key
+        ], $bog_figmol_app_canvas.prototype, "shape_grips", null);
         __decorate([
             $mol_mem_key
         ], $bog_figmol_app_canvas.prototype, "shape_editing", null);
@@ -24722,7 +25219,13 @@ var $;
         ], $bog_figmol_app_canvas.prototype, "drop_target", null);
         __decorate([
             $mol_mem
+        ], $bog_figmol_app_canvas.prototype, "marquee", null);
+        __decorate([
+            $mol_mem
         ], $bog_figmol_app_canvas.prototype, "armed", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_app_canvas.prototype, "grabbing", null);
         __decorate([
             $mol_mem
         ], $bog_figmol_app_canvas.prototype, "world_transform", null);
@@ -24733,14 +25236,32 @@ var $;
             $mol_mem
         ], $bog_figmol_app_canvas.prototype, "sheet_height_style", null);
         __decorate([
+            $mol_mem
+        ], $bog_figmol_app_canvas.prototype, "scope", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_canvas.prototype, "toggle", null);
+        __decorate([
             $mol_action
         ], $bog_figmol_app_canvas.prototype, "pointer_down", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_canvas.prototype, "pan_start", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_canvas.prototype, "press_pick", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_canvas.prototype, "clone", null);
         __decorate([
             $mol_action
         ], $bog_figmol_app_canvas.prototype, "pointer_move", null);
         __decorate([
             $mol_action
         ], $bog_figmol_app_canvas.prototype, "pointer_up", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_canvas.prototype, "marquee_settle", null);
         __decorate([
             $mol_action
         ], $bog_figmol_app_canvas.prototype, "node_settle", null);
@@ -24752,7 +25273,25 @@ var $;
         ], $bog_figmol_app_canvas.prototype, "pointer_edit", null);
         __decorate([
             $mol_action
+        ], $bog_figmol_app_canvas.prototype, "zoom_at", null);
+        __decorate([
+            $mol_action
         ], $bog_figmol_app_canvas.prototype, "wheel_zoom", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_canvas.prototype, "zoom_step", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_canvas.prototype, "zoom_reset", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_canvas.prototype, "zoom_fit", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_app_canvas.prototype, "listen", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_app_canvas.prototype, "space", null);
         __decorate([
             $mol_action
         ], $bog_figmol_app_canvas.prototype, "deselect", null);
@@ -24794,7 +25333,31 @@ var $;
             },
             boxShadow: '0 0.5rem 2rem #00000040',
         },
+        /**
+         * Drawn on the sheet, so the viewport transform scales it along with
+         * everything else and the band stays glued to the page under it.
+         */
+        Marquee: {
+            position: 'absolute',
+            boxSizing: 'border-box',
+            background: {
+                color: '#2f7ff71f',
+            },
+            border: {
+                width: '1px',
+                style: 'solid',
+                color: '#2f7ff7',
+            },
+            pointerEvents: 'none',
+            zIndex: 5,
+        },
         '@': {
+            /** Space is down: the next drag pans. An armed tool still wins below. */
+            figmol_grab: {
+                true: {
+                    cursor: 'grab',
+                },
+            },
             figmol_armed: {
                 true: {
                     cursor: 'crosshair',
@@ -26505,8 +27068,8 @@ var $;
 			const obj = new this.$.$mol_icon_delete_outline();
 			return obj;
 		}
-		drop_label(){
-			return (this.$.$mol_locale.text("$bog_figmol_app_inspector_drop_label"));
+		drop_caption(){
+			return "";
 		}
 		store(){
 			const obj = new this.$.$bog_figmol_store();
@@ -26516,8 +27079,14 @@ var $;
 			if(next !== undefined) return next;
 			return "";
 		}
+		selection(){
+			return [];
+		}
 		sub(){
 			return (this.rows());
+		}
+		title_many(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_inspector_title_many"));
 		}
 		title_text(){
 			return (this.$.$mol_locale.text("$bog_figmol_app_inspector_title_text"));
@@ -26680,8 +27249,14 @@ var $;
 		Drop(){
 			const obj = new this.$.$mol_button_minor();
 			(obj.click) = (next) => ((this.node_drop(next)));
-			(obj.sub) = () => ([(this.Drop_icon()), (this.drop_label())]);
+			(obj.sub) = () => ([(this.Drop_icon()), (this.drop_caption())]);
 			return obj;
+		}
+		drop_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_inspector_drop_label"));
+		}
+		drop_many_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_inspector_drop_many_label"));
 		}
 	};
 	($mol_mem(($.$bog_figmol_app_inspector.prototype), "x"));
@@ -26780,12 +27355,21 @@ var $;
          * Which rows show up depends on the kind of the node, and the rows themselves
          * are ordinary named sub-views rather than a keyed factory — there is a fixed,
          * small set of them, and naming each one keeps the bindings readable.
+         *
+         * Several elements at once get a count and the delete button, and nothing
+         * else: a width typed into a field would be the width of every one of them,
+         * which is a decision of its own rather than a row that happens to work.
          */
         class $bog_figmol_app_inspector extends $.$bog_figmol_app_inspector {
             kind() {
                 return this.store().kind(this.selected());
             }
+            many() {
+                return this.selection().length > 1;
+            }
             kind_title() {
+                if (this.many())
+                    return this.title_many() + ': ' + this.selection().length;
                 switch (this.kind()) {
                     case 'text': return this.title_text();
                     case 'image': return this.title_image();
@@ -26795,10 +27379,15 @@ var $;
                     default: return $bog_figmol_blocks.title(this.kind());
                 }
             }
+            drop_caption() {
+                return this.many() ? this.drop_many_label() : this.drop_label();
+            }
             rows() {
                 const id = this.selected();
                 if (!id)
                     return [];
+                if (this.many())
+                    return [this.Head(), this.Drop()];
                 const kind = this.kind();
                 const res = [this.Head()];
                 // Coordinates of a node inside an auto layout would be a lie: the frame
@@ -26908,10 +27497,12 @@ var $;
             node_drop(next) {
                 if (next === undefined)
                     return null;
-                const id = this.selected();
-                if (!id)
+                const ids = this.selection();
+                if (!ids.length)
                     return null;
-                this.store().node_drop(id);
+                const store = this.store();
+                for (const id of ids)
+                    store.node_drop(id);
                 this.selected('');
                 return null;
             }
@@ -27636,6 +28227,9 @@ var $;
 			if(next !== undefined) return next;
 			return "";
 		}
+		selection(){
+			return [];
+		}
 		sub(){
 			return [(this.Head()), (this.List())];
 		}
@@ -27696,8 +28290,9 @@ var $;
                     : text;
                 return name + ' · ' + snippet;
             }
+            /** Every row of the selection lights up, not just the last one picked. */
             row_active(id) {
-                return this.selected() === id;
+                return this.selection().includes(id);
             }
             row_indent(id) {
                 return (0.25 + this.store().depth(id) * 0.75) + 'rem';
@@ -27783,6 +28378,9 @@ var $;
 		spot(){
 			return [];
 		}
+		selection(){
+			return [];
+		}
 		store(){
 			const obj = new this.$.$bog_figmol_store();
 			return obj;
@@ -27808,6 +28406,7 @@ var $;
 			const obj = new this.$.$bog_figmol_app_layers();
 			(obj.store) = () => ((this.store()));
 			(obj.selected) = (next) => ((this.selected(next)));
+			(obj.selection) = () => ((this.selection()));
 			return obj;
 		}
 	};
@@ -28463,40 +29062,12 @@ var $;
 			(obj.rows) = () => ([(this.Auth_head()), (this.Manual())]);
 			return obj;
 		}
-		name_name(){
-			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_name_name"));
-		}
-		name_bid(){
-			return "";
-		}
-		name(next){
-			if(next !== undefined) return next;
-			return "";
-		}
-		Name(){
-			const obj = new this.$.$mol_string();
-			(obj.hint) = () => ("mysite");
-			(obj.value) = (next) => ((this.name(next)));
-			return obj;
-		}
-		Name_field(){
-			const obj = new this.$.$mol_form_field();
-			(obj.name) = () => ((this.name_name()));
-			(obj.bids) = () => ([(this.name_bid())]);
-			(obj.control) = () => ((this.Name()));
-			return obj;
-		}
-		name_hint(){
-			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_name_hint"));
-		}
-		Name_hint(){
-			const obj = new this.$.$mol_view();
-			(obj.sub) = () => ([(this.name_hint())]);
-			return obj;
+		field_rows(){
+			return [];
 		}
 		Fields(){
 			const obj = new this.$.$mol_list();
-			(obj.rows) = () => ([(this.Name_field()), (this.Name_hint())]);
+			(obj.rows) = () => ((this.field_rows()));
 			return obj;
 		}
 		buttons(){
@@ -28569,6 +29140,41 @@ var $;
 			(obj.click) = (next) => ((this.logout(next)));
 			(obj.title) = () => ((this.logout_label()));
 			return obj;
+		}
+		owner_name(){
+			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_owner_name"));
+		}
+		owner_value(next){
+			if(next !== undefined) return next;
+			return "";
+		}
+		owner_options(){
+			return {};
+		}
+		Owner(){
+			const obj = new this.$.$mol_select();
+			(obj.value) = (next) => ((this.owner_value(next)));
+			(obj.dictionary) = () => ((this.owner_options()));
+			return obj;
+		}
+		name_name(){
+			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_name_name"));
+		}
+		name_bid(){
+			return "";
+		}
+		name(next){
+			if(next !== undefined) return next;
+			return "";
+		}
+		Name(){
+			const obj = new this.$.$mol_string();
+			(obj.hint) = () => ("mysite");
+			(obj.value) = (next) => ((this.name(next)));
+			return obj;
+		}
+		name_hint_rows(){
+			return [];
 		}
 		publish_enabled(){
 			return true;
@@ -28656,6 +29262,24 @@ var $;
 			(obj.sub) = () => ([(this.Account_name()), (this.Logout())]);
 			return obj;
 		}
+		Owner_field(){
+			const obj = new this.$.$mol_form_field();
+			(obj.name) = () => ((this.owner_name()));
+			(obj.control) = () => ((this.Owner()));
+			return obj;
+		}
+		Name_field(){
+			const obj = new this.$.$mol_form_field();
+			(obj.name) = () => ((this.name_name()));
+			(obj.bids) = () => ([(this.name_bid())]);
+			(obj.control) = () => ((this.Name()));
+			return obj;
+		}
+		Name_hint(){
+			const obj = new this.$.$mol_view();
+			(obj.sub) = () => ((this.name_hint_rows()));
+			return obj;
+		}
 		Publish(){
 			const obj = new this.$.$mol_button_major();
 			(obj.enabled) = () => ((this.publish_enabled()));
@@ -28685,6 +29309,12 @@ var $;
 			(obj.target) = () => ("_blank");
 			(obj.title) = () => ((this.link_label(id)));
 			return obj;
+		}
+		name_hint(){
+			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_name_hint"));
+		}
+		site_hint(){
+			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_site_hint"));
 		}
 		step_title_login(){
 			return (this.$.$mol_locale.text("$bog_figmol_deploy_publish_step_title_login"));
@@ -28752,10 +29382,6 @@ var $;
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Token_hint"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Manual"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Auth"));
-	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "name"));
-	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Name"));
-	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Name_field"));
-	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Name_hint"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Fields"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Buttons"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Conflict"));
@@ -28766,6 +29392,10 @@ var $;
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Account_name"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "logout"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Logout"));
+	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "owner_value"));
+	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Owner"));
+	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "name"));
+	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Name"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "publish"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "overwrite"));
 	($mol_mem_key(($.$bog_figmol_deploy_publish.prototype), "Step_mark"));
@@ -28774,6 +29404,9 @@ var $;
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Login"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Login_hint"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Account"));
+	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Owner_field"));
+	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Name_field"));
+	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Name_hint"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Publish"));
 	($mol_mem(($.$bog_figmol_deploy_publish.prototype), "Overwrite"));
 	($mol_mem_key(($.$bog_figmol_deploy_publish.prototype), "Step"));
@@ -29048,6 +29681,16 @@ var $;
         static state_saved(next) {
             return this.$.$mol_state_local.value('bog_figmol_deploy_state', next) ?? '';
         }
+        /**
+         * Owner the panel published as last time — empty for the account itself.
+         *
+         * Somebody who works in an organisation works in it every publication,
+         * and a default that quietly puts the site on a personal account is the
+         * very surprise this choice exists to prevent.
+         */
+        static owner_saved(next) {
+            return this.$.$mol_state_local.value('bog_figmol_deploy_owner', next) ?? '';
+        }
         /* ------------------------------------------------------------- pure helpers */
         /** Empty when the name is usable, a sentence explaining the refusal otherwise. */
         static name_error(name) {
@@ -29078,6 +29721,78 @@ var $;
                 message = body.slice(0, 200);
             }
             return 'GitHub ' + code + ': ' + (message.trim() || 'request failed');
+        }
+        /**
+         * A refusal to create the repository, with what it usually means for an
+         * organisation spelled out.
+         *
+         * GitHub's own 403 is accurate but says nothing about where to go, and
+         * two different walls come back through that same door: an organisation
+         * that lets no member create repositories, and one that has not approved
+         * this OAuth App. Both are settled on the page below.
+         */
+        static repo_fail(owner, login, code, body) {
+            const message = this.fail(code, body);
+            if (code !== 403 || !this.owner_org(owner, login))
+                return message;
+            const org = owner.trim();
+            return message
+                + ' — ' + org + ' may forbid its members to create repositories,'
+                + ' or may not have approved Figmol yet: '
+                + 'https://github.com/organizations/' + org + '/settings/oauth_application_policy';
+        }
+        /* --------------------------------------------------------------- owners */
+        /** GitHub logins differ in spelling and not in case. */
+        static owner_same(left, right) {
+            return left.trim().toLowerCase() === right.trim().toLowerCase();
+        }
+        /** Whether the target is an organisation rather than the account itself. */
+        static owner_org(owner, login) {
+            const target = owner.trim();
+            return !!target && !this.owner_same(target, login);
+        }
+        /** Logins out of `/user/orgs`, in the order GitHub listed them. */
+        static orgs_pick(data) {
+            const list = Array.isArray(data) ? data : [];
+            const orgs = [];
+            for (const item of list) {
+                const login = String(item?.login ?? '').trim();
+                if (login && !orgs.some(known => this.owner_same(known, login)))
+                    orgs.push(login);
+            }
+            return orgs;
+        }
+        /** Everything the account may publish as, itself first. */
+        static owner_list(login, orgs) {
+            const list = [];
+            for (const owner of [login, ...orgs]) {
+                const name = owner.trim();
+                if (name && !list.some(known => this.owner_same(known, name)))
+                    list.push(name);
+            }
+            return list;
+        }
+        /**
+         * What a remembered choice amounts to now.
+         *
+         * A choice the account no longer has is dropped — but only when there is
+         * a list to drop it against. A token that may not read organisations
+         * says nothing about them, and taking that silence for «no such
+         * organisation» would publish into the personal account behind the back
+         * of somebody who asked for the other one.
+         */
+        static owner_pick(wanted, login, orgs) {
+            const want = wanted.trim();
+            const self = login.trim();
+            if (!want || this.owner_same(want, self))
+                return self;
+            if (!orgs.length)
+                return want;
+            return orgs.find(org => this.owner_same(org, want)) ?? self;
+        }
+        /** An organisation has an endpoint of its own; the account itself has one path. */
+        static repo_path(owner, login) {
+            return this.owner_org(owner, login) ? '/orgs/' + owner.trim() + '/repos' : '/user/repos';
         }
         static repo_body(name, descr = '', homepage = '') {
             return {
@@ -29152,20 +29867,22 @@ var $;
         }
         /** Prefilled form for a classic token with exactly the scopes we use. */
         static token_uri() {
-            return 'https://github.com/settings/tokens/new?scopes=repo,workflow&description=Figmol';
+            return 'https://github.com/settings/tokens/new?scopes=repo,workflow,read:org&description=Figmol';
         }
         /**
          * Where the browser goes to ask the user for access.
          *
          * `workflow` is on the list because the pushed files include
          * `.github/workflows/deploy.yml`, which GitHub refuses to accept from a
-         * token that only has `repo`.
+         * token that only has `repo`. `read:org` is what makes the organisations
+         * of the account visible — without it a member of a private organisation
+         * is offered nowhere to publish but their own account.
          */
         static oauth_uri(client_id, redirect, state) {
             const args = new URLSearchParams({
                 client_id,
                 redirect_uri: redirect,
-                scope: 'repo workflow',
+                scope: 'repo workflow read:org',
                 state,
             });
             return 'https://github.com/login/oauth/authorize?' + args.toString();
@@ -29288,6 +30005,33 @@ var $;
         user() {
             return this.json('GET', '/user');
         }
+        /**
+         * Login of the account, empty when the token cannot say.
+         *
+         * Quiet about a refusal on purpose, unlike `user` above: this one is
+         * asked while the user is still filling the form, only to name the
+         * owners they may pick from, and a bad token has a better place to be
+         * reported than an error plate over the fields.
+         */
+        login() {
+            const res = this.response('GET', '/user');
+            if (!res.ok())
+                return '';
+            return String(res.json()?.login ?? '');
+        }
+        /**
+         * Organisations the token is allowed to see.
+         *
+         * A classic token without `read:org` sees the public membership alone,
+         * and a refusal is possible besides — neither is worth an error, since
+         * the personal account remains an option in any case.
+         */
+        orgs() {
+            const res = this.response('GET', '/user/orgs?per_page=100');
+            if (!res.ok())
+                return [];
+            return $bog_figmol_deploy_github.orgs_pick(res.json());
+        }
         /** The repository, or null when the account has no such name yet. */
         repo(owner, name) {
             const res = this.response('GET', '/repos/' + owner + '/' + name);
@@ -29297,9 +30041,17 @@ var $;
                 throw new Error($bog_figmol_deploy_github.fail(res.code(), res.text()));
             return res.json();
         }
-        repo_make(name, descr = '', homepage = '') {
-            const body = $bog_figmol_deploy_github.repo_body(name, descr, homepage);
-            return this.json('POST', '/user/repos', body);
+        /**
+         * Makes the repository under `owner` — the account itself unless an
+         * organisation is named, and the same body either way.
+         */
+        repo_make(name, descr = '', homepage = '', owner = '', login = '') {
+            const klass = $bog_figmol_deploy_github;
+            const body = klass.repo_body(name, descr, homepage);
+            const res = this.response('POST', klass.repo_path(owner, login), body);
+            if (!res.ok())
+                throw new Error(klass.repo_fail(owner, login, res.code(), res.text()));
+            return res.json();
         }
         /** Head commit of a branch, empty when there is no branch to speak of. */
         head(owner, name, branch) {
@@ -29394,6 +30146,12 @@ var $;
     ], $bog_figmol_deploy_github.prototype, "user", null);
     __decorate([
         $mol_action
+    ], $bog_figmol_deploy_github.prototype, "login", null);
+    __decorate([
+        $mol_action
+    ], $bog_figmol_deploy_github.prototype, "orgs", null);
+    __decorate([
+        $mol_action
     ], $bog_figmol_deploy_github.prototype, "repo", null);
     __decorate([
         $mol_action
@@ -29432,6 +30190,13 @@ var $;
         return this.$mol_wire_sync(this).$mol_wait_timeout_async(timeout);
     }
     $.$mol_wait_timeout = $mol_wait_timeout;
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    $mol_style_attach("bog/figmol/deploy/publish/publish.view.css", "/*\n\nA refusal from an organisation carries the address of the page that settles it,\nand that address is longer than the panel is wide. Raw CSS rather than the file\nbeside it because `overflow-wrap` is not in the typed dictionary, and a cast to\n`any` to get it in would be a worse trade than one rule spelled out here.\n\n*/\n\n[ bog_figmol_deploy_publish_problem ] {\n\toverflow-wrap: anywhere;\n}\n");
 })($ || ($ = {}));
 
 ;
@@ -29486,6 +30251,10 @@ var $;
         },
         Fields: {
             gap: $mol_gap.text,
+        },
+        /* An organisation may be named at length, and the panel is narrow. */
+        Owner: {
+            minWidth: 0,
         },
         Token_hint: {
             gap: $mol_gap.text,
@@ -29646,6 +30415,16 @@ var $;
                 return this.$.$bog_figmol_deploy_github.login_saved(next);
             }
             /**
+             * Owner picked in the panel, remembered like the token beside it.
+             *
+             * Empty means the account itself — the account a name is stored under is
+             * a different one after signing out and back in as somebody else, and an
+             * empty default is right for every one of them.
+             */
+            owner_wanted(next) {
+                return this.$.$bog_figmol_deploy_github.owner_saved(next);
+            }
+            /**
              * One time value of a sign in under way, kept across the redirect.
              *
              * Like the token above, it is stored rather than held: the browser leaves
@@ -29724,6 +30503,7 @@ var $;
                 this.token('');
                 this.account('');
                 this.nonce('');
+                this.owner_wanted('');
                 this.owner('');
                 this.problem('');
                 return null;
@@ -29788,8 +30568,54 @@ var $;
                     this.problem(error?.message ?? String(error));
                 }
             }
+            /* ------------------------------------------------------------- the owner */
+            /**
+             * Login of the account the token belongs to.
+             *
+             * A sign in leaves it behind for free; a token pasted by hand names
+             * nobody, so GitHub is asked — through the quiet call that answers with
+             * an empty line instead of throwing, because a token still being typed
+             * is not a failure worth a plate over the fields.
+             */
+            account_login() {
+                if (!this.signed())
+                    return '';
+                return this.account() || this.github().login();
+            }
+            /** Organisations the account may publish into, as far as GitHub will say. */
+            orgs() {
+                if (!this.signed())
+                    return [];
+                return this.github().orgs();
+            }
+            /** Everything the account may publish as, itself first. */
+            owner_list() {
+                return this.$.$bog_figmol_deploy_github.owner_list(this.account_login(), this.orgs());
+            }
+            /** Whom the next publication goes to — the choice, made good. */
+            owner_target() {
+                return this.$.$bog_figmol_deploy_github.owner_pick(this.owner_wanted(), this.account_login(), this.orgs());
+            }
+            owner_options() {
+                const options = {};
+                for (const owner of this.owner_list())
+                    options[owner] = owner;
+                return options;
+            }
+            /**
+             * What the select shows and what it writes.
+             *
+             * Reading gives the choice made good rather than the choice as stored,
+             * so a remembered organisation the account has lost is not left standing
+             * in a list it is no longer in.
+             */
+            owner_value(next) {
+                if (next !== undefined)
+                    this.owner_wanted(next);
+                return this.owner_target();
+            }
             /* ------------------------------------------------------------------ state */
-            /** Login of the account the token belongs to. */
+            /** Owner of the repository the running publication is aimed at. */
             owner(next) {
                 return next ?? '';
             }
@@ -29830,14 +30656,44 @@ var $;
             buttons() {
                 return this.conflict() ? [this.Publish(), this.Overwrite()] : [this.Publish()];
             }
+            /**
+             * The owner is a row of its own, and only for somebody signed in: with
+             * no account there is nothing to fill the list with.
+             *
+             * The list itself is not consulted here on purpose — reading it asks
+             * GitHub, and a suspended row list would take the name field off the
+             * screen for as long as the answer takes.
+             */
+            field_rows() {
+                const rows = [this.Name_field(), this.Name_hint()];
+                return this.signed() ? [this.Owner_field(), ...rows] : rows;
+            }
             name_bid() {
                 const name = this.name().trim();
                 if (!name)
                     return '';
                 return this.$.$bog_figmol_deploy_github.name_error(name);
             }
+            /**
+             * The address the site will have, once both halves of it are settled.
+             *
+             * An organisation is served from a domain of its own, so the owner is
+             * half the answer — and a guess spelled out beats a rule to apply.
+             */
+            name_hint_rows() {
+                const name = this.name().trim();
+                const owner = name && !this.name_bid() ? this.owner_target() : '';
+                if (!owner)
+                    return [this.name_hint()];
+                return [this.site_hint() + ' ' + this.$.$bog_figmol_deploy_github.site_uri(owner, name)];
+            }
+            /** Which repository is in the way, since it is not always this account's. */
             conflict_rows() {
-                return this.conflict() ? [this.conflict_hint()] : [];
+                const name = this.conflict();
+                if (!name)
+                    return [];
+                const owner = this.owner();
+                return [(owner ? owner + '/' + name : name) + ' ' + this.conflict_hint()];
             }
             problem_rows() {
                 const problem = this.problem();
@@ -29963,12 +30819,15 @@ var $;
                         throw new Error(this.nothing_hint());
                     const github = this.github();
                     this.stage('login', 'work');
-                    const owner = github.user().login;
-                    this.owner(owner);
-                    this.note('login', owner);
+                    const login = github.user().login;
                     // A token pasted by hand names its account only here, and from now
                     // on the panel can say whose it is.
-                    this.account(owner);
+                    this.account(login);
+                    // The choice is made good against the same list the select was
+                    // filled from — by now an answer already given, not a new question.
+                    const owner = github_class.owner_pick(this.owner_wanted(), login, this.orgs());
+                    this.owner(owner);
+                    this.note('login', owner === login ? login : login + ' → ' + owner);
                     this.stage('login', 'done');
                     this.stage('repo', 'work');
                     const found = github.repo(owner, name);
@@ -29978,7 +30837,7 @@ var $;
                         this.busy(false);
                         return;
                     }
-                    const repo = found ?? github.repo_make(name, this.repo_descr(), github_class.site_uri(owner, name));
+                    const repo = found ?? github.repo_make(name, this.repo_descr(), github_class.site_uri(owner, name), owner, login);
                     const branch = repo?.default_branch || github.branch_main();
                     this.note('repo', owner + '/' + name);
                     this.stage('repo', 'done');
@@ -30063,6 +30922,24 @@ var $;
         ], $bog_figmol_deploy_publish.prototype, "logout", null);
         __decorate([
             $mol_mem
+        ], $bog_figmol_deploy_publish.prototype, "account_login", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_deploy_publish.prototype, "orgs", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_deploy_publish.prototype, "owner_list", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_deploy_publish.prototype, "owner_target", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_deploy_publish.prototype, "owner_options", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_deploy_publish.prototype, "owner_value", null);
+        __decorate([
+            $mol_mem
         ], $bog_figmol_deploy_publish.prototype, "owner", null);
         __decorate([
             $mol_mem
@@ -30093,7 +30970,13 @@ var $;
         ], $bog_figmol_deploy_publish.prototype, "buttons", null);
         __decorate([
             $mol_mem
+        ], $bog_figmol_deploy_publish.prototype, "field_rows", null);
+        __decorate([
+            $mol_mem
         ], $bog_figmol_deploy_publish.prototype, "name_bid", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_deploy_publish.prototype, "name_hint_rows", null);
         __decorate([
             $mol_mem
         ], $bog_figmol_deploy_publish.prototype, "conflict_rows", null);
@@ -31543,6 +32426,10 @@ var $;
 			if(next !== undefined) return next;
 			return "";
 		}
+		selection(next){
+			if(next !== undefined) return next;
+			return [];
+		}
 		publish_files(){
 			return {};
 		}
@@ -31617,6 +32504,7 @@ var $;
 			(obj.editable) = () => ((this.editable()));
 			(obj.spot) = () => ((this.drop_spot()));
 			(obj.selected) = (next) => ((this.selected(next)));
+			(obj.selection) = () => ((this.selection()));
 			return obj;
 		}
 		Canvas(){
@@ -31624,13 +32512,14 @@ var $;
 			(obj.store) = () => ((this.store()));
 			(obj.editable) = () => ((this.editable()));
 			(obj.tool) = (next) => ((this.tool(next)));
-			(obj.selected) = (next) => ((this.selected(next)));
+			(obj.selection) = (next) => ((this.selection(next)));
 			return obj;
 		}
 		Inspector(){
 			const obj = new this.$.$bog_figmol_app_inspector();
 			(obj.store) = () => ((this.store()));
 			(obj.selected) = (next) => ((this.selected(next)));
+			(obj.selection) = () => ((this.selection()));
 			return obj;
 		}
 		Publish(){
@@ -31651,6 +32540,7 @@ var $;
 	($mol_mem(($.$bog_figmol_app.prototype), "publish_toggle"));
 	($mol_mem(($.$bog_figmol_app.prototype), "tool"));
 	($mol_mem(($.$bog_figmol_app.prototype), "selected"));
+	($mol_mem(($.$bog_figmol_app.prototype), "selection"));
 	($mol_mem(($.$bog_figmol_app.prototype), "publish_name"));
 	($mol_mem(($.$bog_figmol_app.prototype), "store"));
 	($mol_mem(($.$bog_figmol_app.prototype), "publishing"));
@@ -31760,10 +32650,15 @@ var $;
          * Editor shell: a header strip, the tool palette, the canvas and the right
          * rail — the inspector, or the publishing panel when that is open.
          *
-         * `tool` and `selected` live here rather than inside the canvas because the
-         * palette and the inspector need them too. Both are plain declared props, so
-         * the `<=>` bindings of the children are the only writers and nothing
-         * shadows an override.
+         * `tool` and the selection live here rather than inside the canvas because
+         * the palette and the inspector need them too.
+         *
+         * The selection is a list, and `selected` is a view onto its last element:
+         * everything that shows a single node — the inspector, the layer tree, the
+         * palette that picks what it has just dropped — goes on writing and reading
+         * one link, and writing it means "this one and nothing else". The canvas is
+         * the only child that writes the list, being the only one that can pick
+         * several things at once.
          *
          * The store is made here as well, and handed to both readers as a typed
          * property. One instance means one answer to what a node is, and passing it
@@ -31790,6 +32685,21 @@ var $;
                 this.listen();
                 this.oauth_catch();
                 super.auto();
+            }
+            /* -------------------------------------------------------------- selection */
+            /**
+             * The node a single-element panel talks about: the last one picked.
+             *
+             * Writing it replaces the whole selection, which is what a click in the
+             * layer tree or a freshly dropped block means. Not memoized on purpose —
+             * it is a plain view onto `selection`, and the atom behind that is the one
+             * place the value lives.
+             */
+            selected(next) {
+                if (next !== undefined)
+                    this.selection(next ? [next] : []);
+                const ids = this.selection();
+                return ids[ids.length - 1] ?? '';
             }
             /* ------------------------------------------------------------- signing in */
             /**
@@ -31977,11 +32887,15 @@ var $;
             key_down(event) {
                 if (event.defaultPrevented)
                     return;
-                if (!this.editable())
-                    return;
                 if (this.typing(event.target))
                     return;
                 const command = event.metaKey || event.ctrlKey;
+                // Zoom is about looking rather than editing, so it works on a site
+                // opened by somebody else's link just as well.
+                if (this.zoom_key(event, command))
+                    return;
+                if (!this.editable())
+                    return;
                 if (command && event.code === 'KeyZ') {
                     event.preventDefault();
                     $mol_wire_async(this).step(event.shiftKey);
@@ -32003,13 +32917,48 @@ var $;
                     return;
                 if (!figmol_app_arrows.includes(event.code))
                     return;
-                if (!this.selected())
+                if (!this.selection().length)
                     return;
                 event.preventDefault();
                 const far = event.shiftKey ? figmol_app_nudge_far : figmol_app_nudge;
                 const shift_x = event.code === 'ArrowLeft' ? -far : event.code === 'ArrowRight' ? far : 0;
                 const shift_y = event.code === 'ArrowUp' ? -far : event.code === 'ArrowDown' ? far : 0;
                 $mol_wire_async(this).nudge(shift_x, shift_y);
+            }
+            /**
+             * Zoom shortcuts, spelled the way every editor spells them: `⇧1` fits the
+             * page into the window, `⌘0` goes back to life size, `⌘+` and `⌘-` step
+             * about the middle of what is on screen.
+             *
+             * Answers whether the key was one of its own, so the caller can stop.
+             */
+            zoom_key(event, command) {
+                const canvas = this.Canvas();
+                if (!command && event.shiftKey && event.code === 'Digit1') {
+                    event.preventDefault();
+                    $mol_wire_async(canvas).zoom_fit();
+                    return true;
+                }
+                if (!command)
+                    return false;
+                // The plus key is `Equal` unshifted and there is a numeric keypad as
+                // well, so all four spellings answer to the same thing.
+                if (event.code === 'Digit0' || event.code === 'Numpad0') {
+                    event.preventDefault();
+                    $mol_wire_async(canvas).zoom_reset();
+                    return true;
+                }
+                if (event.code === 'Equal' || event.code === 'NumpadAdd') {
+                    event.preventDefault();
+                    $mol_wire_async(canvas).zoom_step(1);
+                    return true;
+                }
+                if (event.code === 'Minus' || event.code === 'NumpadSubtract') {
+                    event.preventDefault();
+                    $mol_wire_async(canvas).zoom_step(-1);
+                    return true;
+                }
+                return false;
             }
             /** A press anywhere but inside the caption being typed ends the typing. */
             press_down(event) {
@@ -32033,39 +32982,36 @@ var $;
                     store.redo();
                 else
                     store.undo();
-                const id = this.selected();
-                if (id && !store.node_ids().includes(id))
-                    this.selected('');
+                const alive = store.node_ids();
+                const kept = this.selection().filter(id => alive.includes(id));
+                if (kept.length !== this.selection().length)
+                    this.selection(kept);
             }
             /**
-             * Copies the selected element, subtree and all, and selects the copy —
-             * which is what makes the next ⌘D copy the copy rather than the original.
+             * Copies everything selected, subtrees and all, and selects the copies —
+             * which is what makes the next ⌘D copy the copies rather than the
+             * originals.
              */
             duplicate() {
-                const id = this.selected();
-                if (!id)
-                    return;
-                const made = this.store().node_copy(id);
-                if (made)
-                    this.selected(made);
+                const store = this.store();
+                const made = this.selection().map(id => store.node_copy(id)).filter(Boolean);
+                if (made.length)
+                    this.selection(made);
             }
             /**
-             * Moves the selected element by the arrow keys. An element inside an auto
-             * layout is placed by its frame, so there is nothing here to move.
+             * Moves the selection by the arrow keys. An element inside an auto layout
+             * is placed by its frame, so there is nothing here to move.
              */
             nudge(shift_x, shift_y) {
-                const id = this.selected();
-                if (!id)
-                    return;
                 const store = this.store();
-                if (store.flow(id))
-                    return;
-                const x = store.x(id);
-                const y = store.y(id);
-                if (shift_x)
-                    store.x(id, x + shift_x);
-                if (shift_y)
-                    store.y(id, y + shift_y);
+                for (const id of this.selection()) {
+                    if (store.flow(id))
+                        continue;
+                    if (shift_x)
+                        store.x(id, store.x(id) + shift_x);
+                    if (shift_y)
+                        store.y(id, store.y(id) + shift_y);
+                }
             }
         }
         __decorate([
@@ -39351,6 +40297,80 @@ var $;
             $mol_assert_equal($bog_figmol_deploy_github.site_uri('Alice', 'alice.github.io'), 'https://alice.github.io/');
             $mol_assert_equal($bog_figmol_deploy_github.repo_uri('Alice', 'mysite'), 'https://github.com/Alice/mysite');
         },
+        /** An organisation is an owner like any other, domain and all. */
+        'a site of an organisation is served from the domain of the organisation'() {
+            $mol_assert_equal($bog_figmol_deploy_github.site_uri('Acme-Corp', 'mysite'), 'https://acme-corp.github.io/mysite/');
+            $mol_assert_equal($bog_figmol_deploy_github.site_uri('Acme', 'acme.github.io'), 'https://acme.github.io/');
+            $mol_assert_equal($bog_figmol_deploy_github.repo_uri('Acme', 'mysite'), 'https://github.com/Acme/mysite');
+        },
+        'an organisation has an endpoint of its own, the account itself has one path'() {
+            const path = (owner, login) => $bog_figmol_deploy_github.repo_path(owner, login);
+            $mol_assert_equal(path('', 'alice'), '/user/repos');
+            $mol_assert_equal(path('alice', 'alice'), '/user/repos');
+            // GitHub logins differ in spelling and not in case.
+            $mol_assert_equal(path('Alice', 'alice'), '/user/repos');
+            $mol_assert_equal(path(' alice ', 'alice'), '/user/repos');
+            $mol_assert_equal(path('acme', 'alice'), '/orgs/acme/repos');
+            $mol_assert_equal(path(' Acme-Corp ', 'alice'), '/orgs/Acme-Corp/repos');
+        },
+        /** Both endpoints take the same fields, so nothing about the body moves. */
+        'a repository of an organisation is asked for in the same words'() {
+            const body = $bog_figmol_deploy_github.repo_body('mysite', 'A site', 'https://acme.github.io/mysite/');
+            $mol_assert_like(body, {
+                name: 'mysite',
+                description: 'A site',
+                homepage: 'https://acme.github.io/mysite/',
+                private: false,
+                has_issues: false,
+                has_wiki: false,
+                has_projects: false,
+                auto_init: true,
+            });
+        },
+        'organisations are read out of the listing, blanks and repeats dropped'() {
+            const pick = (data) => $bog_figmol_deploy_github.orgs_pick(data);
+            $mol_assert_like(pick([{ id: 1, login: 'acme' }, { id: 2, login: 'globex' }]), ['acme', 'globex']);
+            $mol_assert_like(pick([{ login: 'acme' }, { login: 'Acme' }, { login: '' }, {}]), ['acme']);
+            // A refusal answers with an object rather than with a list.
+            $mol_assert_like(pick({ message: 'Requires authentication' }), []);
+            $mol_assert_like(pick(null), []);
+        },
+        'the list of owners starts with the account itself'() {
+            const list = (login, orgs) => $bog_figmol_deploy_github.owner_list(login, orgs);
+            $mol_assert_like(list('alice', ['acme', 'globex']), ['alice', 'acme', 'globex']);
+            $mol_assert_like(list('alice', []), ['alice']);
+            // An account that owns an organisation of its own name is listed once.
+            $mol_assert_like(list('alice', ['Alice', 'acme']), ['alice', 'acme']);
+            // Nothing is known about the account yet — a hand typed token, say.
+            $mol_assert_like(list('', ['acme']), ['acme']);
+        },
+        'a remembered owner holds while the account still has it'() {
+            const pick = (wanted, login, orgs) => $bog_figmol_deploy_github.owner_pick(wanted, login, orgs);
+            $mol_assert_equal(pick('', 'alice', ['acme']), 'alice');
+            $mol_assert_equal(pick('acme', 'alice', ['acme']), 'acme');
+            $mol_assert_equal(pick('ACME', 'alice', ['acme']), 'acme');
+            $mol_assert_equal(pick('alice', 'alice', ['acme']), 'alice');
+            // Signed in as somebody who is not in that organisation any more.
+            $mol_assert_equal(pick('acme', 'bob', ['globex']), 'bob');
+            // A token that may not read organisations says nothing about them,
+            // and silence is not a reason to publish somewhere else.
+            $mol_assert_equal(pick('acme', 'alice', []), 'acme');
+        },
+        'a refusal from an organisation says where it is settled'() {
+            const denied = JSON.stringify({
+                message: 'Although you appear to have the correct authorization credentials, '
+                    + 'the organization has enabled OAuth App access restrictions',
+            });
+            const message = $bog_figmol_deploy_github.repo_fail('acme', 'alice', 403, denied);
+            // GitHub's own wording comes first, whatever we have to add to it.
+            $mol_assert_ok(message.startsWith('GitHub 403: Although you appear'));
+            $mol_assert_ok(message.includes('acme may forbid its members to create repositories'));
+            $mol_assert_ok(message.includes('https://github.com/organizations/acme/settings/oauth_application_policy'));
+            // A refusal of the account itself has no organisation to blame.
+            $mol_assert_equal($bog_figmol_deploy_github.repo_fail('', 'alice', 403, JSON.stringify({ message: 'Forbidden' })), 'GitHub 403: Forbidden');
+            // Not every refusal is about who may create what.
+            $mol_assert_equal($bog_figmol_deploy_github.repo_fail('acme', 'alice', 404, JSON.stringify({ message: 'Not Found' })), 'GitHub 404: Not Found');
+        },
         'a refusal keeps the wording GitHub used'() {
             $mol_assert_equal($bog_figmol_deploy_github.fail(422, JSON.stringify({
                 message: 'Repository creation failed',
@@ -39371,14 +40391,16 @@ var $;
             const anon = $bog_figmol_deploy_github.make({});
             $mol_assert_equal(anon.headers(false)['authorization'], undefined);
         },
-        'the consent screen asks for the scopes a workflow push needs'() {
+        'the consent screen asks for the scopes a workflow push and an org list need'() {
             const uri = $bog_figmol_deploy_github.oauth_uri('Iv1_abc', 'https://figmol.example/back', 'nonce1');
             $mol_assert_ok(uri.startsWith('https://github.com/login/oauth/authorize?'));
             const args = new URLSearchParams(uri.split('?')[1]);
             $mol_assert_equal(args.get('client_id'), 'Iv1_abc');
             $mol_assert_equal(args.get('redirect_uri'), 'https://figmol.example/back');
-            $mol_assert_equal(args.get('scope'), 'repo workflow');
+            $mol_assert_equal(args.get('scope'), 'repo workflow read:org');
             $mol_assert_equal(args.get('state'), 'nonce1');
+            // A token made by hand is asked for the same three.
+            $mol_assert_ok($bog_figmol_deploy_github.token_uri().includes('scopes=repo,workflow,read:org'));
         },
         'the address to come back to is the page alone'() {
             const back = (href) => $bog_figmol_deploy_github.oauth_back(href);
@@ -39448,10 +40470,22 @@ var $;
      */
     function figmol_publish_test_panel() {
         const panel = new $bog_figmol_deploy_publish;
-        const kept = { token: '', account: '', nonce: '', went: '', address: figmol_publish_test_page };
+        const kept = {
+            token: '',
+            account: '',
+            nonce: '',
+            owner: '',
+            orgs: [],
+            went: '',
+            address: figmol_publish_test_page,
+        };
         panel.token = (next) => next === undefined ? kept.token : (kept.token = next);
         panel.account = (next) => next === undefined ? kept.account : (kept.account = next);
         panel.nonce = (next) => next === undefined ? kept.nonce : (kept.nonce = next);
+        panel.owner_wanted = (next) => next === undefined ? kept.owner : (kept.owner = next);
+        // The one call the panel makes on its own, and the only reason a case
+        // below would reach the network.
+        panel.orgs = () => kept.orgs;
         panel.go = (uri) => { kept.went = uri; };
         panel.oauth_clean = (href) => { kept.address = $bog_figmol_deploy_github.oauth_clean(href); };
         panel.oauth_back = () => figmol_publish_test_page;
@@ -39460,6 +40494,9 @@ var $;
         panel.signed_label = () => 'Signed in as';
         panel.token_label = () => 'A token is in place';
         panel.login_wrong = () => 'Start it again';
+        panel.name_hint = () => 'One lowercase word';
+        panel.site_hint = () => 'The site will land on';
+        panel.conflict_hint = () => 'already exists';
         return { panel, kept };
     }
     $mol_test({
@@ -39499,7 +40536,7 @@ var $;
             const args = new URLSearchParams(kept.went.split('?')[1]);
             $mol_assert_equal(args.get('client_id'), $bog_figmol_deploy_github.oauth_client());
             $mol_assert_equal(args.get('redirect_uri'), figmol_publish_test_page);
-            $mol_assert_equal(args.get('scope'), 'repo workflow');
+            $mol_assert_equal(args.get('scope'), 'repo workflow read:org');
             // The value in the address is the very one the browser will check the
             // return against.
             $mol_assert_ok(kept.nonce);
@@ -39510,10 +40547,66 @@ var $;
             panel.token('ghp_secret');
             panel.account('alice');
             panel.nonce('nonce1');
+            panel.owner_wanted('acme');
             panel.logout(null);
             $mol_assert_equal(panel.token(), '');
             $mol_assert_equal(panel.account(), '');
             $mol_assert_equal(panel.nonce(), '');
+            // The next account is somebody else's, and so are their organisations.
+            $mol_assert_equal(panel.owner_wanted(), '');
+        },
+        'the owner is a row of its own, and only for a known account'() {
+            const guest = figmol_publish_test_panel();
+            $mol_assert_ok(guest.panel.field_rows().includes(guest.panel.Name_field()));
+            $mol_assert_ok(!guest.panel.field_rows().includes(guest.panel.Owner_field()));
+            const known = figmol_publish_test_panel();
+            known.panel.token('ghp_secret');
+            $mol_assert_ok(known.panel.field_rows().includes(known.panel.Owner_field()));
+        },
+        'the select offers the account and the organisations behind it'() {
+            const { panel } = figmol_publish_test_panel();
+            panel.token('ghp_secret');
+            panel.account('alice');
+            panel.orgs = () => ['acme', 'globex'];
+            $mol_assert_like(panel.owner_list(), ['alice', 'acme', 'globex']);
+            $mol_assert_like(panel.owner_options(), { alice: 'alice', acme: 'acme', globex: 'globex' });
+            // The personal account until somebody says otherwise.
+            $mol_assert_equal(panel.owner_value(), 'alice');
+        },
+        'a picked organisation is remembered and shows up in the address'() {
+            const { panel, kept } = figmol_publish_test_panel();
+            panel.token('ghp_secret');
+            panel.account('alice');
+            panel.orgs = () => ['acme'];
+            panel.name('mysite');
+            panel.owner_value('acme');
+            $mol_assert_equal(kept.owner, 'acme');
+            $mol_assert_equal(panel.owner_value(), 'acme');
+            $mol_assert_equal(panel.owner_target(), 'acme');
+            $mol_assert_like(panel.name_hint_rows(), ['The site will land on https://acme.github.io/mysite/']);
+        },
+        /** Signed in as somebody who is not in that organisation any more. */
+        'an organisation the account has lost gives way to the account'() {
+            const { panel } = figmol_publish_test_panel();
+            panel.owner_wanted('acme');
+            panel.token('ghp_secret');
+            panel.account('bob');
+            panel.orgs = () => ['globex'];
+            $mol_assert_equal(panel.owner_target(), 'bob');
+            $mol_assert_equal(panel.owner_value(), 'bob');
+        },
+        'a name with nowhere to go yet is explained rather than guessed at'() {
+            const { panel } = figmol_publish_test_panel();
+            panel.token('ghp_secret');
+            panel.account('alice');
+            panel.name('My Site');
+            $mol_assert_like(panel.name_hint_rows(), ['One lowercase word']);
+        },
+        'a repository in the way is named in full'() {
+            const { panel } = figmol_publish_test_panel();
+            panel.owner('acme');
+            panel.conflict('mysite');
+            $mol_assert_like(panel.conflict_rows(), ['acme/mysite already exists']);
         },
         /** A code arriving with the wrong value answers a request nobody made here. */
         'a return that does not match is refused before any exchange'() {
@@ -40030,14 +41123,23 @@ var $;
             $mol_assert_equal(shape.style_width(), '');
             $mol_assert_equal(shape.style_height(), '120px');
         },
-        'shape shows corner grips only while selected'() {
+        /** Four corners and four sides, and none of them until it is picked. */
+        'shape shows grips only while selected'() {
             const plain = new $bog_figmol_app_canvas_shape;
             plain.kind = () => 'rect';
             $mol_assert_equal(plain.content().length, 0);
             const picked = new $bog_figmol_app_canvas_shape;
             picked.kind = () => 'rect';
             picked.selected = () => true;
-            $mol_assert_equal(picked.content().length, 4);
+            $mol_assert_equal(picked.content().length, 8);
+        },
+        /** A group is framed and moved as a whole, and sized one element at a time. */
+        'shape of one element out of several shows no grips'() {
+            const shape = new $bog_figmol_app_canvas_shape;
+            shape.kind = () => 'rect';
+            shape.selected = () => true;
+            shape.grips = () => false;
+            $mol_assert_equal(shape.content().length, 0);
         },
         /** Grips that cannot be dragged are a promise the editor would not keep. */
         'shape of a site opened by link shows no grips'() {
@@ -40193,6 +41295,126 @@ var $;
             store.kids = () => ['a'];
             store.rect = () => [340, 200, 320, 200];
             $mol_assert_like(blocks.place({ kind: 'bui_card', w: 320, h: 200 }), [380, 240]);
+        },
+        /**
+         * Everything that shows a single element writes one link, and the app
+         * turns that into a selection of exactly one.
+         */
+        'the panels talk about the last element picked'() {
+            const app = new $bog_figmol_app;
+            $mol_assert_equal(app.selected(), '');
+            app.selection(['a', 'b']);
+            $mol_assert_equal(app.selected(), 'b');
+            app.selected('c');
+            $mol_assert_like(app.selection(), ['c']);
+            app.selected('');
+            $mol_assert_like(app.selection(), []);
+        },
+        'a shift click adds an element to the selection and takes it back out'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.selection(['a']);
+            canvas.toggle('b');
+            $mol_assert_like(canvas.selection(), ['a', 'b']);
+            canvas.toggle('a');
+            $mol_assert_like(canvas.selection(), ['b']);
+        },
+        /** Grips belong to a lone element, a frame is drawn around every one of them. */
+        'a canvas frames the whole selection and sizes a single element'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.selection(['a', 'b']);
+            $mol_assert_ok(canvas.shape_selected('a'));
+            $mol_assert_ok(canvas.shape_selected('b'));
+            $mol_assert_ok(!canvas.shape_grips('a'));
+            canvas.selection(['a']);
+            $mol_assert_ok(canvas.shape_grips('a'));
+        },
+        /**
+         * A click takes the outermost element of the level being edited, so a card
+         * moves as one thing instead of falling apart into its captions.
+         */
+        'a click picks the outer element and ⌘ the deepest one'() {
+            const canvas = new $bog_figmol_app_canvas;
+            const parents = { card: 'root', text: 'card', other: 'root' };
+            const store = canvas.store();
+            store.root_id = () => 'root';
+            store.parent = (id) => parents[id] ?? '';
+            store.node_ids = () => ['card', 'text', 'other'];
+            const plain = { metaKey: false, ctrlKey: false };
+            $mol_assert_equal(canvas.pick('text', plain), 'card');
+            $mol_assert_equal(canvas.pick('text', { metaKey: true, ctrlKey: false }), 'text');
+            // A double click went into the card: clicks now pick what is inside it.
+            canvas.scope('card');
+            $mol_assert_equal(canvas.pick('text', plain), 'text');
+            // And a click outside the card steps back out of it.
+            $mol_assert_equal(canvas.pick('other', plain), 'other');
+            $mol_assert_equal(canvas.scope(), '');
+        },
+        'the rubber band adds what it caught to what was picked before'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.marquee_hits = () => ['b', 'c'];
+            canvas.marquee([0, 0, 100, 100]);
+            canvas.grab_base = ['a'];
+            canvas.marquee_settle();
+            $mol_assert_like(canvas.selection(), ['a', 'b', 'c']);
+        },
+        /** A band dragged up and to the left is the same box as one dragged down. */
+        'the rubber band is a box whichever way it was pulled'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.marquee([100, 80, 40, 20]);
+            $mol_assert_like(canvas.marquee_box(), [40, 20, 60, 60]);
+        },
+        'zoom steps keep the middle of the window in place'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.dom_node = () => ({
+                getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600 }),
+            });
+            canvas.zoom(1);
+            canvas.pan_x(0);
+            canvas.pan_y(0);
+            const before = (400 - canvas.pan_x()) / canvas.zoom();
+            canvas.zoom_step(1);
+            $mol_assert_ok(canvas.zoom() > 1);
+            $mol_assert_equal(Math.round((400 - canvas.pan_x()) / canvas.zoom()), Math.round(before));
+            canvas.zoom_reset();
+            $mol_assert_equal(canvas.zoom(), 1);
+        },
+        'fitting the page centres what is drawn on it'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.dom_node = () => ({
+                getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600 }),
+            });
+            canvas.content_box = () => [100, 50, 400, 200];
+            canvas.zoom_fit();
+            // The width is the tighter of the two: ( 800 - 48 * 2 ) / 400.
+            $mol_assert_equal(canvas.zoom(), 1.76);
+            $mol_assert_equal(canvas.pan_x(), (800 - 400 * 1.76) / 2 - 100 * 1.76);
+            $mol_assert_equal(canvas.pan_y(), (600 - 200 * 1.76) / 2 - 50 * 1.76);
+        },
+        'delete takes out everything that is picked'() {
+            const canvas = new $bog_figmol_app_canvas;
+            const dropped = [];
+            canvas.store().node_drop = (id) => { dropped.push(id); };
+            canvas.selection(['a', 'b']);
+            canvas.drop(true);
+            $mol_assert_like(dropped, ['a', 'b']);
+            $mol_assert_like(canvas.selection(), []);
+        },
+        /**
+         * A width typed into a field would be the width of every element picked,
+         * which is a decision of its own — so a group gets a count and a way out.
+         */
+        'the inspector counts a group instead of describing it'() {
+            const inspector = new $bog_figmol_app_inspector;
+            inspector.selection = () => ['a', 'b'];
+            inspector.selected('b');
+            // The captions come out of the locale, which is not what is being
+            // checked here — only which of them the panel reaches for.
+            inspector.title_many = () => 'Selected';
+            inspector.drop_label = () => 'one';
+            inspector.drop_many_label = () => 'many';
+            $mol_assert_like(inspector.rows(), [inspector.Head(), inspector.Drop()]);
+            $mol_assert_equal(inspector.kind_title(), 'Selected: 2');
+            $mol_assert_equal(inspector.drop_caption(), 'many');
         },
         /** Nothing on this panel writes but the palette, so the rest stays put. */
         'a site opened by link keeps the lists and loses the palette'() {

@@ -6893,6 +6893,80 @@ var $;
             $mol_assert_equal($bog_figmol_deploy_github.site_uri('Alice', 'alice.github.io'), 'https://alice.github.io/');
             $mol_assert_equal($bog_figmol_deploy_github.repo_uri('Alice', 'mysite'), 'https://github.com/Alice/mysite');
         },
+        /** An organisation is an owner like any other, domain and all. */
+        'a site of an organisation is served from the domain of the organisation'() {
+            $mol_assert_equal($bog_figmol_deploy_github.site_uri('Acme-Corp', 'mysite'), 'https://acme-corp.github.io/mysite/');
+            $mol_assert_equal($bog_figmol_deploy_github.site_uri('Acme', 'acme.github.io'), 'https://acme.github.io/');
+            $mol_assert_equal($bog_figmol_deploy_github.repo_uri('Acme', 'mysite'), 'https://github.com/Acme/mysite');
+        },
+        'an organisation has an endpoint of its own, the account itself has one path'() {
+            const path = (owner, login) => $bog_figmol_deploy_github.repo_path(owner, login);
+            $mol_assert_equal(path('', 'alice'), '/user/repos');
+            $mol_assert_equal(path('alice', 'alice'), '/user/repos');
+            // GitHub logins differ in spelling and not in case.
+            $mol_assert_equal(path('Alice', 'alice'), '/user/repos');
+            $mol_assert_equal(path(' alice ', 'alice'), '/user/repos');
+            $mol_assert_equal(path('acme', 'alice'), '/orgs/acme/repos');
+            $mol_assert_equal(path(' Acme-Corp ', 'alice'), '/orgs/Acme-Corp/repos');
+        },
+        /** Both endpoints take the same fields, so nothing about the body moves. */
+        'a repository of an organisation is asked for in the same words'() {
+            const body = $bog_figmol_deploy_github.repo_body('mysite', 'A site', 'https://acme.github.io/mysite/');
+            $mol_assert_like(body, {
+                name: 'mysite',
+                description: 'A site',
+                homepage: 'https://acme.github.io/mysite/',
+                private: false,
+                has_issues: false,
+                has_wiki: false,
+                has_projects: false,
+                auto_init: true,
+            });
+        },
+        'organisations are read out of the listing, blanks and repeats dropped'() {
+            const pick = (data) => $bog_figmol_deploy_github.orgs_pick(data);
+            $mol_assert_like(pick([{ id: 1, login: 'acme' }, { id: 2, login: 'globex' }]), ['acme', 'globex']);
+            $mol_assert_like(pick([{ login: 'acme' }, { login: 'Acme' }, { login: '' }, {}]), ['acme']);
+            // A refusal answers with an object rather than with a list.
+            $mol_assert_like(pick({ message: 'Requires authentication' }), []);
+            $mol_assert_like(pick(null), []);
+        },
+        'the list of owners starts with the account itself'() {
+            const list = (login, orgs) => $bog_figmol_deploy_github.owner_list(login, orgs);
+            $mol_assert_like(list('alice', ['acme', 'globex']), ['alice', 'acme', 'globex']);
+            $mol_assert_like(list('alice', []), ['alice']);
+            // An account that owns an organisation of its own name is listed once.
+            $mol_assert_like(list('alice', ['Alice', 'acme']), ['alice', 'acme']);
+            // Nothing is known about the account yet — a hand typed token, say.
+            $mol_assert_like(list('', ['acme']), ['acme']);
+        },
+        'a remembered owner holds while the account still has it'() {
+            const pick = (wanted, login, orgs) => $bog_figmol_deploy_github.owner_pick(wanted, login, orgs);
+            $mol_assert_equal(pick('', 'alice', ['acme']), 'alice');
+            $mol_assert_equal(pick('acme', 'alice', ['acme']), 'acme');
+            $mol_assert_equal(pick('ACME', 'alice', ['acme']), 'acme');
+            $mol_assert_equal(pick('alice', 'alice', ['acme']), 'alice');
+            // Signed in as somebody who is not in that organisation any more.
+            $mol_assert_equal(pick('acme', 'bob', ['globex']), 'bob');
+            // A token that may not read organisations says nothing about them,
+            // and silence is not a reason to publish somewhere else.
+            $mol_assert_equal(pick('acme', 'alice', []), 'acme');
+        },
+        'a refusal from an organisation says where it is settled'() {
+            const denied = JSON.stringify({
+                message: 'Although you appear to have the correct authorization credentials, '
+                    + 'the organization has enabled OAuth App access restrictions',
+            });
+            const message = $bog_figmol_deploy_github.repo_fail('acme', 'alice', 403, denied);
+            // GitHub's own wording comes first, whatever we have to add to it.
+            $mol_assert_ok(message.startsWith('GitHub 403: Although you appear'));
+            $mol_assert_ok(message.includes('acme may forbid its members to create repositories'));
+            $mol_assert_ok(message.includes('https://github.com/organizations/acme/settings/oauth_application_policy'));
+            // A refusal of the account itself has no organisation to blame.
+            $mol_assert_equal($bog_figmol_deploy_github.repo_fail('', 'alice', 403, JSON.stringify({ message: 'Forbidden' })), 'GitHub 403: Forbidden');
+            // Not every refusal is about who may create what.
+            $mol_assert_equal($bog_figmol_deploy_github.repo_fail('acme', 'alice', 404, JSON.stringify({ message: 'Not Found' })), 'GitHub 404: Not Found');
+        },
         'a refusal keeps the wording GitHub used'() {
             $mol_assert_equal($bog_figmol_deploy_github.fail(422, JSON.stringify({
                 message: 'Repository creation failed',
@@ -6913,14 +6987,16 @@ var $;
             const anon = $bog_figmol_deploy_github.make({});
             $mol_assert_equal(anon.headers(false)['authorization'], undefined);
         },
-        'the consent screen asks for the scopes a workflow push needs'() {
+        'the consent screen asks for the scopes a workflow push and an org list need'() {
             const uri = $bog_figmol_deploy_github.oauth_uri('Iv1_abc', 'https://figmol.example/back', 'nonce1');
             $mol_assert_ok(uri.startsWith('https://github.com/login/oauth/authorize?'));
             const args = new URLSearchParams(uri.split('?')[1]);
             $mol_assert_equal(args.get('client_id'), 'Iv1_abc');
             $mol_assert_equal(args.get('redirect_uri'), 'https://figmol.example/back');
-            $mol_assert_equal(args.get('scope'), 'repo workflow');
+            $mol_assert_equal(args.get('scope'), 'repo workflow read:org');
             $mol_assert_equal(args.get('state'), 'nonce1');
+            // A token made by hand is asked for the same three.
+            $mol_assert_ok($bog_figmol_deploy_github.token_uri().includes('scopes=repo,workflow,read:org'));
         },
         'the address to come back to is the page alone'() {
             const back = (href) => $bog_figmol_deploy_github.oauth_back(href);
@@ -6990,10 +7066,22 @@ var $;
      */
     function figmol_publish_test_panel() {
         const panel = new $bog_figmol_deploy_publish;
-        const kept = { token: '', account: '', nonce: '', went: '', address: figmol_publish_test_page };
+        const kept = {
+            token: '',
+            account: '',
+            nonce: '',
+            owner: '',
+            orgs: [],
+            went: '',
+            address: figmol_publish_test_page,
+        };
         panel.token = (next) => next === undefined ? kept.token : (kept.token = next);
         panel.account = (next) => next === undefined ? kept.account : (kept.account = next);
         panel.nonce = (next) => next === undefined ? kept.nonce : (kept.nonce = next);
+        panel.owner_wanted = (next) => next === undefined ? kept.owner : (kept.owner = next);
+        // The one call the panel makes on its own, and the only reason a case
+        // below would reach the network.
+        panel.orgs = () => kept.orgs;
         panel.go = (uri) => { kept.went = uri; };
         panel.oauth_clean = (href) => { kept.address = $bog_figmol_deploy_github.oauth_clean(href); };
         panel.oauth_back = () => figmol_publish_test_page;
@@ -7002,6 +7090,9 @@ var $;
         panel.signed_label = () => 'Signed in as';
         panel.token_label = () => 'A token is in place';
         panel.login_wrong = () => 'Start it again';
+        panel.name_hint = () => 'One lowercase word';
+        panel.site_hint = () => 'The site will land on';
+        panel.conflict_hint = () => 'already exists';
         return { panel, kept };
     }
     $mol_test({
@@ -7041,7 +7132,7 @@ var $;
             const args = new URLSearchParams(kept.went.split('?')[1]);
             $mol_assert_equal(args.get('client_id'), $bog_figmol_deploy_github.oauth_client());
             $mol_assert_equal(args.get('redirect_uri'), figmol_publish_test_page);
-            $mol_assert_equal(args.get('scope'), 'repo workflow');
+            $mol_assert_equal(args.get('scope'), 'repo workflow read:org');
             // The value in the address is the very one the browser will check the
             // return against.
             $mol_assert_ok(kept.nonce);
@@ -7052,10 +7143,66 @@ var $;
             panel.token('ghp_secret');
             panel.account('alice');
             panel.nonce('nonce1');
+            panel.owner_wanted('acme');
             panel.logout(null);
             $mol_assert_equal(panel.token(), '');
             $mol_assert_equal(panel.account(), '');
             $mol_assert_equal(panel.nonce(), '');
+            // The next account is somebody else's, and so are their organisations.
+            $mol_assert_equal(panel.owner_wanted(), '');
+        },
+        'the owner is a row of its own, and only for a known account'() {
+            const guest = figmol_publish_test_panel();
+            $mol_assert_ok(guest.panel.field_rows().includes(guest.panel.Name_field()));
+            $mol_assert_ok(!guest.panel.field_rows().includes(guest.panel.Owner_field()));
+            const known = figmol_publish_test_panel();
+            known.panel.token('ghp_secret');
+            $mol_assert_ok(known.panel.field_rows().includes(known.panel.Owner_field()));
+        },
+        'the select offers the account and the organisations behind it'() {
+            const { panel } = figmol_publish_test_panel();
+            panel.token('ghp_secret');
+            panel.account('alice');
+            panel.orgs = () => ['acme', 'globex'];
+            $mol_assert_like(panel.owner_list(), ['alice', 'acme', 'globex']);
+            $mol_assert_like(panel.owner_options(), { alice: 'alice', acme: 'acme', globex: 'globex' });
+            // The personal account until somebody says otherwise.
+            $mol_assert_equal(panel.owner_value(), 'alice');
+        },
+        'a picked organisation is remembered and shows up in the address'() {
+            const { panel, kept } = figmol_publish_test_panel();
+            panel.token('ghp_secret');
+            panel.account('alice');
+            panel.orgs = () => ['acme'];
+            panel.name('mysite');
+            panel.owner_value('acme');
+            $mol_assert_equal(kept.owner, 'acme');
+            $mol_assert_equal(panel.owner_value(), 'acme');
+            $mol_assert_equal(panel.owner_target(), 'acme');
+            $mol_assert_like(panel.name_hint_rows(), ['The site will land on https://acme.github.io/mysite/']);
+        },
+        /** Signed in as somebody who is not in that organisation any more. */
+        'an organisation the account has lost gives way to the account'() {
+            const { panel } = figmol_publish_test_panel();
+            panel.owner_wanted('acme');
+            panel.token('ghp_secret');
+            panel.account('bob');
+            panel.orgs = () => ['globex'];
+            $mol_assert_equal(panel.owner_target(), 'bob');
+            $mol_assert_equal(panel.owner_value(), 'bob');
+        },
+        'a name with nowhere to go yet is explained rather than guessed at'() {
+            const { panel } = figmol_publish_test_panel();
+            panel.token('ghp_secret');
+            panel.account('alice');
+            panel.name('My Site');
+            $mol_assert_like(panel.name_hint_rows(), ['One lowercase word']);
+        },
+        'a repository in the way is named in full'() {
+            const { panel } = figmol_publish_test_panel();
+            panel.owner('acme');
+            panel.conflict('mysite');
+            $mol_assert_like(panel.conflict_rows(), ['acme/mysite already exists']);
         },
         /** A code arriving with the wrong value answers a request nobody made here. */
         'a return that does not match is refused before any exchange'() {
@@ -7556,14 +7703,23 @@ var $;
             $mol_assert_equal(shape.style_width(), '');
             $mol_assert_equal(shape.style_height(), '120px');
         },
-        'shape shows corner grips only while selected'() {
+        /** Four corners and four sides, and none of them until it is picked. */
+        'shape shows grips only while selected'() {
             const plain = new $bog_figmol_app_canvas_shape;
             plain.kind = () => 'rect';
             $mol_assert_equal(plain.content().length, 0);
             const picked = new $bog_figmol_app_canvas_shape;
             picked.kind = () => 'rect';
             picked.selected = () => true;
-            $mol_assert_equal(picked.content().length, 4);
+            $mol_assert_equal(picked.content().length, 8);
+        },
+        /** A group is framed and moved as a whole, and sized one element at a time. */
+        'shape of one element out of several shows no grips'() {
+            const shape = new $bog_figmol_app_canvas_shape;
+            shape.kind = () => 'rect';
+            shape.selected = () => true;
+            shape.grips = () => false;
+            $mol_assert_equal(shape.content().length, 0);
         },
         /** Grips that cannot be dragged are a promise the editor would not keep. */
         'shape of a site opened by link shows no grips'() {
@@ -7719,6 +7875,126 @@ var $;
             store.kids = () => ['a'];
             store.rect = () => [340, 200, 320, 200];
             $mol_assert_like(blocks.place({ kind: 'bui_card', w: 320, h: 200 }), [380, 240]);
+        },
+        /**
+         * Everything that shows a single element writes one link, and the app
+         * turns that into a selection of exactly one.
+         */
+        'the panels talk about the last element picked'() {
+            const app = new $bog_figmol_app;
+            $mol_assert_equal(app.selected(), '');
+            app.selection(['a', 'b']);
+            $mol_assert_equal(app.selected(), 'b');
+            app.selected('c');
+            $mol_assert_like(app.selection(), ['c']);
+            app.selected('');
+            $mol_assert_like(app.selection(), []);
+        },
+        'a shift click adds an element to the selection and takes it back out'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.selection(['a']);
+            canvas.toggle('b');
+            $mol_assert_like(canvas.selection(), ['a', 'b']);
+            canvas.toggle('a');
+            $mol_assert_like(canvas.selection(), ['b']);
+        },
+        /** Grips belong to a lone element, a frame is drawn around every one of them. */
+        'a canvas frames the whole selection and sizes a single element'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.selection(['a', 'b']);
+            $mol_assert_ok(canvas.shape_selected('a'));
+            $mol_assert_ok(canvas.shape_selected('b'));
+            $mol_assert_ok(!canvas.shape_grips('a'));
+            canvas.selection(['a']);
+            $mol_assert_ok(canvas.shape_grips('a'));
+        },
+        /**
+         * A click takes the outermost element of the level being edited, so a card
+         * moves as one thing instead of falling apart into its captions.
+         */
+        'a click picks the outer element and ⌘ the deepest one'() {
+            const canvas = new $bog_figmol_app_canvas;
+            const parents = { card: 'root', text: 'card', other: 'root' };
+            const store = canvas.store();
+            store.root_id = () => 'root';
+            store.parent = (id) => parents[id] ?? '';
+            store.node_ids = () => ['card', 'text', 'other'];
+            const plain = { metaKey: false, ctrlKey: false };
+            $mol_assert_equal(canvas.pick('text', plain), 'card');
+            $mol_assert_equal(canvas.pick('text', { metaKey: true, ctrlKey: false }), 'text');
+            // A double click went into the card: clicks now pick what is inside it.
+            canvas.scope('card');
+            $mol_assert_equal(canvas.pick('text', plain), 'text');
+            // And a click outside the card steps back out of it.
+            $mol_assert_equal(canvas.pick('other', plain), 'other');
+            $mol_assert_equal(canvas.scope(), '');
+        },
+        'the rubber band adds what it caught to what was picked before'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.marquee_hits = () => ['b', 'c'];
+            canvas.marquee([0, 0, 100, 100]);
+            canvas.grab_base = ['a'];
+            canvas.marquee_settle();
+            $mol_assert_like(canvas.selection(), ['a', 'b', 'c']);
+        },
+        /** A band dragged up and to the left is the same box as one dragged down. */
+        'the rubber band is a box whichever way it was pulled'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.marquee([100, 80, 40, 20]);
+            $mol_assert_like(canvas.marquee_box(), [40, 20, 60, 60]);
+        },
+        'zoom steps keep the middle of the window in place'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.dom_node = () => ({
+                getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600 }),
+            });
+            canvas.zoom(1);
+            canvas.pan_x(0);
+            canvas.pan_y(0);
+            const before = (400 - canvas.pan_x()) / canvas.zoom();
+            canvas.zoom_step(1);
+            $mol_assert_ok(canvas.zoom() > 1);
+            $mol_assert_equal(Math.round((400 - canvas.pan_x()) / canvas.zoom()), Math.round(before));
+            canvas.zoom_reset();
+            $mol_assert_equal(canvas.zoom(), 1);
+        },
+        'fitting the page centres what is drawn on it'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.dom_node = () => ({
+                getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600 }),
+            });
+            canvas.content_box = () => [100, 50, 400, 200];
+            canvas.zoom_fit();
+            // The width is the tighter of the two: ( 800 - 48 * 2 ) / 400.
+            $mol_assert_equal(canvas.zoom(), 1.76);
+            $mol_assert_equal(canvas.pan_x(), (800 - 400 * 1.76) / 2 - 100 * 1.76);
+            $mol_assert_equal(canvas.pan_y(), (600 - 200 * 1.76) / 2 - 50 * 1.76);
+        },
+        'delete takes out everything that is picked'() {
+            const canvas = new $bog_figmol_app_canvas;
+            const dropped = [];
+            canvas.store().node_drop = (id) => { dropped.push(id); };
+            canvas.selection(['a', 'b']);
+            canvas.drop(true);
+            $mol_assert_like(dropped, ['a', 'b']);
+            $mol_assert_like(canvas.selection(), []);
+        },
+        /**
+         * A width typed into a field would be the width of every element picked,
+         * which is a decision of its own — so a group gets a count and a way out.
+         */
+        'the inspector counts a group instead of describing it'() {
+            const inspector = new $bog_figmol_app_inspector;
+            inspector.selection = () => ['a', 'b'];
+            inspector.selected('b');
+            // The captions come out of the locale, which is not what is being
+            // checked here — only which of them the panel reaches for.
+            inspector.title_many = () => 'Selected';
+            inspector.drop_label = () => 'one';
+            inspector.drop_many_label = () => 'many';
+            $mol_assert_like(inspector.rows(), [inspector.Head(), inspector.Drop()]);
+            $mol_assert_equal(inspector.kind_title(), 'Selected: 2');
+            $mol_assert_equal(inspector.drop_caption(), 'many');
         },
         /** Nothing on this panel writes but the palette, so the rest stays put. */
         'a site opened by link keeps the lists and loses the palette'() {

@@ -41720,6 +41720,34 @@ declare namespace $ {
 		,
 		ReturnType< $mol_view['attr'] >
 	>
+	type $mol_view__attr_bog_figmol_app_canvas_shape_23 = $mol_type_enforce<
+		({ 
+			'figmol_handle': string,
+		})  & ReturnType< $mol_view['attr'] >
+		,
+		ReturnType< $mol_view['attr'] >
+	>
+	type $mol_view__attr_bog_figmol_app_canvas_shape_24 = $mol_type_enforce<
+		({ 
+			'figmol_handle': string,
+		})  & ReturnType< $mol_view['attr'] >
+		,
+		ReturnType< $mol_view['attr'] >
+	>
+	type $mol_view__attr_bog_figmol_app_canvas_shape_25 = $mol_type_enforce<
+		({ 
+			'figmol_handle': string,
+		})  & ReturnType< $mol_view['attr'] >
+		,
+		ReturnType< $mol_view['attr'] >
+	>
+	type $mol_view__attr_bog_figmol_app_canvas_shape_26 = $mol_type_enforce<
+		({ 
+			'figmol_handle': string,
+		})  & ReturnType< $mol_view['attr'] >
+		,
+		ReturnType< $mol_view['attr'] >
+	>
 	export class $bog_figmol_app_canvas_shape extends $mol_view {
 		kind( ): string
 		flow( ): boolean
@@ -41754,6 +41782,7 @@ declare namespace $ {
 		label( next?: string ): string
 		editable( ): boolean
 		selected( ): boolean
+		grips( ): boolean
 		editing( ): boolean
 		dropping( ): boolean
 		rect( ): readonly(number)[]
@@ -41796,6 +41825,10 @@ declare namespace $ {
 		Handle_ne( ): $mol_view
 		Handle_sw( ): $mol_view
 		Handle_se( ): $mol_view
+		Handle_n( ): $mol_view
+		Handle_s( ): $mol_view
+		Handle_w( ): $mol_view
+		Handle_e( ): $mol_view
 	}
 	
 }
@@ -41935,28 +41968,44 @@ declare namespace $ {
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['selected'] >
 	>
-	type $bog_figmol_app_canvas_shape__editing_bog_figmol_app_canvas_11 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_shape__grips_bog_figmol_app_canvas_11 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_canvas['shape_grips'] >
+		,
+		ReturnType< $bog_figmol_app_canvas_shape['grips'] >
+	>
+	type $bog_figmol_app_canvas_shape__editing_bog_figmol_app_canvas_12 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['shape_editing'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['editing'] >
 	>
-	type $bog_figmol_app_canvas_shape__dropping_bog_figmol_app_canvas_12 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_shape__dropping_bog_figmol_app_canvas_13 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['shape_dropping'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['dropping'] >
 	>
-	type $bog_figmol_app_canvas_shape__kids_bog_figmol_app_canvas_13 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_shape__kids_bog_figmol_app_canvas_14 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['shape_kids'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['kids'] >
 	>
-	type $bog_figmol_app_canvas_shape__rect_bog_figmol_app_canvas_14 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_shape__rect_bog_figmol_app_canvas_15 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['shape_rect'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['rect'] >
 	>
+	type $mol_view__style_bog_figmol_app_canvas_16 = $mol_type_enforce<
+		({ 
+			'left': ReturnType< $bog_figmol_app_canvas['marquee_left'] >,
+			'top': ReturnType< $bog_figmol_app_canvas['marquee_top'] >,
+			'width': ReturnType< $bog_figmol_app_canvas['marquee_width'] >,
+			'height': ReturnType< $bog_figmol_app_canvas['marquee_height'] >,
+		}) 
+		,
+		ReturnType< $mol_view['style'] >
+	>
 	export class $bog_figmol_app_canvas extends $mol_view {
 		armed( ): boolean
+		grabbing( ): boolean
 		pointer_down( next?: any ): any
 		pointer_move( next?: any ): any
 		pointer_up( next?: any ): any
@@ -41975,13 +42024,18 @@ declare namespace $ {
 		editable( ): boolean
 		shape_id( id: any): string
 		shape_selected( id: any): boolean
+		shape_grips( id: any): boolean
 		shape_editing( id: any): boolean
 		shape_dropping( id: any): boolean
 		shape_kids( id: any): readonly($mol_view)[]
 		shape_rect( id: any): readonly(number)[]
+		marquee_left( ): string
+		marquee_top( ): string
+		marquee_width( ): string
+		marquee_height( ): string
 		store( ): $bog_figmol_store
 		tool( next?: string ): string
-		selected( next?: string ): string
+		selection( next?: readonly(string)[] ): readonly(string)[]
 		editing( next?: string ): string
 		zoom( next?: number ): number
 		pan_x( next?: number ): number
@@ -41993,6 +42047,7 @@ declare namespace $ {
 		attr( ): ({ 
 			'tabindex': number,
 			'figmol_armed': ReturnType< $bog_figmol_app_canvas['armed'] >,
+			'figmol_grab': ReturnType< $bog_figmol_app_canvas['grabbing'] >,
 		})  & ReturnType< $mol_view['attr'] >
 		style( ): ({ 
 			'touch-action': string,
@@ -42011,16 +42066,15 @@ declare namespace $ {
 		plugins( ): readonly(any)[]
 		sub( ): readonly(any)[]
 		Shape( id: any): $bog_figmol_app_canvas_shape
+		Marquee( ): $mol_view
 	}
 	
 }
 
 //# sourceMappingURL=canvas.view.tree.d.ts.map
 declare namespace $.$$ {
-    type Draft = {
-        id: string;
-        rect: readonly number[];
-    };
+    /** Rectangles a gesture draws right now, by node. */
+    type Draft = Readonly<Record<string, readonly number[]>>;
     type Point = {
         clientX: number;
         clientY: number;
@@ -42039,28 +42093,63 @@ declare namespace $.$$ {
      * views handed to it. Selection, editing and the drag in progress therefore
      * stay in one object instead of being threaded down every nesting level.
      *
-     * Dragging is deliberately split in two: the live rectangle sits in the
+     * Dragging is deliberately split in two: the live rectangles sit in the
      * `draft` atom so that a pointermove costs one repaint, and only pointerup
-     * writes it into the Baza. Writing on every move would turn a single drag
+     * writes them into the Baza. Writing on every move would turn a single drag
      * into hundreds of CRDT units.
+     *
+     * The press decides which of four gestures is going on — pan, move, resize
+     * or rubber band — and everything after it only carries that one out.
      */
     export class $bog_figmol_app_canvas extends $.$bog_figmol_app_canvas {
+        /**
+         * Keeps the window listeners up for as long as the canvas is mounted.
+         * `listen` is memoized, so they are hooked up once.
+         */
+        auto(): void;
+        /**
+         * The page, plus the rubber band while one is being pulled. Whether the
+         * band is there is asked as a flag rather than read off the band itself:
+         * this list would otherwise be rebuilt on every move of the pointer.
+         */
         shapes(): readonly $mol_view[];
+        marquee_on(): boolean;
         shape_id(id: string): string;
         shape_kids(id: string): readonly $mol_view[];
         shape_selected(id: string): boolean;
+        /**
+         * Grips are drawn for a single element only. Several at once would need a
+         * box around the lot of them and a resize that divides itself up between
+         * them — worth doing, and not by pretending each one is alone.
+         */
+        shape_grips(id: string): boolean;
         shape_editing(id: string): boolean;
         shape_dropping(id: string): boolean;
         /** Live rectangle while dragging, stored one otherwise. */
         shape_rect(id: string): readonly number[];
-        /** Rectangle of the node under the pointer, alive only during a drag. */
-        draft(next?: Draft | null): Draft | null;
+        /** Rectangles the gesture is drawing, alive only during a drag. */
+        draft(next?: Draft | null): Readonly<Record<string, readonly number[]>> | null;
         /** Frame the current drag would drop into. Empty means the sheet itself. */
         drop_target(next?: string): string;
+        /**
+         * The rubber band, as the two sheet points it was dragged between —
+         * unordered, since the drag may go in any direction.
+         */
+        marquee(next?: readonly number[] | null): readonly number[] | null;
+        /** The same band as left, top, width, height. */
+        marquee_box(): readonly number[];
+        marquee_left(): string;
+        marquee_top(): string;
+        marquee_width(): string;
+        marquee_height(): string;
         armed(): boolean;
+        /** Space is held, so the next drag pans instead of selecting. */
+        grabbing(): boolean;
         world_transform(): string;
         sheet_width_style(): string;
         sheet_height_style(): string;
+        /** The visible area of the canvas itself, in screen pixels. */
+        viewport(): DOMRect;
         /**
          * Middle of the visible area, in sheet pixels.
          *
@@ -42099,23 +42188,82 @@ declare namespace $.$$ {
          */
         drop_index(parent: string, point: Point, held: string): number;
         /**
+         * Frame the clicks are currently inside — the one a double click went
+         * into. Empty means the page itself.
+         */
+        scope(next?: string): string;
+        /** The same, forgotten once the frame it names is gone from the page. */
+        scope_now(): string;
+        /** Ancestor of `id` that sits directly in `host`, empty when it is elsewhere. */
+        child_of(host: string, id: string): string;
+        /**
+         * What a press on a shape picks out of the whole stack under the pointer.
+         *
+         * A plain click takes the topmost element of the level being edited — the
+         * page itself, or the frame a double click has gone into — so that a card
+         * moves as one thing rather than falling apart into captions. ⌘ takes
+         * whatever is deepest, for the times when that is exactly the point.
+         *
+         * Clicking outside the frame that was entered leaves it, the way stepping
+         * out of a group does everywhere.
+         */
+        pick(deep: string, event: {
+            metaKey: boolean;
+            ctrlKey: boolean;
+        }): string;
+        toggle(id: string): void;
+        /** Nodes the rubber band touches, among the children of the current level. */
+        marquee_hits(band: readonly number[]): readonly string[];
+        /**
          * Gesture state is kept in plain fields on purpose. A `@$mol_mem` cell
          * read by several handlers resets to its default between events: every
          * handler is a fresh fiber and killing the previous one drops the only
          * subscriber of the cell.
          */
-        mode: "" | "pan" | "move" | "resize";
+        mode: "" | "pan" | "move" | "resize" | "marquee";
         grab_id: string;
+        grab_ids: readonly string[];
         grab_corner: string;
         grab_x: number;
         grab_y: number;
         last_x: number;
         last_y: number;
-        grab_flow: boolean;
-        grab_rect: readonly number[];
-        grab_sheet: readonly number[];
+        grab_rects: Record<string, readonly number[]>;
+        grab_flows: Record<string, boolean>;
+        grab_sheets: Record<string, readonly number[]>;
         grab_pan: readonly number[];
+        /** Node the press resolved to, and whether it was one of several picked. */
+        grab_pick: string;
+        grab_group: boolean;
+        /** Selection a shift-dragged rubber band adds to. */
+        grab_base: readonly string[];
+        /** Deepest node under the last press — what the double click after it means. */
+        press_deep: string;
+        /** Whether the pointer has travelled far enough for this to be a drag. */
+        moved(): boolean;
         pointer_down(event?: PointerEvent): null;
+        pan_start(): void;
+        /**
+         * A press on a shape: what it does to the selection, and what gesture it
+         * starts.
+         *
+         * Pressing one member of a group keeps the group — that is how several
+         * things are dragged at once — and the click that turns out not to be a
+         * drag narrows it down later, in `pointer_up`.
+         */
+        press_pick(id: string, corner: string, event: PointerEvent): void;
+        /** Remembers where everything about to be dragged started out. */
+        grab_take(ids: readonly string[]): void;
+        /**
+         * Copies for an Alt drag: the originals stay put and the copies are what
+         * the pointer takes away.
+         *
+         * A duplicate is normally written a step aside so a plain ⌘D lands
+         * somewhere visible. Here that step would be a jump, so the copies are
+         * drafted onto the rectangles of their originals — and the drag writes
+         * where they really end up anyway.
+         */
+        clone(ids: readonly string[]): readonly string[];
         pointer_move(event?: PointerEvent): null;
         /**
          * Everything is written before any of the gesture state is cleared:
@@ -42123,11 +42271,13 @@ declare namespace $.$$ {
          * retry that found the fields already reset would lose the drag.
          */
         pointer_up(event?: PointerEvent): null;
+        /** Adds whatever the rubber band caught to whatever it started with. */
+        marquee_settle(): void;
         /**
-         * Commits a finished drag. The frame under the pointer decides where the
-         * node lands: another frame takes it in, the one it already sits in either
-         * reorders it — that is what a drag inside an auto layout means — or just
-         * moves it about.
+         * Commits a finished drag of a single element. The frame under the pointer
+         * decides where the node lands: another frame takes it in, the one it
+         * already sits in either reorders it — that is what a drag inside an auto
+         * layout means — or just moves it about.
          *
          * Coordinates are recomputed against the new frame, from where the shape
          * actually was on screen rather than from its stored X and Y. Inside an
@@ -42144,22 +42294,48 @@ declare namespace $.$$ {
          */
         node_add(kind: string, event: PointerEvent): void;
         /**
-         * Double click opens the caption for typing. The editor lives inside the
-         * shape, so what gets edited is what is seen; focus is handed over through
-         * `bring()`, which waits for the field to be in the document.
+         * Double click goes one level deeper, into the frame under the pointer —
+         * and opens the caption for typing when what it reaches is an element that
+         * has one and is already picked. That is two presses on a text: the first
+         * one selects it inside its frame, the second one starts the typing.
          *
          * What was double clicked cannot simply be read off the event. The press
          * that came first captured the pointer on the canvas, and the browser
          * retargets the click events that follow onto whatever holds the capture —
-         * so `event.target` is the canvas itself. The press already resolved the
-         * shape and selected it, which is the answer being looked for here; the hit
-         * test stays as the first guess for the cases where nothing was captured.
+         * so `event.target` is the canvas itself. The press remembered what was
+         * under it, which is the answer being looked for here; the hit test stays
+         * as the first guess for the cases where nothing was captured.
          */
         pointer_edit(event?: MouseEvent): null;
+        /** Scales about a point of the viewport, keeping what is under it in place. */
+        zoom_at(next: number, screen_x: number, screen_y: number): void;
         wheel_zoom(event?: WheelEvent): null;
+        /** One step of ⌘+ or ⌘-, about the middle of the window. */
+        zoom_step(dir: number): void;
+        /** Back to life size, ⌘0, without losing the spot being looked at. */
+        zoom_reset(): void;
+        /**
+         * Fits everything on the page into the window, ⇧1.
+         *
+         * The box is measured off the screen rather than taken from the stored
+         * coordinates: inside an auto layout those say nothing, and the point of
+         * this is to show what is actually drawn.
+         */
+        zoom_fit(): void;
+        /** What is drawn on the page, as one rectangle in sheet pixels. */
+        content_box(): readonly number[];
+        /**
+         * Space held down turns the next drag into a pan, the way it does in every
+         * editor with a canvas. The listener is on the window: the canvas only
+         * hears the keys when it holds the focus, and reaching for space before
+         * reaching for the mouse is the whole point of the gesture.
+         */
+        listen(): null;
+        space(next?: boolean): boolean;
+        space_key(event: KeyboardEvent, down: boolean): void;
         context_menu(event?: MouseEvent): null;
         deselect(next?: any): null;
-        /** Delete removes the selected element — unless a caption is being typed. */
+        /** Delete removes everything selected — unless a caption is being typed. */
         drop(next?: any): null;
     }
     export {};
@@ -42798,10 +42974,12 @@ declare namespace $ {
 		Options( ): $mol_string
 		node_drop( next?: any ): any
 		Drop_icon( ): $mol_icon_delete_outline
-		drop_label( ): string
+		drop_caption( ): string
 		store( ): $bog_figmol_store
 		selected( next?: string ): string
+		selection( ): readonly(string)[]
 		sub( ): ReturnType< $bog_figmol_app_inspector['rows'] >
+		title_many( ): string
 		title_text( ): string
 		title_image( ): string
 		title_button( ): string
@@ -42832,6 +43010,8 @@ declare namespace $ {
 		Field_max( ): $bog_figmol_app_inspector_field
 		Field_options( ): $bog_figmol_app_inspector_field
 		Drop( ): $mol_button_minor
+		drop_label( ): string
+		drop_many_label( ): string
 	}
 	
 }
@@ -42850,10 +43030,16 @@ declare namespace $.$$ {
      * Which rows show up depends on the kind of the node, and the rows themselves
      * are ordinary named sub-views rather than a keyed factory — there is a fixed,
      * small set of them, and naming each one keeps the bindings readable.
+     *
+     * Several elements at once get a count and the delete button, and nothing
+     * else: a width typed into a field would be the width of every one of them,
+     * which is a decision of its own rather than a row that happens to work.
      */
     class $bog_figmol_app_inspector extends $.$bog_figmol_app_inspector {
         kind(): string;
+        many(): boolean;
         kind_title(): string;
+        drop_caption(): string;
         rows(): readonly $mol_view[];
         /** Rows that only one kind of element has any use for. */
         kind_rows(kind: string): readonly $mol_view[];
@@ -43226,6 +43412,7 @@ declare namespace $ {
 		row_indent( id: any): string
 		store( ): $bog_figmol_store
 		selected( next?: string ): string
+		selection( ): readonly(string)[]
 		sub( ): readonly(any)[]
 		Row( id: any): $bog_figmol_app_row
 	}
@@ -43249,6 +43436,7 @@ declare namespace $.$$ {
         rows(): readonly $mol_view[];
         /** Kind of the element, plus the beginning of its caption when it has one. */
         row_title(id: string): string;
+        /** Every row of the selection lights up, not just the last one picked. */
         row_active(id: string): boolean;
         row_indent(id: string): string;
         row_click(id: string, next?: any): null;
@@ -43300,11 +43488,17 @@ declare namespace $ {
 		,
 		ReturnType< $bog_figmol_app_layers['selected'] >
 	>
+	type $bog_figmol_app_layers__selection_bog_figmol_app_side_9 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_side['selection'] >
+		,
+		ReturnType< $bog_figmol_app_layers['selection'] >
+	>
 	export class $bog_figmol_app_side extends $mol_view {
 		panels( ): readonly($mol_view)[]
 		editable( ): boolean
 		selected( next?: string ): string
 		spot( ): readonly(number)[]
+		selection( ): readonly(string)[]
 		store( ): $bog_figmol_store
 		sub( ): ReturnType< $bog_figmol_app_side['panels'] >
 		Pages( ): $bog_figmol_app_pages
@@ -43409,10 +43603,48 @@ declare namespace $ {
          * this browser made.
          */
         static state_saved(next?: string): string;
+        /**
+         * Owner the panel published as last time — empty for the account itself.
+         *
+         * Somebody who works in an organisation works in it every publication,
+         * and a default that quietly puts the site on a personal account is the
+         * very surprise this choice exists to prevent.
+         */
+        static owner_saved(next?: string): string;
         /** Empty when the name is usable, a sentence explaining the refusal otherwise. */
         static name_error(name: string): "" | "Enter a name for the repository" | "Sixty characters at most" | "One lowercase word: latin letters and digits, starting with a letter" | "This name is taken by MAM itself — pick another one";
         /** GitHub explains itself well, so its own wording is what the user sees. */
         static fail(code: number, body: string): string;
+        /**
+         * A refusal to create the repository, with what it usually means for an
+         * organisation spelled out.
+         *
+         * GitHub's own 403 is accurate but says nothing about where to go, and
+         * two different walls come back through that same door: an organisation
+         * that lets no member create repositories, and one that has not approved
+         * this OAuth App. Both are settled on the page below.
+         */
+        static repo_fail(owner: string, login: string, code: number, body: string): string;
+        /** GitHub logins differ in spelling and not in case. */
+        static owner_same(left: string, right: string): boolean;
+        /** Whether the target is an organisation rather than the account itself. */
+        static owner_org(owner: string, login: string): boolean;
+        /** Logins out of `/user/orgs`, in the order GitHub listed them. */
+        static orgs_pick(data: unknown): readonly string[];
+        /** Everything the account may publish as, itself first. */
+        static owner_list(login: string, orgs: readonly string[]): readonly string[];
+        /**
+         * What a remembered choice amounts to now.
+         *
+         * A choice the account no longer has is dropped — but only when there is
+         * a list to drop it against. A token that may not read organisations
+         * says nothing about them, and taking that silence for «no such
+         * organisation» would publish into the personal account behind the back
+         * of somebody who asked for the other one.
+         */
+        static owner_pick(wanted: string, login: string, orgs: readonly string[]): string;
+        /** An organisation has an endpoint of its own; the account itself has one path. */
+        static repo_path(owner: string, login: string): string;
         static repo_body(name: string, descr?: string, homepage?: string): {
             name: string;
             description: string;
@@ -43486,7 +43718,9 @@ declare namespace $ {
          *
          * `workflow` is on the list because the pushed files include
          * `.github/workflows/deploy.yml`, which GitHub refuses to accept from a
-         * token that only has `repo`.
+         * token that only has `repo`. `read:org` is what makes the organisations
+         * of the account visible — without it a member of a private organisation
+         * is offered nowhere to publish but their own account.
          */
         static oauth_uri(client_id: string, redirect: string, state: string): string;
         static oauth_client(): string;
@@ -43530,9 +43764,30 @@ declare namespace $ {
             name?: string;
             avatar_url?: string;
         };
+        /**
+         * Login of the account, empty when the token cannot say.
+         *
+         * Quiet about a refusal on purpose, unlike `user` above: this one is
+         * asked while the user is still filling the form, only to name the
+         * owners they may pick from, and a bad token has a better place to be
+         * reported than an error plate over the fields.
+         */
+        login(): string;
+        /**
+         * Organisations the token is allowed to see.
+         *
+         * A classic token without `read:org` sees the public membership alone,
+         * and a refusal is possible besides — neither is worth an error, since
+         * the personal account remains an option in any case.
+         */
+        orgs(): readonly string[];
         /** The repository, or null when the account has no such name yet. */
         repo(owner: string, name: string): $bog_figmol_deploy_github_repo | null;
-        repo_make(name: string, descr?: string, homepage?: string): $bog_figmol_deploy_github_repo;
+        /**
+         * Makes the repository under `owner` — the account itself unless an
+         * organisation is named, and the same body either way.
+         */
+        repo_make(name: string, descr?: string, homepage?: string, owner?: string, login?: string): $bog_figmol_deploy_github_repo;
         /** Head commit of a branch, empty when there is no branch to speak of. */
         head(owner: string, name: string, branch: string): string;
         /**
@@ -43567,6 +43822,9 @@ declare namespace $ {
          */
         oauth_token(proxy: string, code: string, redirect?: string): string;
     }
+}
+
+declare namespace $ {
 }
 
 declare namespace $ {
@@ -43636,164 +43894,184 @@ declare namespace $ {
 		,
 		ReturnType< $mol_list['rows'] >
 	>
-	type $mol_string__hint_bog_figmol_deploy_publish_14 = $mol_type_enforce<
-		string
-		,
-		ReturnType< $mol_string['hint'] >
-	>
-	type $mol_string__value_bog_figmol_deploy_publish_15 = $mol_type_enforce<
-		ReturnType< $bog_figmol_deploy_publish['name'] >
-		,
-		ReturnType< $mol_string['value'] >
-	>
-	type $mol_form_field__name_bog_figmol_deploy_publish_16 = $mol_type_enforce<
-		ReturnType< $bog_figmol_deploy_publish['name_name'] >
-		,
-		ReturnType< $mol_form_field['name'] >
-	>
-	type $mol_form_field__bids_bog_figmol_deploy_publish_17 = $mol_type_enforce<
-		readonly(any)[]
-		,
-		ReturnType< $mol_form_field['bids'] >
-	>
-	type $mol_form_field__control_bog_figmol_deploy_publish_18 = $mol_type_enforce<
-		ReturnType< $bog_figmol_deploy_publish['Name'] >
-		,
-		ReturnType< $mol_form_field['control'] >
-	>
-	type $mol_view__sub_bog_figmol_deploy_publish_19 = $mol_type_enforce<
-		readonly(any)[]
-		,
-		ReturnType< $mol_view['sub'] >
-	>
-	type $mol_list__rows_bog_figmol_deploy_publish_20 = $mol_type_enforce<
-		readonly(any)[]
+	type $mol_list__rows_bog_figmol_deploy_publish_14 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['field_rows'] >
 		,
 		ReturnType< $mol_list['rows'] >
 	>
-	type $mol_row__sub_bog_figmol_deploy_publish_21 = $mol_type_enforce<
+	type $mol_row__sub_bog_figmol_deploy_publish_15 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['buttons'] >
 		,
 		ReturnType< $mol_row['sub'] >
 	>
-	type $mol_view__sub_bog_figmol_deploy_publish_22 = $mol_type_enforce<
+	type $mol_view__sub_bog_figmol_deploy_publish_16 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['conflict_rows'] >
 		,
 		ReturnType< $mol_view['sub'] >
 	>
-	type $mol_view__sub_bog_figmol_deploy_publish_23 = $mol_type_enforce<
+	type $mol_view__sub_bog_figmol_deploy_publish_17 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['problem_rows'] >
 		,
 		ReturnType< $mol_view['sub'] >
 	>
-	type $mol_list__rows_bog_figmol_deploy_publish_24 = $mol_type_enforce<
+	type $mol_list__rows_bog_figmol_deploy_publish_18 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['step_rows'] >
 		,
 		ReturnType< $mol_list['rows'] >
 	>
-	type $mol_list__rows_bog_figmol_deploy_publish_25 = $mol_type_enforce<
+	type $mol_list__rows_bog_figmol_deploy_publish_19 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['link_rows'] >
 		,
 		ReturnType< $mol_list['rows'] >
 	>
-	type $mol_view__sub_bog_figmol_deploy_publish_26 = $mol_type_enforce<
+	type $mol_view__sub_bog_figmol_deploy_publish_20 = $mol_type_enforce<
 		readonly(any)[]
 		,
 		ReturnType< $mol_view['sub'] >
 	>
-	type $mol_button_minor__click_bog_figmol_deploy_publish_27 = $mol_type_enforce<
+	type $mol_button_minor__click_bog_figmol_deploy_publish_21 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['logout'] >
 		,
 		ReturnType< $mol_button_minor['click'] >
 	>
-	type $mol_button_minor__title_bog_figmol_deploy_publish_28 = $mol_type_enforce<
+	type $mol_button_minor__title_bog_figmol_deploy_publish_22 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['logout_label'] >
 		,
 		ReturnType< $mol_button_minor['title'] >
+	>
+	type $mol_select__value_bog_figmol_deploy_publish_23 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['owner_value'] >
+		,
+		ReturnType< $mol_select['value'] >
+	>
+	type $mol_select__dictionary_bog_figmol_deploy_publish_24 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['owner_options'] >
+		,
+		ReturnType< $mol_select['dictionary'] >
+	>
+	type $mol_string__hint_bog_figmol_deploy_publish_25 = $mol_type_enforce<
+		string
+		,
+		ReturnType< $mol_string['hint'] >
+	>
+	type $mol_string__value_bog_figmol_deploy_publish_26 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['name'] >
+		,
+		ReturnType< $mol_string['value'] >
+	>
+	type $mol_view__sub_bog_figmol_deploy_publish_27 = $mol_type_enforce<
+		readonly(any)[]
+		,
+		ReturnType< $mol_view['sub'] >
+	>
+	type $mol_view__sub_bog_figmol_deploy_publish_28 = $mol_type_enforce<
+		readonly(any)[]
+		,
+		ReturnType< $mol_view['sub'] >
 	>
 	type $mol_view__sub_bog_figmol_deploy_publish_29 = $mol_type_enforce<
 		readonly(any)[]
 		,
 		ReturnType< $mol_view['sub'] >
 	>
-	type $mol_view__sub_bog_figmol_deploy_publish_30 = $mol_type_enforce<
-		readonly(any)[]
-		,
-		ReturnType< $mol_view['sub'] >
-	>
-	type $mol_view__sub_bog_figmol_deploy_publish_31 = $mol_type_enforce<
-		readonly(any)[]
-		,
-		ReturnType< $mol_view['sub'] >
-	>
-	type $mol_button_major__click_bog_figmol_deploy_publish_32 = $mol_type_enforce<
+	type $mol_button_major__click_bog_figmol_deploy_publish_30 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['login'] >
 		,
 		ReturnType< $mol_button_major['click'] >
 	>
-	type $mol_button_major__title_bog_figmol_deploy_publish_33 = $mol_type_enforce<
+	type $mol_button_major__title_bog_figmol_deploy_publish_31 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['login_label'] >
 		,
 		ReturnType< $mol_button_major['title'] >
 	>
-	type $mol_view__sub_bog_figmol_deploy_publish_34 = $mol_type_enforce<
+	type $mol_view__sub_bog_figmol_deploy_publish_32 = $mol_type_enforce<
 		readonly(any)[]
 		,
 		ReturnType< $mol_view['sub'] >
 	>
-	type $mol_row__sub_bog_figmol_deploy_publish_35 = $mol_type_enforce<
+	type $mol_row__sub_bog_figmol_deploy_publish_33 = $mol_type_enforce<
 		readonly(any)[]
 		,
 		ReturnType< $mol_row['sub'] >
 	>
-	type $mol_button_major__enabled_bog_figmol_deploy_publish_36 = $mol_type_enforce<
+	type $mol_form_field__name_bog_figmol_deploy_publish_34 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['owner_name'] >
+		,
+		ReturnType< $mol_form_field['name'] >
+	>
+	type $mol_form_field__control_bog_figmol_deploy_publish_35 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['Owner'] >
+		,
+		ReturnType< $mol_form_field['control'] >
+	>
+	type $mol_form_field__name_bog_figmol_deploy_publish_36 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['name_name'] >
+		,
+		ReturnType< $mol_form_field['name'] >
+	>
+	type $mol_form_field__bids_bog_figmol_deploy_publish_37 = $mol_type_enforce<
+		readonly(any)[]
+		,
+		ReturnType< $mol_form_field['bids'] >
+	>
+	type $mol_form_field__control_bog_figmol_deploy_publish_38 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['Name'] >
+		,
+		ReturnType< $mol_form_field['control'] >
+	>
+	type $mol_view__sub_bog_figmol_deploy_publish_39 = $mol_type_enforce<
+		ReturnType< $bog_figmol_deploy_publish['name_hint_rows'] >
+		,
+		ReturnType< $mol_view['sub'] >
+	>
+	type $mol_button_major__enabled_bog_figmol_deploy_publish_40 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['publish_enabled'] >
 		,
 		ReturnType< $mol_button_major['enabled'] >
 	>
-	type $mol_button_major__click_bog_figmol_deploy_publish_37 = $mol_type_enforce<
+	type $mol_button_major__click_bog_figmol_deploy_publish_41 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['publish'] >
 		,
 		ReturnType< $mol_button_major['click'] >
 	>
-	type $mol_button_major__title_bog_figmol_deploy_publish_38 = $mol_type_enforce<
+	type $mol_button_major__title_bog_figmol_deploy_publish_42 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['publish_label'] >
 		,
 		ReturnType< $mol_button_major['title'] >
 	>
-	type $mol_button_minor__click_bog_figmol_deploy_publish_39 = $mol_type_enforce<
+	type $mol_button_minor__click_bog_figmol_deploy_publish_43 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['overwrite'] >
 		,
 		ReturnType< $mol_button_minor['click'] >
 	>
-	type $mol_button_minor__title_bog_figmol_deploy_publish_40 = $mol_type_enforce<
+	type $mol_button_minor__title_bog_figmol_deploy_publish_44 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['overwrite_label'] >
 		,
 		ReturnType< $mol_button_minor['title'] >
 	>
-	type $mol_row__attr_bog_figmol_deploy_publish_41 = $mol_type_enforce<
+	type $mol_row__attr_bog_figmol_deploy_publish_45 = $mol_type_enforce<
 		({ 
 			'bog_figmol_deploy_state': ReturnType< $bog_figmol_deploy_publish['step_state'] >,
 		})  & ReturnType< $mol_row['attr'] >
 		,
 		ReturnType< $mol_row['attr'] >
 	>
-	type $mol_row__sub_bog_figmol_deploy_publish_42 = $mol_type_enforce<
+	type $mol_row__sub_bog_figmol_deploy_publish_46 = $mol_type_enforce<
 		readonly(any)[]
 		,
 		ReturnType< $mol_row['sub'] >
 	>
-	type $mol_link__uri_bog_figmol_deploy_publish_43 = $mol_type_enforce<
+	type $mol_link__uri_bog_figmol_deploy_publish_47 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['link_uri'] >
 		,
 		ReturnType< $mol_link['uri'] >
 	>
-	type $mol_link__target_bog_figmol_deploy_publish_44 = $mol_type_enforce<
+	type $mol_link__target_bog_figmol_deploy_publish_48 = $mol_type_enforce<
 		string
 		,
 		ReturnType< $mol_link['target'] >
 	>
-	type $mol_link__title_bog_figmol_deploy_publish_45 = $mol_type_enforce<
+	type $mol_link__title_bog_figmol_deploy_publish_49 = $mol_type_enforce<
 		ReturnType< $bog_figmol_deploy_publish['link_label'] >
 		,
 		ReturnType< $mol_link['title'] >
@@ -43813,13 +44091,7 @@ declare namespace $ {
 		Token_hint( ): $mol_view
 		Manual( ): $mol_expander
 		Auth( ): $mol_list
-		name_name( ): string
-		name_bid( ): string
-		name( next?: string ): string
-		Name( ): $mol_string
-		Name_field( ): $mol_form_field
-		name_hint( ): string
-		Name_hint( ): $mol_view
+		field_rows( ): readonly($mol_view)[]
 		Fields( ): $mol_list
 		buttons( ): readonly($mol_view)[]
 		Buttons( ): $mol_row
@@ -43839,6 +44111,15 @@ declare namespace $ {
 		logout( next?: any ): any
 		logout_label( ): string
 		Logout( ): $mol_button_minor
+		owner_name( ): string
+		owner_value( next?: string ): string
+		owner_options( ): Record<string, any>
+		Owner( ): $mol_select
+		name_name( ): string
+		name_bid( ): string
+		name( next?: string ): string
+		Name( ): $mol_string
+		name_hint_rows( ): readonly(string)[]
 		publish_enabled( ): boolean
 		publish( next?: any ): any
 		publish_label( ): string
@@ -43860,10 +44141,15 @@ declare namespace $ {
 		Login( ): $mol_button_major
 		Login_hint( ): $mol_view
 		Account( ): $mol_row
+		Owner_field( ): $mol_form_field
+		Name_field( ): $mol_form_field
+		Name_hint( ): $mol_view
 		Publish( ): $mol_button_major
 		Overwrite( ): $mol_button_minor
 		Step( id: any): $mol_row
 		Link( id: any): $mol_link
+		name_hint( ): string
+		site_hint( ): string
 		step_title_login( ): string
 		step_title_repo( ): string
 		step_title_push( ): string
@@ -43915,6 +44201,14 @@ declare namespace $.$$ {
         token(next?: string): string;
         /** Login of the account that token belongs to, remembered beside it. */
         account(next?: string): string;
+        /**
+         * Owner picked in the panel, remembered like the token beside it.
+         *
+         * Empty means the account itself — the account a name is stored under is
+         * a different one after signing out and back in as somebody else, and an
+         * empty default is right for every one of them.
+         */
+        owner_wanted(next?: string): string;
         /**
          * One time value of a sign in under way, kept across the redirect.
          *
@@ -43978,7 +44272,31 @@ declare namespace $.$$ {
          * the second pass it has already been cleaned.
          */
         oauth_land(href: string): void;
-        /** Login of the account the token belongs to. */
+        /**
+         * Login of the account the token belongs to.
+         *
+         * A sign in leaves it behind for free; a token pasted by hand names
+         * nobody, so GitHub is asked — through the quiet call that answers with
+         * an empty line instead of throwing, because a token still being typed
+         * is not a failure worth a plate over the fields.
+         */
+        account_login(): string;
+        /** Organisations the account may publish into, as far as GitHub will say. */
+        orgs(): readonly string[];
+        /** Everything the account may publish as, itself first. */
+        owner_list(): readonly string[];
+        /** Whom the next publication goes to — the choice, made good. */
+        owner_target(): string;
+        owner_options(): Record<string, string>;
+        /**
+         * What the select shows and what it writes.
+         *
+         * Reading gives the choice made good rather than the choice as stored,
+         * so a remembered organisation the account has lost is not left standing
+         * in a list it is no longer in.
+         */
+        owner_value(next?: string): string;
+        /** Owner of the repository the running publication is aimed at. */
         owner(next?: string): string;
         /** Address of the published site, once there is one. */
         site(next?: string): string;
@@ -43996,7 +44314,24 @@ declare namespace $.$$ {
         note(id: string, next?: string): string;
         publish_enabled(): boolean;
         buttons(): readonly $mol_view[];
+        /**
+         * The owner is a row of its own, and only for somebody signed in: with
+         * no account there is nothing to fill the list with.
+         *
+         * The list itself is not consulted here on purpose — reading it asks
+         * GitHub, and a suspended row list would take the name field off the
+         * screen for as long as the answer takes.
+         */
+        field_rows(): readonly $mol_view[];
         name_bid(): "" | "Enter a name for the repository" | "Sixty characters at most" | "One lowercase word: latin letters and digits, starting with a letter" | "This name is taken by MAM itself — pick another one";
+        /**
+         * The address the site will have, once both halves of it are settled.
+         *
+         * An organisation is served from a domain of its own, so the owner is
+         * half the answer — and a guess spelled out beats a rule to apply.
+         */
+        name_hint_rows(): readonly string[];
+        /** Which repository is in the way, since it is not always this account's. */
         conflict_rows(): string[];
         problem_rows(): string[];
         steps(): readonly string[];
@@ -48340,47 +48675,57 @@ declare namespace $ {
 		,
 		ReturnType< $bog_figmol_app_side['selected'] >
 	>
-	type $bog_figmol_app_canvas__store_bog_figmol_app_23 = $mol_type_enforce<
+	type $bog_figmol_app_side__selection_bog_figmol_app_23 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app['selection'] >
+		,
+		ReturnType< $bog_figmol_app_side['selection'] >
+	>
+	type $bog_figmol_app_canvas__store_bog_figmol_app_24 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['store'] >
 		,
 		ReturnType< $bog_figmol_app_canvas['store'] >
 	>
-	type $bog_figmol_app_canvas__editable_bog_figmol_app_24 = $mol_type_enforce<
+	type $bog_figmol_app_canvas__editable_bog_figmol_app_25 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['editable'] >
 		,
 		ReturnType< $bog_figmol_app_canvas['editable'] >
 	>
-	type $bog_figmol_app_canvas__tool_bog_figmol_app_25 = $mol_type_enforce<
+	type $bog_figmol_app_canvas__tool_bog_figmol_app_26 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['tool'] >
 		,
 		ReturnType< $bog_figmol_app_canvas['tool'] >
 	>
-	type $bog_figmol_app_canvas__selected_bog_figmol_app_26 = $mol_type_enforce<
-		ReturnType< $bog_figmol_app['selected'] >
+	type $bog_figmol_app_canvas__selection_bog_figmol_app_27 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app['selection'] >
 		,
-		ReturnType< $bog_figmol_app_canvas['selected'] >
+		ReturnType< $bog_figmol_app_canvas['selection'] >
 	>
-	type $bog_figmol_app_inspector__store_bog_figmol_app_27 = $mol_type_enforce<
+	type $bog_figmol_app_inspector__store_bog_figmol_app_28 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['store'] >
 		,
 		ReturnType< $bog_figmol_app_inspector['store'] >
 	>
-	type $bog_figmol_app_inspector__selected_bog_figmol_app_28 = $mol_type_enforce<
+	type $bog_figmol_app_inspector__selected_bog_figmol_app_29 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['selected'] >
 		,
 		ReturnType< $bog_figmol_app_inspector['selected'] >
 	>
-	type $bog_figmol_deploy_publish__files_bog_figmol_app_29 = $mol_type_enforce<
+	type $bog_figmol_app_inspector__selection_bog_figmol_app_30 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app['selection'] >
+		,
+		ReturnType< $bog_figmol_app_inspector['selection'] >
+	>
+	type $bog_figmol_deploy_publish__files_bog_figmol_app_31 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['publish_files'] >
 		,
 		ReturnType< $bog_figmol_deploy_publish['files'] >
 	>
-	type $bog_figmol_deploy_publish__name_bog_figmol_app_30 = $mol_type_enforce<
+	type $bog_figmol_deploy_publish__name_bog_figmol_app_32 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['publish_name'] >
 		,
 		ReturnType< $bog_figmol_deploy_publish['name'] >
 	>
-	type $bog_figmol_app_start__store_bog_figmol_app_31 = $mol_type_enforce<
+	type $bog_figmol_app_start__store_bog_figmol_app_33 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app['store'] >
 		,
 		ReturnType< $bog_figmol_app_start['store'] >
@@ -48402,6 +48747,7 @@ declare namespace $ {
 		editable( ): boolean
 		drop_spot( ): readonly(number)[]
 		selected( next?: string ): string
+		selection( next?: readonly(string)[] ): readonly(string)[]
 		publish_files( ): Record<string, any>
 		publish_name( next?: string ): string
 		store( ): $bog_figmol_store
@@ -48432,10 +48778,15 @@ declare namespace $.$$ {
      * Editor shell: a header strip, the tool palette, the canvas and the right
      * rail — the inspector, or the publishing panel when that is open.
      *
-     * `tool` and `selected` live here rather than inside the canvas because the
-     * palette and the inspector need them too. Both are plain declared props, so
-     * the `<=>` bindings of the children are the only writers and nothing
-     * shadows an override.
+     * `tool` and the selection live here rather than inside the canvas because
+     * the palette and the inspector need them too.
+     *
+     * The selection is a list, and `selected` is a view onto its last element:
+     * everything that shows a single node — the inspector, the layer tree, the
+     * palette that picks what it has just dropped — goes on writing and reading
+     * one link, and writing it means "this one and nothing else". The canvas is
+     * the only child that writes the list, being the only one that can pick
+     * several things at once.
      *
      * The store is made here as well, and handed to both readers as a typed
      * property. One instance means one answer to what a node is, and passing it
@@ -48452,6 +48803,15 @@ declare namespace $.$$ {
          * happens once for as long as the app is on screen.
          */
         auto(): void;
+        /**
+         * The node a single-element panel talks about: the last one picked.
+         *
+         * Writing it replaces the whole selection, which is what a click in the
+         * layer tree or a freshly dropped block means. Not memoized on purpose —
+         * it is a plain view onto `selection`, and the atom behind that is the one
+         * place the value lives.
+         */
+        selected(next?: string): string;
         /**
          * Whether the return from GitHub has been picked up already.
          *
@@ -48547,6 +48907,14 @@ declare namespace $.$$ {
         /** Whether the keys are going into a field rather than to the editor. */
         typing(target: EventTarget | null): boolean;
         key_down(event: KeyboardEvent): void;
+        /**
+         * Zoom shortcuts, spelled the way every editor spells them: `⇧1` fits the
+         * page into the window, `⌘0` goes back to life size, `⌘+` and `⌘-` step
+         * about the middle of what is on screen.
+         *
+         * Answers whether the key was one of its own, so the caller can stop.
+         */
+        zoom_key(event: KeyboardEvent, command: boolean): boolean;
         /** A press anywhere but inside the caption being typed ends the typing. */
         press_down(event: PointerEvent): void;
         /**
@@ -48558,13 +48926,14 @@ declare namespace $.$$ {
          */
         step(forward: boolean): void;
         /**
-         * Copies the selected element, subtree and all, and selects the copy —
-         * which is what makes the next ⌘D copy the copy rather than the original.
+         * Copies everything selected, subtrees and all, and selects the copies —
+         * which is what makes the next ⌘D copy the copies rather than the
+         * originals.
          */
         duplicate(): void;
         /**
-         * Moves the selected element by the arrow keys. An element inside an auto
-         * layout is placed by its frame, so there is nothing here to move.
+         * Moves the selection by the arrow keys. An element inside an auto layout
+         * is placed by its frame, so there is nothing here to move.
          */
         nudge(shift_x: number, shift_y: number): void;
     }

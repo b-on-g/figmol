@@ -889,6 +889,8 @@ $bog_figmol_app_canvas_shape $mol_view
 	- \Grips are drawn for somebody who can actually drag them
 	editable true
 	selected false
+	- \Grips are for one element at a time — a group is framed and moved, not sized
+	grips true
 	editing false
 	- \Frame is the target of the drag going on right now
 	dropping false
@@ -977,13 +979,32 @@ $bog_figmol_app_canvas_shape $mol_view
 		attr *
 			^
 			figmol_handle \se
+	- \Sides drag one edge at a time, the way every editor does it
+	Handle_n $mol_view
+		attr *
+			^
+			figmol_handle \n
+	Handle_s $mol_view
+		attr *
+			^
+			figmol_handle \s
+	Handle_w $mol_view
+		attr *
+			^
+			figmol_handle \w
+	Handle_e $mol_view
+		attr *
+			^
+			figmol_handle \e
 
 $bog_figmol_app_canvas $mol_view
 	store $bog_figmol_store
 	- \A site opened by somebody else's link is drawn, panned and read, never moved
 	editable true
 	tool? \select
-	selected? \
+	- \Everything picked right now. The canvas is the one panel that writes the
+	- \whole list — the rest of the editor deals in a single node.
+	selection? /string
 	- \Node whose caption is being typed right now
 	editing? \
 	- \Viewport transform. Pan is in screen pixels, applied before the scale.
@@ -998,6 +1019,7 @@ $bog_figmol_app_canvas $mol_view
 		^
 		tabindex 0
 		figmol_armed <= armed false
+		figmol_grab <= grabbing false
 	style *
 		touch-action \none
 		overscroll-behavior \none
@@ -1038,10 +1060,19 @@ $bog_figmol_app_canvas $mol_view
 		editable <= editable true
 		id <= shape_id* \
 		selected <= shape_selected* false
+		grips <= shape_grips* false
 		editing <= shape_editing* false
 		dropping <= shape_dropping* false
 		kids <= shape_kids* /$mol_view
 		rect <= shape_rect* /number
+	- \Rubber band of a selection drag. Lives on the sheet, so it is drawn in
+	- \sheet pixels and the viewport transform carries it along.
+	Marquee $mol_view
+		style *
+			left <= marquee_left \
+			top <= marquee_top \
+			width <= marquee_width \
+			height <= marquee_height \
 
 $mol_icon_plus $mol_icon path \M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z
 
@@ -1255,7 +1286,9 @@ $mol_textarea_edit $mol_string
 $bog_figmol_app_inspector $mol_view
 	store $bog_figmol_store
 	selected? \
+	selection /string
 	sub <= rows /$mol_view
+	title_many @ \Selected
 	title_text @ \Text
 	title_image @ \Image
 	title_button @ \Button
@@ -1414,7 +1447,9 @@ $bog_figmol_app_inspector $mol_view
 		click? <=> node_drop? null
 		sub /
 			<= Drop_icon $mol_icon_delete_outline
-			<= drop_label @ \Delete element
+			<= drop_caption \
+	drop_label @ \Delete element
+	drop_many_label @ \Delete the selection
 
 $bog_figmol_app_pages $mol_view
 	store $bog_figmol_store
@@ -1490,6 +1525,7 @@ $bog_figmol_app_blocks $mol_view
 $bog_figmol_app_layers $mol_view
 	store $bog_figmol_store
 	selected? \
+	selection /string
 	sub /
 		<= Head $mol_view
 			sub /
@@ -1513,6 +1549,7 @@ $bog_figmol_app_side $mol_view
 	- \Middle of the viewport in sheet pixels, where a dropped block lands
 	spot /number
 	selected? \
+	selection /string
 	sub <= panels /$mol_view
 	Pages $bog_figmol_app_pages
 		store <= store
@@ -1525,6 +1562,7 @@ $bog_figmol_app_side $mol_view
 	Layers $bog_figmol_app_layers
 		store <= store
 		selected? <=> selected? \
+		selection <= selection /string
 
 $mol_labeler $mol_list
 	rows /
@@ -1637,18 +1675,10 @@ $bog_figmol_deploy_publish $mol_list
 									uri <= token_uri \
 									target \_blank
 									title <= token_link @ \Create a token
+		- \Whom to publish as is a question only for an account that is known, so
+		- \the row comes and goes with the sign in.
 		<= Fields $mol_list
-			rows /
-				<= Name_field $mol_form_field
-					name <= name_name @ \Repository
-					bids /
-						<= name_bid \
-					control <= Name $mol_string
-						hint \mysite
-						value? <=> name? \
-				<= Name_hint $mol_view
-					sub /
-						<= name_hint @ \One lowercase word. The site lands on <owner>.github.io/<name>/.
+			rows <= field_rows /$mol_view
 		<= Buttons $mol_row
 			sub <= buttons /$mol_view
 		<= Conflict $mol_view
@@ -1674,6 +1704,21 @@ $bog_figmol_deploy_publish $mol_list
 			<= Logout $mol_button_minor
 				click? <=> logout? null
 				title <= logout_label @ \Sign out
+	- \The account itself and every organisation the token is allowed to see.
+	Owner_field $mol_form_field
+		name <= owner_name @ \Owner
+		control <= Owner $mol_select
+			value? <=> owner_value? \
+			dictionary <= owner_options *
+	Name_field $mol_form_field
+		name <= name_name @ \Repository
+		bids /
+			<= name_bid \
+		control <= Name $mol_string
+			hint \mysite
+			value? <=> name? \
+	Name_hint $mol_view
+		sub <= name_hint_rows /string
 	Publish $mol_button_major
 		enabled <= publish_enabled true
 		click? <=> publish? null
@@ -1699,6 +1744,8 @@ $bog_figmol_deploy_publish $mol_list
 		uri <= link_uri* \
 		target \_blank
 		title <= link_label* \
+	name_hint @ \One lowercase word. The site lands on <owner>.github.io/<name>/.
+	site_hint @ \The site will land on
 	step_title_login @ \Checking the token
 	step_title_repo @ \Preparing the repository
 	step_title_push @ \Uploading the sources
@@ -1712,7 +1759,7 @@ $bog_figmol_deploy_publish $mol_list
 	token_label @ \A token is in place
 	login_wrong @ \That sign in did not come back the way it left. Start it again.
 	login_none @ \GitHub handed no token back. Try signing in again.
-	conflict_hint @ \This account already has a repository with that name. Republishing replaces its files with a new commit — anything committed there by hand is lost.
+	conflict_hint @ \already exists. Republishing replaces its files with a new commit — anything committed there by hand is lost.
 	nothing_hint @ \There is nothing to publish yet.
 	token_missing @ \Sign in with GitHub first, or paste a token by hand.
 	build_late @ \GitHub did not start a build in time. Open the repository and check the Actions tab.
@@ -1793,8 +1840,10 @@ $bog_figmol_app $mol_view
 	title @ \Figmol
 	- \Armed tool: select | text | image | button | rect | frame
 	tool? \select
-	- \Link of the node the canvas frames and the inspector follows
+	- \Links of the picked nodes, and the last one of them — what everything that
+	- \shows a single element follows
 	selected? \
+	selection? /string
 	- \Publishing panel takes the right rail over from the inspector
 	publishing? false
 	- \Repository the site is pushed into, and the module name of the sources
@@ -1842,14 +1891,16 @@ $bog_figmol_app $mol_view
 		editable <= editable true
 		spot <= drop_spot /number
 		selected? <=> selected? \
+		selection <= selection /string
 	Canvas $bog_figmol_app_canvas
 		store <= store
 		editable <= editable true
 		tool? <=> tool? \select
-		selected? <=> selected? \
+		selection? <=> selection? /string
 	Inspector $bog_figmol_app_inspector
 		store <= store
 		selected? <=> selected? \
+		selection <= selection /string
 	Publish $bog_figmol_deploy_publish
 		files <= publish_files *
 		name? <=> publish_name? \
