@@ -37003,6 +37003,8 @@ declare namespace $ {
         private done;
         private undone;
         private replaying;
+        /** How many steps have ever been written, so `group` can count its own. */
+        private written;
         /**
          * Remembers a change that has just been applied.
          *
@@ -37012,6 +37014,14 @@ declare namespace $ {
          * two gestures, however quick.
          */
         record(tag: string, undo: () => void, redo: () => void): void;
+        /**
+         * Folds everything a task writes into one step back.
+         *
+         * Deleting five elements is one gesture and has to cost one undo, not
+         * five. Counted rather than sliced by index: a long enough session drops
+         * the oldest steps off the front of the list while the task is running.
+         */
+        group(task: () => void): void;
         can_undo(): boolean;
         can_redo(): boolean;
         /**
@@ -40764,6 +40774,14 @@ declare namespace $.$$ {
          * would go stale without ever being invalidated.
          */
         center(): readonly number[];
+        /**
+         * Scale the sheet is drawn at right now, which is not always what `zoom`
+         * says: a write into the atom reaches the screen a frame later, and
+         * anything measured off the DOM in between would be read against a
+         * transform that is not on it yet. Taken from the sheet itself, both
+         * halves of every such measurement come from the same layout.
+         */
+        zoom_live(): number;
         /** Client point in sheet coordinates. */
         sheet_point(event: Point): number[];
         /**
@@ -40794,7 +40812,14 @@ declare namespace $.$$ {
         /**
          * Frame the clicks are currently inside — the one a double click went
          * into. Empty means the page itself.
+         *
+         * A plain field like the rest of the gesture state below, and for the same
+         * reason: nothing draws this, so the only reader is a handler, and a
+         * `@$mol_mem` cell whose last subscriber was the fiber of the previous
+         * event resets to its default the moment that fiber is killed — which is
+         * on the very next press.
          */
+        scope_id: string;
         scope(next?: string): string;
         /** The same, forgotten once the frame it names is gone from the page. */
         scope_now(): string;

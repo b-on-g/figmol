@@ -15559,6 +15559,8 @@ var $;
         done = [];
         undone = [];
         replaying = false;
+        /** How many steps have ever been written, so `group` can count its own. */
+        written = 0;
         /**
          * Remembers a change that has just been applied.
          *
@@ -15578,10 +15580,36 @@ var $;
             }
             else {
                 this.done.push({ tag, time: now, undo, redo });
+                ++this.written;
                 if (this.done.length > journal_depth)
                     this.done.shift();
             }
             this.undone.length = 0;
+        }
+        /**
+         * Folds everything a task writes into one step back.
+         *
+         * Deleting five elements is one gesture and has to cost one undo, not
+         * five. Counted rather than sliced by index: a long enough session drops
+         * the oldest steps off the front of the list while the task is running.
+         */
+        group(task) {
+            if (this.replaying)
+                return task();
+            const before = this.written;
+            task();
+            const added = Math.min(this.written - before, this.done.length);
+            if (added < 2)
+                return;
+            const steps = this.done.splice(this.done.length - added);
+            this.done.push({
+                tag: '',
+                time: Date.now(),
+                undo: () => { for (let at = steps.length - 1; at >= 0; --at)
+                    steps[at].undo(); },
+                redo: () => { for (const step of steps)
+                    step.redo(); },
+            });
         }
         can_undo() {
             return this.done.length > 0;
@@ -24494,10 +24522,24 @@ var $;
                     clientY: rect.top + rect.height / 2,
                 });
             }
+            /**
+             * Scale the sheet is drawn at right now, which is not always what `zoom`
+             * says: a write into the atom reaches the screen a frame later, and
+             * anything measured off the DOM in between would be read against a
+             * transform that is not on it yet. Taken from the sheet itself, both
+             * halves of every such measurement come from the same layout.
+             */
+            zoom_live() {
+                const width = this.sheet_width();
+                if (!width)
+                    return this.zoom();
+                const rect = this.Sheet().dom_node().getBoundingClientRect();
+                return rect.width ? rect.width / width : this.zoom();
+            }
             /** Client point in sheet coordinates. */
             sheet_point(event) {
                 const rect = this.Sheet().dom_node().getBoundingClientRect();
-                const zoom = this.zoom();
+                const zoom = this.zoom_live();
                 return [
                     (event.clientX - rect.left) / zoom,
                     (event.clientY - rect.top) / zoom,
@@ -24528,7 +24570,7 @@ var $;
                     return [0, 0];
                 const rect = node.getBoundingClientRect();
                 const sheet = this.Sheet().dom_node().getBoundingClientRect();
-                const zoom = this.zoom();
+                const zoom = this.zoom_live();
                 return [(rect.left - sheet.left) / zoom, (rect.top - sheet.top) / zoom];
             }
             /**
@@ -24591,9 +24633,18 @@ var $;
             /**
              * Frame the clicks are currently inside — the one a double click went
              * into. Empty means the page itself.
+             *
+             * A plain field like the rest of the gesture state below, and for the same
+             * reason: nothing draws this, so the only reader is a handler, and a
+             * `@$mol_mem` cell whose last subscriber was the fiber of the previous
+             * event resets to its default the moment that fiber is killed — which is
+             * on the very next press.
              */
+            scope_id = '';
             scope(next) {
-                return next ?? '';
+                if (next !== undefined)
+                    this.scope_id = next;
+                return this.scope_id;
             }
             /** The same, forgotten once the frame it names is gone from the page. */
             scope_now() {
@@ -24648,7 +24699,7 @@ var $;
                 if (!host)
                     return [];
                 const sheet = this.Sheet().dom_node().getBoundingClientRect();
-                const zoom = this.zoom();
+                const zoom = this.zoom_live();
                 const left = sheet.left + Math.min(band[0], band[2]) * zoom;
                 const right = sheet.left + Math.max(band[0], band[2]) * zoom;
                 const top = sheet.top + Math.min(band[1], band[3]) * zoom;
@@ -24824,9 +24875,14 @@ var $;
              */
             clone(ids) {
                 const store = this.store();
-                const pairs = ids
-                    .map(id => [id, store.node_copy(id)])
-                    .filter(pair => pair[1]);
+                const pairs = [];
+                store.group(() => {
+                    for (const id of ids) {
+                        const made = store.node_copy(id);
+                        if (made)
+                            pairs.push([id, made]);
+                    }
+                });
                 if (!pairs.length)
                     return ids;
                 const rects = {};
@@ -24922,8 +24978,10 @@ var $;
                 }
                 else if (draft) {
                     const store = this.store();
-                    for (const id of Object.keys(draft))
-                        store.rect_set(id, draft[id]);
+                    store.group(() => {
+                        for (const id of Object.keys(draft))
+                            store.rect_set(id, draft[id]);
+                    });
                 }
                 // A press on one member of a group is how the group gets dragged, so it
                 // may not narrow the selection down. A press that turned out to be a
@@ -25107,7 +25165,7 @@ var $;
             content_box() {
                 const store = this.store();
                 const sheet = this.Sheet().dom_node().getBoundingClientRect();
-                const zoom = this.zoom();
+                const zoom = this.zoom_live();
                 let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
                 for (const id of store.kids(store.root_id())) {
                     const node = this.shape_dom(id);
@@ -25181,8 +25239,8 @@ var $;
                 if (!ids.length)
                     return null;
                 const store = this.store();
-                for (const id of ids)
-                    store.node_drop(id);
+                store.group(() => { for (const id of ids)
+                    store.node_drop(id); });
                 this.selection([]);
                 return null;
             }
@@ -25235,9 +25293,6 @@ var $;
         __decorate([
             $mol_mem
         ], $bog_figmol_app_canvas.prototype, "sheet_height_style", null);
-        __decorate([
-            $mol_mem
-        ], $bog_figmol_app_canvas.prototype, "scope", null);
         __decorate([
             $mol_action
         ], $bog_figmol_app_canvas.prototype, "toggle", null);
@@ -27501,8 +27556,8 @@ var $;
                 if (!ids.length)
                     return null;
                 const store = this.store();
-                for (const id of ids)
-                    store.node_drop(id);
+                store.group(() => { for (const id of ids)
+                    store.node_drop(id); });
                 this.selected('');
                 return null;
             }
@@ -32994,7 +33049,14 @@ var $;
              */
             duplicate() {
                 const store = this.store();
-                const made = this.selection().map(id => store.node_copy(id)).filter(Boolean);
+                const made = [];
+                store.group(() => {
+                    for (const id of this.selection()) {
+                        const copy = store.node_copy(id);
+                        if (copy)
+                            made.push(copy);
+                    }
+                });
                 if (made.length)
                     this.selection(made);
             }
@@ -33004,14 +33066,16 @@ var $;
              */
             nudge(shift_x, shift_y) {
                 const store = this.store();
-                for (const id of this.selection()) {
-                    if (store.flow(id))
-                        continue;
-                    if (shift_x)
-                        store.x(id, store.x(id) + shift_x);
-                    if (shift_y)
-                        store.y(id, store.y(id) + shift_y);
-                }
+                store.group(() => {
+                    for (const id of this.selection()) {
+                        if (store.flow(id))
+                            continue;
+                        if (shift_x)
+                            store.x(id, store.x(id) + shift_x);
+                        if (shift_y)
+                            store.y(id, store.y(id) + shift_y);
+                    }
+                });
             }
         }
         __decorate([
@@ -39334,6 +39398,33 @@ var $;
             $mol_assert_like(kids, ['a', 'b', 'c']);
             store.redo();
             $mol_assert_like(kids, ['a', 'c']);
+        },
+        /** Deleting five elements is one gesture, so it has to cost one step back. */
+        'writes of a single gesture fold into one step'() {
+            const store = new $bog_figmol_store;
+            const kids = figmol_store_test_kids(store, ['a', 'b', 'c']);
+            store.group(() => {
+                store.node_drop('a');
+                store.node_drop('b');
+            });
+            $mol_assert_like(kids, ['c']);
+            store.undo();
+            $mol_assert_like(kids, ['a', 'b', 'c']);
+            $mol_assert_equal(store.can_undo(), false);
+            store.redo();
+            $mol_assert_like(kids, ['c']);
+        },
+        /** One write is a step of its own, and folding it would only hide it. */
+        'a gesture that wrote once stays an ordinary step'() {
+            const store = new $bog_figmol_store;
+            const values = figmol_store_test_props(store);
+            store.group(() => store.prop_edit('a', 'text', 'one'));
+            store.prop_edit('b', 'text', 'two');
+            store.undo();
+            $mol_assert_equal(values['b:text'], '');
+            $mol_assert_equal(values['a:text'], 'one');
+            store.undo();
+            $mol_assert_equal(values['a:text'], '');
         },
         /** Undoing a step must not be recorded as a step of its own. */
         'walking the journal does not write into it'() {
