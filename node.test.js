@@ -8846,10 +8846,16 @@ var $;
                 else if (!ascii_map[code]) {
                     if (code >= 0x80)
                         code = ascii_set[code - 0x80];
-                    if (mode < tiny_mode)
+                    if (mode < tiny_mode) {
+                        if (pos === buffer.length)
+                            $mol_fail(new Error('Expected 2 bytes', { cause: { text, pos: pos - 1 } }));
                         code |= read_remap() << 7;
-                    if (mode === full_mode)
+                    }
+                    if (mode === full_mode) {
+                        if (pos === buffer.length)
+                            $mol_fail(new Error('Expected 3 bytes', { cause: { text, pos: pos - 2 } }));
                         code |= read_remap() << 14;
+                    }
                     code += page_offset;
                 }
                 text += String.fromCodePoint(code);
@@ -36159,6 +36165,18 @@ var $;
                 const error = $mol_assert_fail(() => $mol_charset_ucf_decode(bin), 'Wrong byte');
                 $mol_assert_equal(error.cause.pos, 4);
                 $mol_assert_equal(error.cause.text, '🏴');
+            },
+            "Wrong 2B sequence length"($) {
+                const bin = new Uint8Array([0x78, 0xF9, 0x0E]);
+                const error = $mol_assert_fail(() => $mol_charset_ucf_decode(bin), 'Expected 2 bytes');
+                $mol_assert_equal(error.cause.pos, 2);
+                $mol_assert_equal(error.cause.text, 'x');
+            },
+            "Wrong 3B sequence length"($) {
+                const bin = new Uint8Array([0x78, 0xF7, 0x2F, 0x47]);
+                const error = $mol_assert_fail(() => $mol_charset_ucf_decode(bin), 'Expected 3 bytes');
+                $mol_assert_equal(error.cause.pos, 2);
+                $mol_assert_equal(error.cause.text, 'x');
             },
         });
     })($$ = $_1.$$ || ($_1.$$ = {}));
