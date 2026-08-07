@@ -26,6 +26,16 @@ namespace $ {
 		 */
 		Theme: $giper_baza_dict_to( $giper_baza_atom_text ),
 
+		/**
+		 * Where everybody looking at this site says so — a Land of its own,
+		 * writable by anybody holding the link.
+		 *
+		 * Separate on purpose: the site is readable and nothing more for a
+		 * visitor, and presence would be impossible without letting them write.
+		 * Keeping the two apart means a cursor can never reach the document.
+		 */
+		Live: $giper_baza_atom_link.to( ()=> $bog_figmol_schema_live ),
+
 	}) {}
 
 }
