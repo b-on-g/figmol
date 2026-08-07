@@ -53,6 +53,11 @@ namespace $ {
 			gap: $mol_gap.text,
 		},
 
+		/* An organisation may be named at length, and the panel is narrow. */
+		Owner: {
+			minWidth: 0,
+		},
+
 		Token_hint: {
 			gap: $mol_gap.text,
 			flex: {

@@ -44,6 +44,17 @@ namespace $.$$ {
 		}
 
 		/**
+		 * Owner picked in the panel, remembered like the token beside it.
+		 *
+		 * Empty means the account itself — the account a name is stored under is
+		 * a different one after signing out and back in as somebody else, and an
+		 * empty default is right for every one of them.
+		 */
+		owner_wanted( next?: string ) {
+			return this.$.$bog_figmol_deploy_github.owner_saved( next )
+		}
+
+		/**
 		 * One time value of a sign in under way, kept across the redirect.
 		 *
 		 * Like the token above, it is stored rather than held: the browser leaves
@@ -143,6 +154,7 @@ namespace $.$$ {
 			this.token( '' )
 			this.account( '' )
 			this.nonce( '' )
+			this.owner_wanted( '' )
 
 			this.owner( '' )
 			this.problem( '' )
@@ -222,9 +234,64 @@ namespace $.$$ {
 			}
 		}
 
+		/* ------------------------------------------------------------- the owner */
+
+		/**
+		 * Login of the account the token belongs to.
+		 *
+		 * A sign in leaves it behind for free; a token pasted by hand names
+		 * nobody, so GitHub is asked — through the quiet call that answers with
+		 * an empty line instead of throwing, because a token still being typed
+		 * is not a failure worth a plate over the fields.
+		 */
+		@ $mol_mem
+		account_login() {
+			if( !this.signed() ) return ''
+			return this.account() || this.github().login()
+		}
+
+		/** Organisations the account may publish into, as far as GitHub will say. */
+		@ $mol_mem
+		orgs(): readonly string[] {
+			if( !this.signed() ) return []
+			return this.github().orgs()
+		}
+
+		/** Everything the account may publish as, itself first. */
+		@ $mol_mem
+		owner_list() {
+			return this.$.$bog_figmol_deploy_github.owner_list( this.account_login(), this.orgs() )
+		}
+
+		/** Whom the next publication goes to — the choice, made good. */
+		@ $mol_mem
+		owner_target() {
+			return this.$.$bog_figmol_deploy_github.owner_pick( this.owner_wanted(), this.account_login(), this.orgs() )
+		}
+
+		@ $mol_mem
+		override owner_options() {
+			const options = {} as Record< string, string >
+			for( const owner of this.owner_list() ) options[ owner ] = owner
+			return options
+		}
+
+		/**
+		 * What the select shows and what it writes.
+		 *
+		 * Reading gives the choice made good rather than the choice as stored,
+		 * so a remembered organisation the account has lost is not left standing
+		 * in a list it is no longer in.
+		 */
+		@ $mol_mem
+		override owner_value( next?: string ) {
+			if( next !== undefined ) this.owner_wanted( next )
+			return this.owner_target()
+		}
+
 		/* ------------------------------------------------------------------ state */
 
-		/** Login of the account the token belongs to. */
+		/** Owner of the repository the running publication is aimed at. */
 		@ $mol_mem
 		owner( next?: string ) {
 			return next ?? ''
@@ -287,6 +354,20 @@ namespace $.$$ {
 			return this.conflict() ? [ this.Publish(), this.Overwrite() ] : [ this.Publish() ]
 		}
 
+		/**
+		 * The owner is a row of its own, and only for somebody signed in: with
+		 * no account there is nothing to fill the list with.
+		 *
+		 * The list itself is not consulted here on purpose — reading it asks
+		 * GitHub, and a suspended row list would take the name field off the
+		 * screen for as long as the answer takes.
+		 */
+		@ $mol_mem
+		field_rows(): readonly $mol_view[] {
+			const rows: readonly $mol_view[] = [ this.Name_field(), this.Name_hint() ]
+			return this.signed() ? [ this.Owner_field(), ... rows ] : rows
+		}
+
 		@ $mol_mem
 		override name_bid() {
 			const name = this.name().trim()
@@ -294,9 +375,33 @@ namespace $.$$ {
 			return this.$.$bog_figmol_deploy_github.name_error( name )
 		}
 
+		/**
+		 * The address the site will have, once both halves of it are settled.
+		 *
+		 * An organisation is served from a domain of its own, so the owner is
+		 * half the answer — and a guess spelled out beats a rule to apply.
+		 */
+		@ $mol_mem
+		name_hint_rows(): readonly string[] {
+
+			const name = this.name().trim()
+			const owner = name && !this.name_bid() ? this.owner_target() : ''
+
+			if( !owner ) return [ this.name_hint() ]
+
+			return [ this.site_hint() + ' ' + this.$.$bog_figmol_deploy_github.site_uri( owner, name ) ]
+		}
+
+		/** Which repository is in the way, since it is not always this account's. */
 		@ $mol_mem
 		override conflict_rows() {
-			return this.conflict() ? [ this.conflict_hint() ] : []
+
+			const name = this.conflict()
+			if( !name ) return []
+
+			const owner = this.owner()
+
+			return [ ( owner ? owner + '/' + name : name ) + ' ' + this.conflict_hint() ]
 		}
 
 		@ $mol_mem
@@ -451,12 +556,17 @@ namespace $.$$ {
 				const github = this.github()
 
 				this.stage( 'login', 'work' )
-				const owner = github.user().login
-				this.owner( owner )
-				this.note( 'login', owner )
+				const login = github.user().login
 				// A token pasted by hand names its account only here, and from now
 				// on the panel can say whose it is.
-				this.account( owner )
+				this.account( login )
+
+				// The choice is made good against the same list the select was
+				// filled from — by now an answer already given, not a new question.
+				const owner = github_class.owner_pick( this.owner_wanted(), login, this.orgs() )
+
+				this.owner( owner )
+				this.note( 'login', owner === login ? login : login + ' → ' + owner )
 				this.stage( 'login', 'done' )
 
 				this.stage( 'repo', 'work' )
@@ -473,6 +583,8 @@ namespace $.$$ {
 					name,
 					this.repo_descr(),
 					github_class.site_uri( owner, name ),
+					owner,
+					login,
 				)
 
 				const branch = repo?.default_branch || github.branch_main()

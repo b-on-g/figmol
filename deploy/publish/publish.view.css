@@ -1,0 +1,12 @@
+/*
+
+A refusal from an organisation carries the address of the page that settles it,
+and that address is longer than the panel is wide. Raw CSS rather than the file
+beside it because `overflow-wrap` is not in the typed dictionary, and a cast to
+`any` to get it in would be a worse trade than one rule spelled out here.
+
+*/
+
+[ bog_figmol_deploy_publish_problem ] {
+	overflow-wrap: anywhere;
+}

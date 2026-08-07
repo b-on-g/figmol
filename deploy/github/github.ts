@@ -133,6 +133,17 @@ namespace $ {
 			return this.$.$mol_state_local.value< string >( 'bog_figmol_deploy_state', next ) ?? ''
 		}
 
+		/**
+		 * Owner the panel published as last time — empty for the account itself.
+		 *
+		 * Somebody who works in an organisation works in it every publication,
+		 * and a default that quietly puts the site on a personal account is the
+		 * very surprise this choice exists to prevent.
+		 */
+		static owner_saved( next?: string ): string {
+			return this.$.$mol_state_local.value< string >( 'bog_figmol_deploy_owner', next ) ?? ''
+		}
+
 		/* ------------------------------------------------------------- pure helpers */
 
 		/** Empty when the name is usable, a sentence explaining the refusal otherwise. */
@@ -166,6 +177,93 @@ namespace $ {
 			}
 
 			return 'GitHub ' + code + ': ' + ( message.trim() || 'request failed' )
+		}
+
+		/**
+		 * A refusal to create the repository, with what it usually means for an
+		 * organisation spelled out.
+		 *
+		 * GitHub's own 403 is accurate but says nothing about where to go, and
+		 * two different walls come back through that same door: an organisation
+		 * that lets no member create repositories, and one that has not approved
+		 * this OAuth App. Both are settled on the page below.
+		 */
+		static repo_fail( owner: string, login: string, code: number, body: string ) {
+
+			const message = this.fail( code, body )
+			if( code !== 403 || !this.owner_org( owner, login ) ) return message
+
+			const org = owner.trim()
+
+			return message
+				+ ' — ' + org + ' may forbid its members to create repositories,'
+				+ ' or may not have approved Figmol yet: '
+				+ 'https://github.com/organizations/' + org + '/settings/oauth_application_policy'
+		}
+
+		/* --------------------------------------------------------------- owners */
+
+		/** GitHub logins differ in spelling and not in case. */
+		static owner_same( left: string, right: string ) {
+			return left.trim().toLowerCase() === right.trim().toLowerCase()
+		}
+
+		/** Whether the target is an organisation rather than the account itself. */
+		static owner_org( owner: string, login: string ) {
+			const target = owner.trim()
+			return !!target && !this.owner_same( target, login )
+		}
+
+		/** Logins out of `/user/orgs`, in the order GitHub listed them. */
+		static orgs_pick( data: unknown ): readonly string[] {
+
+			const list = Array.isArray( data ) ? data : []
+			const orgs = [] as string[]
+
+			for( const item of list ) {
+				const login = String( ( item as { login?: unknown } )?.login ?? '' ).trim()
+				if( login && !orgs.some( known => this.owner_same( known, login ) ) ) orgs.push( login )
+			}
+
+			return orgs
+		}
+
+		/** Everything the account may publish as, itself first. */
+		static owner_list( login: string, orgs: readonly string[] ): readonly string[] {
+
+			const list = [] as string[]
+
+			for( const owner of [ login, ... orgs ] ) {
+				const name = owner.trim()
+				if( name && !list.some( known => this.owner_same( known, name ) ) ) list.push( name )
+			}
+
+			return list
+		}
+
+		/**
+		 * What a remembered choice amounts to now.
+		 *
+		 * A choice the account no longer has is dropped — but only when there is
+		 * a list to drop it against. A token that may not read organisations
+		 * says nothing about them, and taking that silence for «no such
+		 * organisation» would publish into the personal account behind the back
+		 * of somebody who asked for the other one.
+		 */
+		static owner_pick( wanted: string, login: string, orgs: readonly string[] ) {
+
+			const want = wanted.trim()
+			const self = login.trim()
+
+			if( !want || this.owner_same( want, self ) ) return self
+			if( !orgs.length ) return want
+
+			return orgs.find( org => this.owner_same( org, want ) ) ?? self
+		}
+
+		/** An organisation has an endpoint of its own; the account itself has one path. */
+		static repo_path( owner: string, login: string ) {
+			return this.owner_org( owner, login ) ? '/orgs/' + owner.trim() + '/repos' : '/user/repos'
 		}
 
 		static repo_body( name: string, descr = '', homepage = '' ) {
@@ -249,7 +347,7 @@ namespace $ {
 
 		/** Prefilled form for a classic token with exactly the scopes we use. */
 		static token_uri() {
-			return 'https://github.com/settings/tokens/new?scopes=repo,workflow&description=Figmol'
+			return 'https://github.com/settings/tokens/new?scopes=repo,workflow,read:org&description=Figmol'
 		}
 
 		/**
@@ -257,14 +355,16 @@ namespace $ {
 		 *
 		 * `workflow` is on the list because the pushed files include
 		 * `.github/workflows/deploy.yml`, which GitHub refuses to accept from a
-		 * token that only has `repo`.
+		 * token that only has `repo`. `read:org` is what makes the organisations
+		 * of the account visible — without it a member of a private organisation
+		 * is offered nowhere to publish but their own account.
 		 */
 		static oauth_uri( client_id: string, redirect: string, state: string ) {
 
 			const args = new URLSearchParams( {
 				client_id,
 				redirect_uri: redirect,
-				scope: 'repo workflow',
+				scope: 'repo workflow read:org',
 				state,
 			} )
 
@@ -415,6 +515,35 @@ namespace $ {
 			return this.json( 'GET', '/user' ) as { login: string, name?: string, avatar_url?: string }
 		}
 
+		/**
+		 * Login of the account, empty when the token cannot say.
+		 *
+		 * Quiet about a refusal on purpose, unlike `user` above: this one is
+		 * asked while the user is still filling the form, only to name the
+		 * owners they may pick from, and a bad token has a better place to be
+		 * reported than an error plate over the fields.
+		 */
+		@ $mol_action
+		login() {
+			const res = this.response( 'GET', '/user' )
+			if( !res.ok() ) return ''
+			return String( ( res.json() as any )?.login ?? '' )
+		}
+
+		/**
+		 * Organisations the token is allowed to see.
+		 *
+		 * A classic token without `read:org` sees the public membership alone,
+		 * and a refusal is possible besides — neither is worth an error, since
+		 * the personal account remains an option in any case.
+		 */
+		@ $mol_action
+		orgs(): readonly string[] {
+			const res = this.response( 'GET', '/user/orgs?per_page=100' )
+			if( !res.ok() ) return []
+			return $bog_figmol_deploy_github.orgs_pick( res.json() )
+		}
+
 		/** The repository, or null when the account has no such name yet. */
 		@ $mol_action
 		repo( owner: string, name: string ) {
@@ -427,10 +556,20 @@ namespace $ {
 			return res.json() as $bog_figmol_deploy_github_repo
 		}
 
+		/**
+		 * Makes the repository under `owner` — the account itself unless an
+		 * organisation is named, and the same body either way.
+		 */
 		@ $mol_action
-		repo_make( name: string, descr = '', homepage = '' ) {
-			const body = $bog_figmol_deploy_github.repo_body( name, descr, homepage )
-			return this.json( 'POST', '/user/repos', body ) as $bog_figmol_deploy_github_repo
+		repo_make( name: string, descr = '', homepage = '', owner = '', login = '' ) {
+
+			const klass = $bog_figmol_deploy_github
+			const body = klass.repo_body( name, descr, homepage )
+
+			const res = this.response( 'POST', klass.repo_path( owner, login ), body )
+			if( !res.ok() ) throw new Error( klass.repo_fail( owner, login, res.code(), res.text() ) )
+
+			return res.json() as $bog_figmol_deploy_github_repo
 		}
 
 		/** Head commit of a branch, empty when there is no branch to speak of. */

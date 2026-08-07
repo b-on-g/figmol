@@ -139,6 +139,139 @@ namespace $ {
 			)
 		},
 
+		/** An organisation is an owner like any other, domain and all. */
+		'a site of an organisation is served from the domain of the organisation'() {
+
+			$mol_assert_equal(
+				$bog_figmol_deploy_github.site_uri( 'Acme-Corp', 'mysite' ),
+				'https://acme-corp.github.io/mysite/',
+			)
+
+			$mol_assert_equal(
+				$bog_figmol_deploy_github.site_uri( 'Acme', 'acme.github.io' ),
+				'https://acme.github.io/',
+			)
+
+			$mol_assert_equal(
+				$bog_figmol_deploy_github.repo_uri( 'Acme', 'mysite' ),
+				'https://github.com/Acme/mysite',
+			)
+		},
+
+		'an organisation has an endpoint of its own, the account itself has one path'() {
+
+			const path = ( owner: string, login: string )=> $bog_figmol_deploy_github.repo_path( owner, login )
+
+			$mol_assert_equal( path( '', 'alice' ), '/user/repos' )
+			$mol_assert_equal( path( 'alice', 'alice' ), '/user/repos' )
+
+			// GitHub logins differ in spelling and not in case.
+			$mol_assert_equal( path( 'Alice', 'alice' ), '/user/repos' )
+			$mol_assert_equal( path( ' alice ', 'alice' ), '/user/repos' )
+
+			$mol_assert_equal( path( 'acme', 'alice' ), '/orgs/acme/repos' )
+			$mol_assert_equal( path( ' Acme-Corp ', 'alice' ), '/orgs/Acme-Corp/repos' )
+		},
+
+		/** Both endpoints take the same fields, so nothing about the body moves. */
+		'a repository of an organisation is asked for in the same words'() {
+
+			const body = $bog_figmol_deploy_github.repo_body(
+				'mysite',
+				'A site',
+				'https://acme.github.io/mysite/',
+			)
+
+			$mol_assert_like( body, {
+				name: 'mysite',
+				description: 'A site',
+				homepage: 'https://acme.github.io/mysite/',
+				private: false,
+				has_issues: false,
+				has_wiki: false,
+				has_projects: false,
+				auto_init: true,
+			} )
+		},
+
+		'organisations are read out of the listing, blanks and repeats dropped'() {
+
+			const pick = ( data: unknown )=> $bog_figmol_deploy_github.orgs_pick( data )
+
+			$mol_assert_like(
+				pick( [ { id: 1, login: 'acme' }, { id: 2, login: 'globex' } ] ),
+				[ 'acme', 'globex' ],
+			)
+
+			$mol_assert_like( pick( [ { login: 'acme' }, { login: 'Acme' }, { login: '' }, {} ] ), [ 'acme' ] )
+
+			// A refusal answers with an object rather than with a list.
+			$mol_assert_like( pick( { message: 'Requires authentication' } ), [] )
+			$mol_assert_like( pick( null ), [] )
+		},
+
+		'the list of owners starts with the account itself'() {
+
+			const list = ( login: string, orgs: readonly string[] )=>
+				$bog_figmol_deploy_github.owner_list( login, orgs )
+
+			$mol_assert_like( list( 'alice', [ 'acme', 'globex' ] ), [ 'alice', 'acme', 'globex' ] )
+			$mol_assert_like( list( 'alice', [] ), [ 'alice' ] )
+
+			// An account that owns an organisation of its own name is listed once.
+			$mol_assert_like( list( 'alice', [ 'Alice', 'acme' ] ), [ 'alice', 'acme' ] )
+
+			// Nothing is known about the account yet — a hand typed token, say.
+			$mol_assert_like( list( '', [ 'acme' ] ), [ 'acme' ] )
+		},
+
+		'a remembered owner holds while the account still has it'() {
+
+			const pick = ( wanted: string, login: string, orgs: readonly string[] )=>
+				$bog_figmol_deploy_github.owner_pick( wanted, login, orgs )
+
+			$mol_assert_equal( pick( '', 'alice', [ 'acme' ] ), 'alice' )
+			$mol_assert_equal( pick( 'acme', 'alice', [ 'acme' ] ), 'acme' )
+			$mol_assert_equal( pick( 'ACME', 'alice', [ 'acme' ] ), 'acme' )
+			$mol_assert_equal( pick( 'alice', 'alice', [ 'acme' ] ), 'alice' )
+
+			// Signed in as somebody who is not in that organisation any more.
+			$mol_assert_equal( pick( 'acme', 'bob', [ 'globex' ] ), 'bob' )
+
+			// A token that may not read organisations says nothing about them,
+			// and silence is not a reason to publish somewhere else.
+			$mol_assert_equal( pick( 'acme', 'alice', [] ), 'acme' )
+		},
+
+		'a refusal from an organisation says where it is settled'() {
+
+			const denied = JSON.stringify( {
+				message: 'Although you appear to have the correct authorization credentials, '
+					+ 'the organization has enabled OAuth App access restrictions',
+			} )
+
+			const message = $bog_figmol_deploy_github.repo_fail( 'acme', 'alice', 403, denied )
+
+			// GitHub's own wording comes first, whatever we have to add to it.
+			$mol_assert_ok( message.startsWith( 'GitHub 403: Although you appear' ) )
+			$mol_assert_ok( message.includes( 'acme may forbid its members to create repositories' ) )
+			$mol_assert_ok(
+				message.includes( 'https://github.com/organizations/acme/settings/oauth_application_policy' ),
+			)
+
+			// A refusal of the account itself has no organisation to blame.
+			$mol_assert_equal(
+				$bog_figmol_deploy_github.repo_fail( '', 'alice', 403, JSON.stringify( { message: 'Forbidden' } ) ),
+				'GitHub 403: Forbidden',
+			)
+
+			// Not every refusal is about who may create what.
+			$mol_assert_equal(
+				$bog_figmol_deploy_github.repo_fail( 'acme', 'alice', 404, JSON.stringify( { message: 'Not Found' } ) ),
+				'GitHub 404: Not Found',
+			)
+		},
+
 		'a refusal keeps the wording GitHub used'() {
 
 			$mol_assert_equal(
@@ -174,7 +307,7 @@ namespace $ {
 			$mol_assert_equal( anon.headers( false )[ 'authorization' ], undefined )
 		},
 
-		'the consent screen asks for the scopes a workflow push needs'() {
+		'the consent screen asks for the scopes a workflow push and an org list need'() {
 
 			const uri = $bog_figmol_deploy_github.oauth_uri( 'Iv1_abc', 'https://figmol.example/back', 'nonce1' )
 
@@ -184,8 +317,11 @@ namespace $ {
 
 			$mol_assert_equal( args.get( 'client_id' ), 'Iv1_abc' )
 			$mol_assert_equal( args.get( 'redirect_uri' ), 'https://figmol.example/back' )
-			$mol_assert_equal( args.get( 'scope' ), 'repo workflow' )
+			$mol_assert_equal( args.get( 'scope' ), 'repo workflow read:org' )
 			$mol_assert_equal( args.get( 'state' ), 'nonce1' )
+
+			// A token made by hand is asked for the same three.
+			$mol_assert_ok( $bog_figmol_deploy_github.token_uri().includes( 'scopes=repo,workflow,read:org' ) )
 		},
 
 		'the address to come back to is the page alone'() {

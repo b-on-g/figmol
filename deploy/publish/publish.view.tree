@@ -30,18 +30,10 @@ $bog_figmol_deploy_publish $mol_list
 									uri <= token_uri \
 									target \_blank
 									title <= token_link @ \Create a token
+		- \Whom to publish as is a question only for an account that is known, so
+		- \the row comes and goes with the sign in.
 		<= Fields $mol_list
-			rows /
-				<= Name_field $mol_form_field
-					name <= name_name @ \Repository
-					bids /
-						<= name_bid \
-					control <= Name $mol_string
-						hint \mysite
-						value? <=> name? \
-				<= Name_hint $mol_view
-					sub /
-						<= name_hint @ \One lowercase word. The site lands on <owner>.github.io/<name>/.
+			rows <= field_rows /$mol_view
 		<= Buttons $mol_row
 			sub <= buttons /$mol_view
 		<= Conflict $mol_view
@@ -67,6 +59,21 @@ $bog_figmol_deploy_publish $mol_list
 			<= Logout $mol_button_minor
 				click? <=> logout? null
 				title <= logout_label @ \Sign out
+	- \The account itself and every organisation the token is allowed to see.
+	Owner_field $mol_form_field
+		name <= owner_name @ \Owner
+		control <= Owner $mol_select
+			value? <=> owner_value? \
+			dictionary <= owner_options *
+	Name_field $mol_form_field
+		name <= name_name @ \Repository
+		bids /
+			<= name_bid \
+		control <= Name $mol_string
+			hint \mysite
+			value? <=> name? \
+	Name_hint $mol_view
+		sub <= name_hint_rows /string
 	Publish $mol_button_major
 		enabled <= publish_enabled true
 		click? <=> publish? null
@@ -92,6 +99,8 @@ $bog_figmol_deploy_publish $mol_list
 		uri <= link_uri* \
 		target \_blank
 		title <= link_label* \
+	name_hint @ \One lowercase word. The site lands on <owner>.github.io/<name>/.
+	site_hint @ \The site will land on
 	step_title_login @ \Checking the token
 	step_title_repo @ \Preparing the repository
 	step_title_push @ \Uploading the sources
@@ -105,7 +114,7 @@ $bog_figmol_deploy_publish $mol_list
 	token_label @ \A token is in place
 	login_wrong @ \That sign in did not come back the way it left. Start it again.
 	login_none @ \GitHub handed no token back. Try signing in again.
-	conflict_hint @ \This account already has a repository with that name. Republishing replaces its files with a new commit — anything committed there by hand is lost.
+	conflict_hint @ \already exists. Republishing replaces its files with a new commit — anything committed there by hand is lost.
 	nothing_hint @ \There is nothing to publish yet.
 	token_missing @ \Sign in with GitHub first, or paste a token by hand.
 	build_late @ \GitHub did not start a build in time. Open the repository and check the Actions tab.

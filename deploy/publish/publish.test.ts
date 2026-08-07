@@ -14,11 +14,24 @@ namespace $ {
 
 		const panel = new $bog_figmol_deploy_publish as $.$$.$bog_figmol_deploy_publish
 
-		const kept = { token: '', account: '', nonce: '', went: '', address: figmol_publish_test_page }
+		const kept = {
+			token: '',
+			account: '',
+			nonce: '',
+			owner: '',
+			orgs: [] as readonly string[],
+			went: '',
+			address: figmol_publish_test_page,
+		}
 
 		panel.token = ( next?: string )=> next === undefined ? kept.token : ( kept.token = next )
 		panel.account = ( next?: string )=> next === undefined ? kept.account : ( kept.account = next )
 		panel.nonce = ( next?: string )=> next === undefined ? kept.nonce : ( kept.nonce = next )
+		panel.owner_wanted = ( next?: string )=> next === undefined ? kept.owner : ( kept.owner = next )
+
+		// The one call the panel makes on its own, and the only reason a case
+		// below would reach the network.
+		panel.orgs = ()=> kept.orgs
 
 		panel.go = ( uri: string )=> { kept.went = uri }
 		panel.oauth_clean = ( href: string )=> { kept.address = $bog_figmol_deploy_github.oauth_clean( href ) }
@@ -29,6 +42,9 @@ namespace $ {
 		panel.signed_label = ()=> 'Signed in as'
 		panel.token_label = ()=> 'A token is in place'
 		panel.login_wrong = ()=> 'Start it again'
+		panel.name_hint = ()=> 'One lowercase word'
+		panel.site_hint = ()=> 'The site will land on'
+		panel.conflict_hint = ()=> 'already exists'
 
 		return { panel, kept }
 	}
@@ -85,7 +101,7 @@ namespace $ {
 
 			$mol_assert_equal( args.get( 'client_id' ), $bog_figmol_deploy_github.oauth_client() )
 			$mol_assert_equal( args.get( 'redirect_uri' ), figmol_publish_test_page )
-			$mol_assert_equal( args.get( 'scope' ), 'repo workflow' )
+			$mol_assert_equal( args.get( 'scope' ), 'repo workflow read:org' )
 
 			// The value in the address is the very one the browser will check the
 			// return against.
@@ -100,12 +116,97 @@ namespace $ {
 			panel.token( 'ghp_secret' )
 			panel.account( 'alice' )
 			panel.nonce( 'nonce1' )
+			panel.owner_wanted( 'acme' )
 
 			panel.logout( null )
 
 			$mol_assert_equal( panel.token(), '' )
 			$mol_assert_equal( panel.account(), '' )
 			$mol_assert_equal( panel.nonce(), '' )
+
+			// The next account is somebody else's, and so are their organisations.
+			$mol_assert_equal( panel.owner_wanted(), '' )
+		},
+
+		'the owner is a row of its own, and only for a known account'() {
+
+			const guest = figmol_publish_test_panel()
+
+			$mol_assert_ok( guest.panel.field_rows().includes( guest.panel.Name_field() ) )
+			$mol_assert_ok( !guest.panel.field_rows().includes( guest.panel.Owner_field() ) )
+
+			const known = figmol_publish_test_panel()
+			known.panel.token( 'ghp_secret' )
+
+			$mol_assert_ok( known.panel.field_rows().includes( known.panel.Owner_field() ) )
+		},
+
+		'the select offers the account and the organisations behind it'() {
+
+			const { panel } = figmol_publish_test_panel()
+
+			panel.token( 'ghp_secret' )
+			panel.account( 'alice' )
+			panel.orgs = ()=> [ 'acme', 'globex' ]
+
+			$mol_assert_like( panel.owner_list(), [ 'alice', 'acme', 'globex' ] )
+			$mol_assert_like( panel.owner_options(), { alice: 'alice', acme: 'acme', globex: 'globex' } )
+
+			// The personal account until somebody says otherwise.
+			$mol_assert_equal( panel.owner_value(), 'alice' )
+		},
+
+		'a picked organisation is remembered and shows up in the address'() {
+
+			const { panel, kept } = figmol_publish_test_panel()
+
+			panel.token( 'ghp_secret' )
+			panel.account( 'alice' )
+			panel.orgs = ()=> [ 'acme' ]
+			panel.name( 'mysite' )
+
+			panel.owner_value( 'acme' )
+
+			$mol_assert_equal( kept.owner, 'acme' )
+			$mol_assert_equal( panel.owner_value(), 'acme' )
+			$mol_assert_equal( panel.owner_target(), 'acme' )
+
+			$mol_assert_like( panel.name_hint_rows(), [ 'The site will land on https://acme.github.io/mysite/' ] )
+		},
+
+		/** Signed in as somebody who is not in that organisation any more. */
+		'an organisation the account has lost gives way to the account'() {
+
+			const { panel } = figmol_publish_test_panel()
+
+			panel.owner_wanted( 'acme' )
+			panel.token( 'ghp_secret' )
+			panel.account( 'bob' )
+			panel.orgs = ()=> [ 'globex' ]
+
+			$mol_assert_equal( panel.owner_target(), 'bob' )
+			$mol_assert_equal( panel.owner_value(), 'bob' )
+		},
+
+		'a name with nowhere to go yet is explained rather than guessed at'() {
+
+			const { panel } = figmol_publish_test_panel()
+
+			panel.token( 'ghp_secret' )
+			panel.account( 'alice' )
+			panel.name( 'My Site' )
+
+			$mol_assert_like( panel.name_hint_rows(), [ 'One lowercase word' ] )
+		},
+
+		'a repository in the way is named in full'() {
+
+			const { panel } = figmol_publish_test_panel()
+
+			panel.owner( 'acme' )
+			panel.conflict( 'mysite' )
+
+			$mol_assert_like( panel.conflict_rows(), [ 'acme/mysite already exists' ] )
 		},
 
 		/** A code arriving with the wrong value answers a request nobody made here. */
