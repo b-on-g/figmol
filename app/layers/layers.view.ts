@@ -38,9 +38,10 @@ namespace $.$$ {
 			return name + ' · ' + snippet
 		}
 
+		/** Every row of the selection lights up, not just the last one picked. */
 		@ $mol_mem_key
 		row_active( id: string ) {
-			return this.selected() === id
+			return this.selection().includes( id )
 		}
 
 		@ $mol_mem_key

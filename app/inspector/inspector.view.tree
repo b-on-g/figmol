@@ -1,7 +1,9 @@
 $bog_figmol_app_inspector $mol_view
 	store $bog_figmol_store
 	selected? \
+	selection /string
 	sub <= rows /$mol_view
+	title_many @ \Selected
 	title_text @ \Text
 	title_image @ \Image
 	title_button @ \Button
@@ -160,4 +162,6 @@ $bog_figmol_app_inspector $mol_view
 		click? <=> node_drop? null
 		sub /
 			<= Drop_icon $mol_icon_delete_outline
-			<= drop_label @ \Delete element
+			<= drop_caption \
+	drop_label @ \Delete element
+	drop_many_label @ \Delete the selection

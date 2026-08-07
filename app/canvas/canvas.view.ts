@@ -4,13 +4,23 @@ namespace $.$$ {
 	const figmol_zoom_min = 0.1
 	const figmol_zoom_max = 4
 
+	/** One press of ⌘+ or ⌘-. */
+	const figmol_zoom_step = 1.25
+
+	/** Air left around the page when it is fitted into the window. */
+	const figmol_fit_gap = 48
+
+	/** Slack in screen pixels below which a press counts as a click, not a drag. */
+	const figmol_slack = 3
+
 	/** Kinds whose caption a double click opens for typing, right on the canvas. */
 	const figmol_captioned = [ 'text', 'button', 'bui_button', 'bui_badge', 'bui_alert' ]
 
-	type Draft = {
-		id: string,
-		rect: readonly number[],
-	}
+	/** Where a field is being typed into, and the canvas keeps its hands off. */
+	const figmol_fields = 'input, textarea, [contenteditable="true"]'
+
+	/** Rectangles a gesture draws right now, by node. */
+	type Draft = Readonly< Record< string, readonly number[] > >
 
 	type Point = {
 		clientX: number,
@@ -31,18 +41,42 @@ namespace $.$$ {
 	 * views handed to it. Selection, editing and the drag in progress therefore
 	 * stay in one object instead of being threaded down every nesting level.
 	 *
-	 * Dragging is deliberately split in two: the live rectangle sits in the
+	 * Dragging is deliberately split in two: the live rectangles sit in the
 	 * `draft` atom so that a pointermove costs one repaint, and only pointerup
-	 * writes it into the Baza. Writing on every move would turn a single drag
+	 * writes them into the Baza. Writing on every move would turn a single drag
 	 * into hundreds of CRDT units.
+	 *
+	 * The press decides which of four gestures is going on — pan, move, resize
+	 * or rubber band — and everything after it only carries that one out.
 	 */
 	export class $bog_figmol_app_canvas extends $.$bog_figmol_app_canvas {
 
+		/**
+		 * Keeps the window listeners up for as long as the canvas is mounted.
+		 * `listen` is memoized, so they are hooked up once.
+		 */
+		override auto() {
+			this.listen()
+			super.auto()
+		}
+
 		/* -------------------------------------------------------------- shapes */
 
+		/**
+		 * The page, plus the rubber band while one is being pulled. Whether the
+		 * band is there is asked as a flag rather than read off the band itself:
+		 * this list would otherwise be rebuilt on every move of the pointer.
+		 */
 		@ $mol_mem
-		shapes() {
-			return this.shape_kids( this.store().root_id() )
+		override shapes(): readonly $mol_view[] {
+			const res = [ ... this.shape_kids( this.store().root_id() ) ] as $mol_view[]
+			if( this.marquee_on() ) res.push( this.Marquee() )
+			return res
+		}
+
+		@ $mol_mem
+		marquee_on() {
+			return !!this.marquee()
 		}
 
 		shape_id( id: string ) {
@@ -56,7 +90,17 @@ namespace $.$$ {
 
 		@ $mol_mem_key
 		shape_selected( id: string ) {
-			return this.selected() === id
+			return this.selection().includes( id )
+		}
+
+		/**
+		 * Grips are drawn for a single element only. Several at once would need a
+		 * box around the lot of them and a resize that divides itself up between
+		 * them — worth doing, and not by pretending each one is alone.
+		 */
+		@ $mol_mem_key
+		shape_grips( id: string ) {
+			return this.selection().length === 1 && this.shape_selected( id )
 		}
 
 		@ $mol_mem_key
@@ -72,12 +116,10 @@ namespace $.$$ {
 		/** Live rectangle while dragging, stored one otherwise. */
 		@ $mol_mem_key
 		shape_rect( id: string ): readonly number[] {
-			const draft = this.draft()
-			if( draft?.id === id ) return draft.rect
-			return this.store().rect( id )
+			return this.draft()?.[ id ] ?? this.store().rect( id )
 		}
 
-		/** Rectangle of the node under the pointer, alive only during a drag. */
+		/** Rectangles the gesture is drawing, alive only during a drag. */
 		@ $mol_mem
 		draft( next?: Draft | null ) {
 			return next ?? null
@@ -89,11 +131,54 @@ namespace $.$$ {
 			return next ?? ''
 		}
 
+		/**
+		 * The rubber band, as the two sheet points it was dragged between —
+		 * unordered, since the drag may go in any direction.
+		 */
+		@ $mol_mem
+		marquee( next?: readonly number[] | null ) {
+			return next ?? null
+		}
+
+		/** The same band as left, top, width, height. */
+		marquee_box(): readonly number[] {
+			const band = this.marquee()
+			if( !band ) return [ 0, 0, 0, 0 ]
+			return [
+				Math.min( band[ 0 ], band[ 2 ] ),
+				Math.min( band[ 1 ], band[ 3 ] ),
+				Math.abs( band[ 2 ] - band[ 0 ] ),
+				Math.abs( band[ 3 ] - band[ 1 ] ),
+			]
+		}
+
+		marquee_left() {
+			return this.marquee_box()[ 0 ] + 'px'
+		}
+
+		marquee_top() {
+			return this.marquee_box()[ 1 ] + 'px'
+		}
+
+		marquee_width() {
+			return this.marquee_box()[ 2 ] + 'px'
+		}
+
+		marquee_height() {
+			return this.marquee_box()[ 3 ] + 'px'
+		}
+
 		/* ------------------------------------------------------------ measuring */
 
 		@ $mol_mem
 		armed() {
 			return this.editable() && this.tool() !== 'select'
+		}
+
+		/** Space is held, so the next drag pans instead of selecting. */
+		@ $mol_mem
+		grabbing() {
+			return this.space()
 		}
 
 		@ $mol_mem
@@ -109,6 +194,11 @@ namespace $.$$ {
 		@ $mol_mem
 		sheet_height_style() {
 			return this.sheet_height() + 'px'
+		}
+
+		/** The visible area of the canvas itself, in screen pixels. */
+		viewport() {
+			return ( this.dom_node() as HTMLElement ).getBoundingClientRect()
 		}
 
 		/**
@@ -236,6 +326,98 @@ namespace $.$$ {
 			return res
 		}
 
+		/* ------------------------------------------------------------ selection */
+
+		/**
+		 * Frame the clicks are currently inside — the one a double click went
+		 * into. Empty means the page itself.
+		 */
+		@ $mol_mem
+		scope( next?: string ) {
+			return next ?? ''
+		}
+
+		/** The same, forgotten once the frame it names is gone from the page. */
+		scope_now() {
+			const id = this.scope()
+			if( !id ) return ''
+			return this.store().node_ids().includes( id ) ? id : ''
+		}
+
+		/** Ancestor of `id` that sits directly in `host`, empty when it is elsewhere. */
+		child_of( host: string, id: string ) {
+
+			const store = this.store()
+			if( !id || id === host ) return ''
+
+			for( let cursor = id; cursor; cursor = store.parent( cursor ) ) {
+				if( store.parent( cursor ) === host ) return cursor
+			}
+
+			return ''
+		}
+
+		/**
+		 * What a press on a shape picks out of the whole stack under the pointer.
+		 *
+		 * A plain click takes the topmost element of the level being edited — the
+		 * page itself, or the frame a double click has gone into — so that a card
+		 * moves as one thing rather than falling apart into captions. ⌘ takes
+		 * whatever is deepest, for the times when that is exactly the point.
+		 *
+		 * Clicking outside the frame that was entered leaves it, the way stepping
+		 * out of a group does everywhere.
+		 */
+		pick( deep: string, event: { metaKey: boolean, ctrlKey: boolean } ) {
+
+			if( !deep ) return ''
+			if( event.metaKey || event.ctrlKey ) return deep
+
+			const store = this.store()
+			const scope = this.scope_now()
+			const inside = scope && store.inside( deep, scope )
+
+			if( scope && !inside ) this.scope( '' )
+
+			const host = ( inside ? scope : '' ) || store.root_id()
+
+			return this.child_of( host, deep ) || deep
+		}
+
+		@ $mol_action
+		toggle( id: string ) {
+			const ids = this.selection()
+			this.selection( ids.includes( id ) ? ids.filter( other => other !== id ) : [ ... ids, id ] )
+		}
+
+		/** Nodes the rubber band touches, among the children of the current level. */
+		marquee_hits( band: readonly number[] ): readonly string[] {
+
+			const store = this.store()
+			const host = this.scope_now() || store.root_id()
+			if( !host ) return []
+
+			const sheet = this.Sheet().dom_node().getBoundingClientRect()
+			const zoom = this.zoom()
+
+			const left = sheet.left + Math.min( band[ 0 ], band[ 2 ] ) * zoom
+			const right = sheet.left + Math.max( band[ 0 ], band[ 2 ] ) * zoom
+			const top = sheet.top + Math.min( band[ 1 ], band[ 3 ] ) * zoom
+			const bottom = sheet.top + Math.max( band[ 1 ], band[ 3 ] ) * zoom
+
+			return store.kids( host ).filter( id => {
+
+				const node = this.shape_dom( id )
+				if( !node ) return false
+
+				const rect = node.getBoundingClientRect()
+
+				return rect.right >= left && rect.left <= right
+					&& rect.bottom >= top && rect.top <= bottom
+
+			} )
+		}
+
 		/* ----------------------------------------------------- pointer gesture */
 
 		/**
@@ -244,17 +426,34 @@ namespace $.$$ {
 		 * handler is a fresh fiber and killing the previous one drops the only
 		 * subscriber of the cell.
 		 */
-		mode = '' as '' | 'pan' | 'move' | 'resize'
+		mode = '' as '' | 'pan' | 'move' | 'resize' | 'marquee'
 		grab_id = ''
+		grab_ids = [] as readonly string[]
 		grab_corner = ''
 		grab_x = 0
 		grab_y = 0
 		last_x = 0
 		last_y = 0
-		grab_flow = false
-		grab_rect = [ 0, 0, 0, 0 ] as readonly number[]
-		grab_sheet = [ 0, 0 ] as readonly number[]
+		grab_rects = {} as Record< string, readonly number[] >
+		grab_flows = {} as Record< string, boolean >
+		grab_sheets = {} as Record< string, readonly number[] >
 		grab_pan = [ 0, 0 ] as readonly number[]
+
+		/** Node the press resolved to, and whether it was one of several picked. */
+		grab_pick = ''
+		grab_group = false
+
+		/** Selection a shift-dragged rubber band adds to. */
+		grab_base = [] as readonly string[]
+
+		/** Deepest node under the last press — what the double click after it means. */
+		press_deep = ''
+
+		/** Whether the pointer has travelled far enough for this to be a drag. */
+		moved() {
+			return Math.abs( this.last_x - this.grab_x ) > figmol_slack
+				|| Math.abs( this.last_y - this.grab_y ) > figmol_slack
+		}
 
 		@ $mol_action
 		pointer_down( event?: PointerEvent ) {
@@ -274,6 +473,9 @@ namespace $.$$ {
 			this.last_x = event.clientX
 			this.last_y = event.clientY
 			this.mode = ''
+			this.grab_id = ''
+			this.grab_ids = []
+			this.grab_group = false
 
 			const tool = this.tool()
 
@@ -301,38 +503,131 @@ namespace $.$$ {
 
 			const handle = target.closest( '[figmol_handle]' )
 			const shape = target.closest( '[figmol_node]' )
-			const id = shape?.getAttribute( 'figmol_node' ) ?? ''
+			const deep = shape?.getAttribute( 'figmol_node' ) ?? ''
 
-			// A press on a shape picks it whoever is looking, and starts a drag only
-			// for somebody who may write. Read only, it goes on to pan the sheet.
-			if( id && event.button === 0 ) {
+			this.press_deep = deep
 
-				this.selected( id )
-
-				if( this.editable() ) {
-
-					this.grab_id = id
-					this.grab_rect = this.shape_rect( id )
-					this.grab_flow = this.store().flow( id )
-					this.grab_sheet = this.node_origin( id )
-
-					if( handle ) {
-						this.mode = 'resize'
-						this.grab_corner = handle.getAttribute( 'figmol_handle' ) ?? 'se'
-					} else {
-						this.mode = 'move'
-					}
-
-					return null
-				}
+			// Panning is a gesture of its own — the middle button, or space held
+			// down, as everywhere else. The plain drag belongs to the selection.
+			if( event.button !== 0 || this.space() ) {
+				this.pan_start()
+				return null
 			}
 
-			if( !id ) this.selected( '' )
+			// A grip belongs to the shape it hangs off, whatever the click rules
+			// would have picked at that spot.
+			const corner = handle?.getAttribute( 'figmol_handle' ) ?? ''
+			const id = handle ? deep : this.pick( deep, event )
 
-			this.mode = 'pan'
-			this.grab_pan = [ this.pan_x(), this.pan_y() ]
+			if( id ) {
+				this.press_pick( id, corner, event )
+				if( this.editable() ) return null
+			}
+
+			if( !id && !event.shiftKey ) this.selection([])
+
+			// An empty spot pulls a rubber band for somebody who has something to
+			// select, and pans for a visitor who only reads.
+			if( !id && this.editable() ) {
+				const point = this.sheet_point( event )
+				this.mode = 'marquee'
+				this.grab_base = event.shiftKey ? this.selection() : []
+				this.marquee([ point[ 0 ], point[ 1 ], point[ 0 ], point[ 1 ] ])
+				return null
+			}
+
+			this.pan_start()
 
 			return null
+		}
+
+		@ $mol_action
+		pan_start() {
+			this.mode = 'pan'
+			this.grab_pan = [ this.pan_x(), this.pan_y() ]
+		}
+
+		/**
+		 * A press on a shape: what it does to the selection, and what gesture it
+		 * starts.
+		 *
+		 * Pressing one member of a group keeps the group — that is how several
+		 * things are dragged at once — and the click that turns out not to be a
+		 * drag narrows it down later, in `pointer_up`.
+		 */
+		@ $mol_action
+		press_pick( id: string, corner: string, event: PointerEvent ) {
+
+			const held = this.selection().includes( id )
+			const many = this.selection().length > 1
+
+			if( event.shiftKey && !corner ) this.toggle( id )
+			else if( !held ) this.selection([ id ])
+
+			this.grab_pick = id
+			this.grab_group = many && held && !event.shiftKey
+
+			if( !this.editable() ) return
+			if( event.shiftKey && !corner ) return
+
+			if( corner ) {
+				this.mode = 'resize'
+				this.grab_corner = corner
+				this.grab_take([ id ])
+				return
+			}
+
+			this.mode = 'move'
+			this.grab_take( event.altKey ? this.clone( this.selection() ) : this.selection() )
+		}
+
+		/** Remembers where everything about to be dragged started out. */
+		grab_take( ids: readonly string[] ) {
+
+			const store = this.store()
+
+			this.grab_ids = ids
+			this.grab_id = ids[ ids.length - 1 ] ?? ''
+			this.grab_rects = {}
+			this.grab_flows = {}
+			this.grab_sheets = {}
+
+			for( const id of ids ) {
+				this.grab_rects[ id ] = this.shape_rect( id )
+				this.grab_flows[ id ] = store.flow( id )
+				this.grab_sheets[ id ] = this.node_origin( id )
+			}
+		}
+
+		/**
+		 * Copies for an Alt drag: the originals stay put and the copies are what
+		 * the pointer takes away.
+		 *
+		 * A duplicate is normally written a step aside so a plain ⌘D lands
+		 * somewhere visible. Here that step would be a jump, so the copies are
+		 * drafted onto the rectangles of their originals — and the drag writes
+		 * where they really end up anyway.
+		 */
+		@ $mol_action
+		clone( ids: readonly string[] ): readonly string[] {
+
+			const store = this.store()
+
+			const pairs = ids
+				.map( id => [ id, store.node_copy( id ) ] )
+				.filter( pair => pair[ 1 ] )
+
+			if( !pairs.length ) return ids
+
+			const rects = {} as Record< string, readonly number[] >
+			for( const [ from, made ] of pairs ) rects[ made ] = store.rect( from )
+
+			this.draft( rects )
+
+			const made = pairs.map( pair => pair[ 1 ] )
+			this.selection( made )
+
+			return made
 		}
 
 		@ $mol_action
@@ -353,26 +648,46 @@ namespace $.$$ {
 				return null
 			}
 
+			if( this.mode === 'marquee' ) {
+				const band = this.marquee() ?? [ 0, 0, 0, 0 ]
+				const point = this.sheet_point( event )
+				this.marquee([ band[ 0 ], band[ 1 ], point[ 0 ], point[ 1 ] ])
+				return null
+			}
+
 			const zoom = this.zoom()
 			const move_x = shift_x / zoom
 			const move_y = shift_y / zoom
 
-			const [ x, y, w, h ] = this.grab_rect
-
 			if( this.mode === 'move' ) {
 
-				this.drop_target( this.frame_at( event, this.grab_id ) )
+				// One element looks for a frame to fall into. A group keeps to the
+				// sheet: several nodes, each with a parent of its own, would need a
+				// rule for what "into this frame" means for the lot of them.
+				this.drop_target(
+					this.grab_ids.length === 1 ? this.frame_at( event, this.grab_id ) : ''
+				)
 
-				// A node inside an auto layout has nowhere to go on its own: the
-				// frame decides where it sits, and the drag only picks the order.
-				if( !this.grab_flow ) this.draft({
-					id: this.grab_id,
-					rect: [ Math.round( x + move_x ), Math.round( y + move_y ), w, h ],
-				})
+				const rects = {} as Record< string, readonly number[] >
+
+				for( const id of this.grab_ids ) {
+
+					// A node inside an auto layout has nowhere to go on its own: the
+					// frame decides where it sits, and the drag only picks the order.
+					if( this.grab_flows[ id ] ) continue
+
+					const [ x, y, w, h ] = this.grab_rects[ id ] ?? [ 0, 0, 0, 0 ]
+					rects[ id ] = [ Math.round( x + move_x ), Math.round( y + move_y ), w, h ]
+
+				}
+
+				this.draft( Object.keys( rects ).length ? rects : null )
 
 				return null
 			}
 
+			const id = this.grab_id
+			const [ x, y, w, h ] = this.grab_rects[ id ] ?? [ 0, 0, 0, 0 ]
 			const corner = this.grab_corner
 			let x2 = x, y2 = y, w2 = w, h2 = h
 
@@ -390,8 +705,7 @@ namespace $.$$ {
 			}
 
 			this.draft({
-				id: this.grab_id,
-				rect: [ Math.round( x2 ), Math.round( y2 ), Math.round( w2 ), Math.round( h2 ) ],
+				[ id ]: [ Math.round( x2 ), Math.round( y2 ), Math.round( w2 ), Math.round( h2 ) ],
 			})
 
 			return null
@@ -413,26 +727,56 @@ namespace $.$$ {
 				this.last_y = event.clientY
 			}
 
-			const moving = this.mode === 'move'
-			const id = this.grab_id
+			const mode = this.mode
+			const ids = this.grab_ids
 			const draft = this.draft()
 
-			if( moving && id ) this.node_settle( id )
-			else if( draft ) this.store().rect_set( draft.id, draft.rect )
+			if( mode === 'marquee' ) {
+				this.marquee_settle()
+			} else if( mode === 'move' && ids.length === 1 && this.grab_id ) {
+				this.node_settle( this.grab_id )
+			} else if( draft ) {
+				const store = this.store()
+				for( const id of Object.keys( draft ) ) store.rect_set( id, draft[ id ] )
+			}
+
+			// A press on one member of a group is how the group gets dragged, so it
+			// may not narrow the selection down. A press that turned out to be a
+			// plain click may, and that is the only way back to a single element.
+			if( mode === 'move' && this.grab_group && !this.moved() ) this.selection([ this.grab_pick ])
 
 			this.mode = ''
 			this.grab_id = ''
+			this.grab_ids = []
+			this.grab_group = false
 			this.draft( null )
 			this.drop_target( '' )
+			this.marquee( null )
 
 			return null
 		}
 
+		/** Adds whatever the rubber band caught to whatever it started with. */
+		@ $mol_action
+		marquee_settle() {
+
+			const band = this.marquee()
+			if( !band ) return
+
+			const res = [ ... this.grab_base ]
+
+			for( const id of this.marquee_hits( band ) ) {
+				if( !res.includes( id ) ) res.push( id )
+			}
+
+			this.selection( res )
+		}
+
 		/**
-		 * Commits a finished drag. The frame under the pointer decides where the
-		 * node lands: another frame takes it in, the one it already sits in either
-		 * reorders it — that is what a drag inside an auto layout means — or just
-		 * moves it about.
+		 * Commits a finished drag of a single element. The frame under the pointer
+		 * decides where the node lands: another frame takes it in, the one it
+		 * already sits in either reorders it — that is what a drag inside an auto
+		 * layout means — or just moves it about.
 		 *
 		 * Coordinates are recomputed against the new frame, from where the shape
 		 * actually was on screen rather than from its stored X and Y. Inside an
@@ -453,13 +797,14 @@ namespace $.$$ {
 			const draft = this.draft()
 
 			if( target === parent && !store.auto_layout( target ) ) {
-				if( draft ) store.rect_set( draft.id, draft.rect )
+				if( draft ) for( const key of Object.keys( draft ) ) store.rect_set( key, draft[ key ] )
 				return
 			}
 
 			const zoom = this.zoom()
-			const sheet_x = this.grab_sheet[ 0 ] + ( this.last_x - this.grab_x ) / zoom
-			const sheet_y = this.grab_sheet[ 1 ] + ( this.last_y - this.grab_y ) / zoom
+			const grab = this.grab_sheets[ id ] ?? [ 0, 0 ]
+			const sheet_x = grab[ 0 ] + ( this.last_x - this.grab_x ) / zoom
+			const sheet_y = grab[ 1 ] + ( this.last_y - this.grab_y ) / zoom
 			const origin = this.node_origin( target )
 
 			store.node_reparent( id, target, index, sheet_x - origin[ 0 ], sheet_y - origin[ 1 ] )
@@ -488,21 +833,22 @@ namespace $.$$ {
 				: ''
 
 			const id = store.node_add( kind, parent, point[ 0 ] - origin[ 0 ], point[ 1 ] - origin[ 1 ], text )
-			if( id ) this.selected( id )
+			if( id ) this.selection([ id ])
 
 		}
 
 		/**
-		 * Double click opens the caption for typing. The editor lives inside the
-		 * shape, so what gets edited is what is seen; focus is handed over through
-		 * `bring()`, which waits for the field to be in the document.
+		 * Double click goes one level deeper, into the frame under the pointer —
+		 * and opens the caption for typing when what it reaches is an element that
+		 * has one and is already picked. That is two presses on a text: the first
+		 * one selects it inside its frame, the second one starts the typing.
 		 *
 		 * What was double clicked cannot simply be read off the event. The press
 		 * that came first captured the pointer on the canvas, and the browser
 		 * retargets the click events that follow onto whatever holds the capture —
-		 * so `event.target` is the canvas itself. The press already resolved the
-		 * shape and selected it, which is the answer being looked for here; the hit
-		 * test stays as the first guess for the cases where nothing was captured.
+		 * so `event.target` is the canvas itself. The press remembered what was
+		 * under it, which is the answer being looked for here; the hit test stays
+		 * as the first guess for the cases where nothing was captured.
 		 */
 		@ $mol_action
 		pointer_edit( event?: MouseEvent ) {
@@ -510,19 +856,58 @@ namespace $.$$ {
 			if( !event ) return null
 			if( !this.editable() ) return null
 
+			const store = this.store()
 			const target = event.target as Element
 			const shape = target.closest( '[figmol_node]' )
-			const id = shape?.getAttribute( 'figmol_node' ) || this.selected()
-			if( !id ) return null
+			const deep = shape?.getAttribute( 'figmol_node' ) || this.press_deep
+			const picked = this.selection()
+			const current = picked.length === 1 ? picked[ 0 ] : ''
 
-			if( !figmol_captioned.includes( this.store().kind( id ) ) ) return null
+			if(
+				current
+				&& figmol_captioned.includes( store.kind( current ) )
+				&& ( !deep || store.inside( deep, current ) )
+			) {
+				event.preventDefault()
+				this.editing( current )
+				this.Shape( current ).Editor().bring()
+				return null
+			}
+
+			if( !deep ) return null
+
+			const host = this.scope_now() || store.root_id()
+			const outer = this.child_of( host, deep )
+
+			// Nothing deeper to go into: what is under the pointer is already a
+			// child of the level being edited.
+			if( !outer || outer === deep ) return null
 
 			event.preventDefault()
-			this.selected( id )
-			this.editing( id )
-			this.Shape( id ).Editor().bring()
+
+			this.scope( outer )
+
+			const inner = this.child_of( outer, deep )
+			if( inner ) this.selection([ inner ])
 
 			return null
+		}
+
+		/* ---------------------------------------------------------------- zoom */
+
+		/** Scales about a point of the viewport, keeping what is under it in place. */
+		@ $mol_action
+		zoom_at( next: number, screen_x: number, screen_y: number ) {
+
+			const zoom = this.zoom()
+			const step = Math.min( figmol_zoom_max, Math.max( figmol_zoom_min, next ) )
+
+			const world_x = ( screen_x - this.pan_x() ) / zoom
+			const world_y = ( screen_y - this.pan_y() ) / zoom
+
+			this.pan_x( screen_x - world_x * step )
+			this.pan_y( screen_y - world_y * step )
+			this.zoom( step )
 		}
 
 		@ $mol_action
@@ -539,23 +924,137 @@ namespace $.$$ {
 			}
 
 			const rect = ( this.dom_node() as HTMLElement ).getBoundingClientRect()
-			const screen_x = event.clientX - rect.left
-			const screen_y = event.clientY - rect.top
 
-			const zoom = this.zoom()
-			const zoom_next = Math.min(
-				figmol_zoom_max,
-				Math.max( figmol_zoom_min, zoom * Math.exp( -event.deltaY / 400 ) ),
+			this.zoom_at(
+				this.zoom() * Math.exp( -event.deltaY / 400 ),
+				event.clientX - rect.left,
+				event.clientY - rect.top,
 			)
 
-			const world_x = ( screen_x - this.pan_x() ) / zoom
-			const world_y = ( screen_y - this.pan_y() ) / zoom
+			return null
+		}
 
-			this.pan_x( screen_x - world_x * zoom_next )
-			this.pan_y( screen_y - world_y * zoom_next )
-			this.zoom( zoom_next )
+		/** One step of ⌘+ or ⌘-, about the middle of the window. */
+		@ $mol_action
+		zoom_step( dir: number ) {
+			const view = this.viewport()
+			const next = this.zoom() * ( dir > 0 ? figmol_zoom_step : 1 / figmol_zoom_step )
+			this.zoom_at( next, view.width / 2, view.height / 2 )
+		}
+
+		/** Back to life size, ⌘0, without losing the spot being looked at. */
+		@ $mol_action
+		zoom_reset() {
+			const view = this.viewport()
+			this.zoom_at( 1, view.width / 2, view.height / 2 )
+		}
+
+		/**
+		 * Fits everything on the page into the window, ⇧1.
+		 *
+		 * The box is measured off the screen rather than taken from the stored
+		 * coordinates: inside an auto layout those say nothing, and the point of
+		 * this is to show what is actually drawn.
+		 */
+		@ $mol_action
+		zoom_fit() {
+
+			const view = this.viewport()
+			const box = this.content_box()
+
+			if( !box[ 2 ] || !box[ 3 ] ) return
+
+			const zoom = Math.min(
+				figmol_zoom_max,
+				Math.max(
+					figmol_zoom_min,
+					Math.min(
+						( view.width - figmol_fit_gap * 2 ) / box[ 2 ],
+						( view.height - figmol_fit_gap * 2 ) / box[ 3 ],
+					),
+				),
+			)
+
+			this.zoom( zoom )
+			this.pan_x( ( view.width - box[ 2 ] * zoom ) / 2 - box[ 0 ] * zoom )
+			this.pan_y( ( view.height - box[ 3 ] * zoom ) / 2 - box[ 1 ] * zoom )
+		}
+
+		/** What is drawn on the page, as one rectangle in sheet pixels. */
+		content_box(): readonly number[] {
+
+			const store = this.store()
+			const sheet = this.Sheet().dom_node().getBoundingClientRect()
+			const zoom = this.zoom()
+
+			let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity
+
+			for( const id of store.kids( store.root_id() ) ) {
+
+				const node = this.shape_dom( id )
+				if( !node ) continue
+
+				const rect = node.getBoundingClientRect()
+
+				left = Math.min( left, ( rect.left - sheet.left ) / zoom )
+				top = Math.min( top, ( rect.top - sheet.top ) / zoom )
+				right = Math.max( right, ( rect.right - sheet.left ) / zoom )
+				bottom = Math.max( bottom, ( rect.bottom - sheet.top ) / zoom )
+
+			}
+
+			// An empty page still has a sheet, and fitting that is a fair answer.
+			if( !( right > left ) || !( bottom > top ) ) {
+				return [ 0, 0, this.sheet_width(), this.sheet_height() ]
+			}
+
+			return [ left, top, right - left, bottom - top ]
+		}
+
+		/* ------------------------------------------------------------ keyboard */
+
+		/**
+		 * Space held down turns the next drag into a pan, the way it does in every
+		 * editor with a canvas. The listener is on the window: the canvas only
+		 * hears the keys when it holds the focus, and reaching for space before
+		 * reaching for the mouse is the whole point of the gesture.
+		 */
+		@ $mol_mem
+		listen() {
+
+			const win = this.$.$mol_dom_context
+
+			win.addEventListener( 'keydown', ( event: KeyboardEvent )=> this.space_key( event, true ) )
+			win.addEventListener( 'keyup', ( event: KeyboardEvent )=> this.space_key( event, false ) )
+
+			// Leaving the window with space down would otherwise come back to a
+			// canvas that pans and never stops.
+			win.addEventListener( 'blur', ()=> {
+				if( this.space() ) $mol_wire_async( this ).space( false )
+			} )
 
 			return null
+		}
+
+		@ $mol_mem
+		space( next?: boolean ) {
+			return next ?? false
+		}
+
+		space_key( event: KeyboardEvent, down: boolean ) {
+
+			if( event.code !== 'Space' ) return
+
+			const node = event.target as Element | null
+			if( node?.closest?.( figmol_fields ) ) return
+
+			if( down === this.space() ) return
+
+			// Space scrolls the page otherwise, and the canvas is what it would
+			// scroll away from.
+			if( down ) event.preventDefault()
+
+			$mol_wire_async( this ).space( down )
 		}
 
 		context_menu( event?: MouseEvent ) {
@@ -566,19 +1065,26 @@ namespace $.$$ {
 		@ $mol_action
 		deselect( next?: any ) {
 			this.editing( '' )
-			this.selected( '' )
+			this.scope( '' )
+			this.selection([])
 			return null
 		}
 
-		/** Delete removes the selected element — unless a caption is being typed. */
+		/** Delete removes everything selected — unless a caption is being typed. */
 		@ $mol_action
 		drop( next?: any ) {
+
 			if( !this.editable() ) return null
 			if( this.editing() ) return null
-			const id = this.selected()
-			if( !id ) return null
-			this.store().node_drop( id )
-			this.selected( '' )
+
+			const ids = this.selection()
+			if( !ids.length ) return null
+
+			const store = this.store()
+			for( const id of ids ) store.node_drop( id )
+
+			this.selection([])
+
 			return null
 		}
 

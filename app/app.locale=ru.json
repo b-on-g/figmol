@@ -77,5 +77,7 @@
 	"$bog_figmol_app_inspector_Align_options_end": "К концу",
 	"$bog_figmol_app_inspector_Align_options_stretch": "Растянуть",
 	"$bog_figmol_app_inspector_Text_hint": "Введите текст",
-	"$bog_figmol_app_inspector_drop_label": "Удалить элемент"
+	"$bog_figmol_app_inspector_drop_label": "Удалить элемент",
+	"$bog_figmol_app_inspector_drop_many_label": "Удалить выделенное",
+	"$bog_figmol_app_inspector_title_many": "Выделено"
 }

@@ -3,8 +3,10 @@ $bog_figmol_app $mol_view
 	title @ \Figmol
 	- \Armed tool: select | text | image | button | rect | frame
 	tool? \select
-	- \Link of the node the canvas frames and the inspector follows
+	- \Links of the picked nodes, and the last one of them — what everything that
+	- \shows a single element follows
 	selected? \
+	selection? /string
 	- \Publishing panel takes the right rail over from the inspector
 	publishing? false
 	- \Repository the site is pushed into, and the module name of the sources
@@ -52,14 +54,16 @@ $bog_figmol_app $mol_view
 		editable <= editable true
 		spot <= drop_spot /number
 		selected? <=> selected? \
+		selection <= selection /string
 	Canvas $bog_figmol_app_canvas
 		store <= store
 		editable <= editable true
 		tool? <=> tool? \select
-		selected? <=> selected? \
+		selection? <=> selection? /string
 	Inspector $bog_figmol_app_inspector
 		store <= store
 		selected? <=> selected? \
+		selection <= selection /string
 	Publish $bog_figmol_deploy_publish
 		files <= publish_files *
 		name? <=> publish_name? \

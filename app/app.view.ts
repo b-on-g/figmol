@@ -13,10 +13,15 @@ namespace $.$$ {
 	 * Editor shell: a header strip, the tool palette, the canvas and the right
 	 * rail — the inspector, or the publishing panel when that is open.
 	 *
-	 * `tool` and `selected` live here rather than inside the canvas because the
-	 * palette and the inspector need them too. Both are plain declared props, so
-	 * the `<=>` bindings of the children are the only writers and nothing
-	 * shadows an override.
+	 * `tool` and the selection live here rather than inside the canvas because
+	 * the palette and the inspector need them too.
+	 *
+	 * The selection is a list, and `selected` is a view onto its last element:
+	 * everything that shows a single node — the inspector, the layer tree, the
+	 * palette that picks what it has just dropped — goes on writing and reading
+	 * one link, and writing it means "this one and nothing else". The canvas is
+	 * the only child that writes the list, being the only one that can pick
+	 * several things at once.
 	 *
 	 * The store is made here as well, and handed to both readers as a typed
 	 * property. One instance means one answer to what a node is, and passing it
@@ -45,6 +50,24 @@ namespace $.$$ {
 			this.oauth_catch()
 
 			super.auto()
+		}
+
+		/* -------------------------------------------------------------- selection */
+
+		/**
+		 * The node a single-element panel talks about: the last one picked.
+		 *
+		 * Writing it replaces the whole selection, which is what a click in the
+		 * layer tree or a freshly dropped block means. Not memoized on purpose —
+		 * it is a plain view onto `selection`, and the atom behind that is the one
+		 * place the value lives.
+		 */
+		override selected( next?: string ) {
+
+			if( next !== undefined ) this.selection( next ? [ next ] : [] )
+
+			const ids = this.selection()
+			return ids[ ids.length - 1 ] ?? ''
 		}
 
 		/* ------------------------------------------------------------- signing in */
@@ -269,10 +292,15 @@ namespace $.$$ {
 		key_down( event: KeyboardEvent ) {
 
 			if( event.defaultPrevented ) return
-			if( !this.editable() ) return
 			if( this.typing( event.target ) ) return
 
 			const command = event.metaKey || event.ctrlKey
+
+			// Zoom is about looking rather than editing, so it works on a site
+			// opened by somebody else's link just as well.
+			if( this.zoom_key( event, command ) ) return
+
+			if( !this.editable() ) return
 
 			if( command && event.code === 'KeyZ' ) {
 				event.preventDefault()
@@ -296,7 +324,7 @@ namespace $.$$ {
 
 			if( command ) return
 			if( !figmol_app_arrows.includes( event.code ) ) return
-			if( !this.selected() ) return
+			if( !this.selection().length ) return
 
 			event.preventDefault()
 
@@ -305,6 +333,48 @@ namespace $.$$ {
 			const shift_y = event.code === 'ArrowUp' ? -far : event.code === 'ArrowDown' ? far : 0
 
 			$mol_wire_async( this ).nudge( shift_x, shift_y )
+		}
+
+		/**
+		 * Zoom shortcuts, spelled the way every editor spells them: `⇧1` fits the
+		 * page into the window, `⌘0` goes back to life size, `⌘+` and `⌘-` step
+		 * about the middle of what is on screen.
+		 *
+		 * Answers whether the key was one of its own, so the caller can stop.
+		 */
+		zoom_key( event: KeyboardEvent, command: boolean ) {
+
+			const canvas = this.Canvas() as $.$$.$bog_figmol_app_canvas
+
+			if( !command && event.shiftKey && event.code === 'Digit1' ) {
+				event.preventDefault()
+				$mol_wire_async( canvas ).zoom_fit()
+				return true
+			}
+
+			if( !command ) return false
+
+			// The plus key is `Equal` unshifted and there is a numeric keypad as
+			// well, so all four spellings answer to the same thing.
+			if( event.code === 'Digit0' || event.code === 'Numpad0' ) {
+				event.preventDefault()
+				$mol_wire_async( canvas ).zoom_reset()
+				return true
+			}
+
+			if( event.code === 'Equal' || event.code === 'NumpadAdd' ) {
+				event.preventDefault()
+				$mol_wire_async( canvas ).zoom_step( 1 )
+				return true
+			}
+
+			if( event.code === 'Minus' || event.code === 'NumpadSubtract' ) {
+				event.preventDefault()
+				$mol_wire_async( canvas ).zoom_step( -1 )
+				return true
+			}
+
+			return false
 		}
 
 		/** A press anywhere but inside the caption being typed ends the typing. */
@@ -330,40 +400,43 @@ namespace $.$$ {
 			if( forward ) store.redo()
 			else store.undo()
 
-			const id = this.selected()
-			if( id && !store.node_ids().includes( id ) ) this.selected( '' )
+			const alive = store.node_ids()
+			const kept = this.selection().filter( id => alive.includes( id ) )
+
+			if( kept.length !== this.selection().length ) this.selection( kept )
 		}
 
 		/**
-		 * Copies the selected element, subtree and all, and selects the copy —
-		 * which is what makes the next ⌘D copy the copy rather than the original.
+		 * Copies everything selected, subtrees and all, and selects the copies —
+		 * which is what makes the next ⌘D copy the copies rather than the
+		 * originals.
 		 */
 		@ $mol_action
 		duplicate() {
-			const id = this.selected()
-			if( !id ) return
-			const made = this.store().node_copy( id )
-			if( made ) this.selected( made )
+
+			const store = this.store()
+			const made = this.selection().map( id => store.node_copy( id ) ).filter( Boolean )
+
+			if( made.length ) this.selection( made )
 		}
 
 		/**
-		 * Moves the selected element by the arrow keys. An element inside an auto
-		 * layout is placed by its frame, so there is nothing here to move.
+		 * Moves the selection by the arrow keys. An element inside an auto layout
+		 * is placed by its frame, so there is nothing here to move.
 		 */
 		@ $mol_action
 		nudge( shift_x: number, shift_y: number ) {
 
-			const id = this.selected()
-			if( !id ) return
-
 			const store = this.store()
-			if( store.flow( id ) ) return
 
-			const x = store.x( id )
-			const y = store.y( id )
+			for( const id of this.selection() ) {
 
-			if( shift_x ) store.x( id, x + shift_x )
-			if( shift_y ) store.y( id, y + shift_y )
+				if( store.flow( id ) ) continue
+
+				if( shift_x ) store.x( id, store.x( id ) + shift_x )
+				if( shift_y ) store.y( id, store.y( id ) + shift_y )
+
+			}
 		}
 
 	}

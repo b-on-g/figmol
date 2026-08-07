@@ -7,6 +7,7 @@ $bog_figmol_app_side $mol_view
 	- \Middle of the viewport in sheet pixels, where a dropped block lands
 	spot /number
 	selected? \
+	selection /string
 	sub <= panels /$mol_view
 	Pages $bog_figmol_app_pages
 		store <= store
@@ -19,3 +20,4 @@ $bog_figmol_app_side $mol_view
 	Layers $bog_figmol_app_layers
 		store <= store
 		selected? <=> selected? \
+		selection <= selection /string

@@ -206,11 +206,15 @@ namespace $.$$ {
 			// too would draw every one of them twice.
 			if( !this.wrapped() ) res.push( ... this.kids() )
 
-			if( this.selected() && this.editable() ) res.push(
+			if( this.selected() && this.editable() && this.grips() ) res.push(
 				this.Handle_nw(),
 				this.Handle_ne(),
 				this.Handle_sw(),
 				this.Handle_se(),
+				this.Handle_n(),
+				this.Handle_s(),
+				this.Handle_w(),
+				this.Handle_e(),
 			)
 
 			return res

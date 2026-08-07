@@ -46,7 +46,8 @@ namespace $ {
 
 		},
 
-		'shape shows corner grips only while selected'() {
+		/** Four corners and four sides, and none of them until it is picked. */
+		'shape shows grips only while selected'() {
 
 			const plain = new $bog_figmol_app_canvas_shape as $.$$.$bog_figmol_app_canvas_shape
 			plain.kind = ()=> 'rect'
@@ -55,7 +56,19 @@ namespace $ {
 			const picked = new $bog_figmol_app_canvas_shape as $.$$.$bog_figmol_app_canvas_shape
 			picked.kind = ()=> 'rect'
 			picked.selected = ()=> true
-			$mol_assert_equal( picked.content().length, 4 )
+			$mol_assert_equal( picked.content().length, 8 )
+
+		},
+
+		/** A group is framed and moved as a whole, and sized one element at a time. */
+		'shape of one element out of several shows no grips'() {
+
+			const shape = new $bog_figmol_app_canvas_shape as $.$$.$bog_figmol_app_canvas_shape
+			shape.kind = ()=> 'rect'
+			shape.selected = ()=> true
+			shape.grips = ()=> false
+
+			$mol_assert_equal( shape.content().length, 0 )
 
 		},
 
@@ -281,6 +294,194 @@ namespace $ {
 			store.rect = ()=> [ 340, 200, 320, 200 ]
 
 			$mol_assert_like( blocks.place( { kind: 'bui_card', w: 320, h: 200 } ), [ 380, 240 ] )
+
+		},
+
+		/**
+		 * Everything that shows a single element writes one link, and the app
+		 * turns that into a selection of exactly one.
+		 */
+		'the panels talk about the last element picked'() {
+
+			const app = new $bog_figmol_app as $.$$.$bog_figmol_app
+
+			$mol_assert_equal( app.selected(), '' )
+
+			app.selection([ 'a', 'b' ])
+			$mol_assert_equal( app.selected(), 'b' )
+
+			app.selected( 'c' )
+			$mol_assert_like( app.selection(), [ 'c' ] )
+
+			app.selected( '' )
+			$mol_assert_like( app.selection(), [] )
+
+		},
+
+		'a shift click adds an element to the selection and takes it back out'() {
+
+			const canvas = new $bog_figmol_app_canvas as $.$$.$bog_figmol_app_canvas
+
+			canvas.selection([ 'a' ])
+
+			canvas.toggle( 'b' )
+			$mol_assert_like( canvas.selection(), [ 'a', 'b' ] )
+
+			canvas.toggle( 'a' )
+			$mol_assert_like( canvas.selection(), [ 'b' ] )
+
+		},
+
+		/** Grips belong to a lone element, a frame is drawn around every one of them. */
+		'a canvas frames the whole selection and sizes a single element'() {
+
+			const canvas = new $bog_figmol_app_canvas as $.$$.$bog_figmol_app_canvas
+
+			canvas.selection([ 'a', 'b' ])
+
+			$mol_assert_ok( canvas.shape_selected( 'a' ) )
+			$mol_assert_ok( canvas.shape_selected( 'b' ) )
+			$mol_assert_ok( !canvas.shape_grips( 'a' ) )
+
+			canvas.selection([ 'a' ])
+			$mol_assert_ok( canvas.shape_grips( 'a' ) )
+
+		},
+
+		/**
+		 * A click takes the outermost element of the level being edited, so a card
+		 * moves as one thing instead of falling apart into its captions.
+		 */
+		'a click picks the outer element and ⌘ the deepest one'() {
+
+			const canvas = new $bog_figmol_app_canvas as $.$$.$bog_figmol_app_canvas
+
+			const parents = { card: 'root', text: 'card', other: 'root' } as Record< string, string >
+
+			const store = canvas.store()
+			store.root_id = ()=> 'root'
+			store.parent = ( id: string )=> parents[ id ] ?? ''
+			store.node_ids = ()=> [ 'card', 'text', 'other' ]
+
+			const plain = { metaKey: false, ctrlKey: false }
+
+			$mol_assert_equal( canvas.pick( 'text', plain ), 'card' )
+			$mol_assert_equal( canvas.pick( 'text', { metaKey: true, ctrlKey: false } ), 'text' )
+
+			// A double click went into the card: clicks now pick what is inside it.
+			canvas.scope( 'card' )
+			$mol_assert_equal( canvas.pick( 'text', plain ), 'text' )
+
+			// And a click outside the card steps back out of it.
+			$mol_assert_equal( canvas.pick( 'other', plain ), 'other' )
+			$mol_assert_equal( canvas.scope(), '' )
+
+		},
+
+		'the rubber band adds what it caught to what was picked before'() {
+
+			const canvas = new $bog_figmol_app_canvas as $.$$.$bog_figmol_app_canvas
+
+			canvas.marquee_hits = ()=> [ 'b', 'c' ]
+			canvas.marquee([ 0, 0, 100, 100 ])
+			canvas.grab_base = [ 'a' ]
+
+			canvas.marquee_settle()
+
+			$mol_assert_like( canvas.selection(), [ 'a', 'b', 'c' ] )
+
+		},
+
+		/** A band dragged up and to the left is the same box as one dragged down. */
+		'the rubber band is a box whichever way it was pulled'() {
+
+			const canvas = new $bog_figmol_app_canvas as $.$$.$bog_figmol_app_canvas
+
+			canvas.marquee([ 100, 80, 40, 20 ])
+
+			$mol_assert_like( canvas.marquee_box(), [ 40, 20, 60, 60 ] )
+
+		},
+
+		'zoom steps keep the middle of the window in place'() {
+
+			const canvas = new $bog_figmol_app_canvas as $.$$.$bog_figmol_app_canvas
+			canvas.dom_node = ()=> ({
+				getBoundingClientRect: ()=> ({ left: 0, top: 0, width: 800, height: 600 }),
+			}) as any
+
+			canvas.zoom( 1 )
+			canvas.pan_x( 0 )
+			canvas.pan_y( 0 )
+
+			const before = ( 400 - canvas.pan_x() ) / canvas.zoom()
+
+			canvas.zoom_step( 1 )
+
+			$mol_assert_ok( canvas.zoom() > 1 )
+			$mol_assert_equal(
+				Math.round( ( 400 - canvas.pan_x() ) / canvas.zoom() ),
+				Math.round( before ),
+			)
+
+			canvas.zoom_reset()
+			$mol_assert_equal( canvas.zoom(), 1 )
+
+		},
+
+		'fitting the page centres what is drawn on it'() {
+
+			const canvas = new $bog_figmol_app_canvas as $.$$.$bog_figmol_app_canvas
+			canvas.dom_node = ()=> ({
+				getBoundingClientRect: ()=> ({ left: 0, top: 0, width: 800, height: 600 }),
+			}) as any
+
+			canvas.content_box = ()=> [ 100, 50, 400, 200 ]
+
+			canvas.zoom_fit()
+
+			// The width is the tighter of the two: ( 800 - 48 * 2 ) / 400.
+			$mol_assert_equal( canvas.zoom(), 1.76 )
+			$mol_assert_equal( canvas.pan_x(), ( 800 - 400 * 1.76 ) / 2 - 100 * 1.76 )
+			$mol_assert_equal( canvas.pan_y(), ( 600 - 200 * 1.76 ) / 2 - 50 * 1.76 )
+
+		},
+
+		'delete takes out everything that is picked'() {
+
+			const canvas = new $bog_figmol_app_canvas as $.$$.$bog_figmol_app_canvas
+
+			const dropped = [] as string[]
+			canvas.store().node_drop = ( id: string )=> { dropped.push( id ) }
+
+			canvas.selection([ 'a', 'b' ])
+			canvas.drop( true )
+
+			$mol_assert_like( dropped, [ 'a', 'b' ] )
+			$mol_assert_like( canvas.selection(), [] )
+
+		},
+
+		/**
+		 * A width typed into a field would be the width of every element picked,
+		 * which is a decision of its own — so a group gets a count and a way out.
+		 */
+		'the inspector counts a group instead of describing it'() {
+
+			const inspector = new $bog_figmol_app_inspector as $.$$.$bog_figmol_app_inspector
+
+			inspector.selection = ()=> [ 'a', 'b' ]
+			inspector.selected( 'b' )
+
+			// The captions come out of the locale, which is not what is being
+			// checked here — only which of them the panel reaches for.
+			inspector.title_many = ()=> 'Selected'
+			inspector.drop_label = ()=> 'one'
+			inspector.drop_many_label = ()=> 'many'
+
+			$mol_assert_like( inspector.rows(), [ inspector.Head(), inspector.Drop() ] )
+			$mol_assert_equal( inspector.kind_title(), 'Selected: 2' )
+			$mol_assert_equal( inspector.drop_caption(), 'many' )
 
 		},
 

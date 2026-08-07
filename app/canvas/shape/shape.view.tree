@@ -5,6 +5,8 @@ $bog_figmol_app_canvas_shape $mol_view
 	- \Grips are drawn for somebody who can actually drag them
 	editable true
 	selected false
+	- \Grips are for one element at a time — a group is framed and moved, not sized
+	grips true
 	editing false
 	- \Frame is the target of the drag going on right now
 	dropping false
@@ -93,3 +95,20 @@ $bog_figmol_app_canvas_shape $mol_view
 		attr *
 			^
 			figmol_handle \se
+	- \Sides drag one edge at a time, the way every editor does it
+	Handle_n $mol_view
+		attr *
+			^
+			figmol_handle \n
+	Handle_s $mol_view
+		attr *
+			^
+			figmol_handle \s
+	Handle_w $mol_view
+		attr *
+			^
+			figmol_handle \w
+	Handle_e $mol_view
+		attr *
+			^
+			figmol_handle \e

@@ -179,6 +179,51 @@ namespace $ {
 			cursor: 'nwse-resize',
 		},
 
+		/**
+		 * Side grips sit in the middle of an edge, half of them hanging over it —
+		 * the negative margin is what takes the grip's own size back out of the
+		 * `50%`, which is measured to its corner.
+		 */
+		Handle_n: {
+			...figmol_handle,
+			top: '-0.25rem',
+			left: '50%',
+			margin: {
+				left: '-0.25rem',
+			},
+			cursor: 'ns-resize',
+		},
+
+		Handle_s: {
+			...figmol_handle,
+			bottom: '-0.25rem',
+			left: '50%',
+			margin: {
+				left: '-0.25rem',
+			},
+			cursor: 'ns-resize',
+		},
+
+		Handle_w: {
+			...figmol_handle,
+			left: '-0.25rem',
+			top: '50%',
+			margin: {
+				top: '-0.25rem',
+			},
+			cursor: 'ew-resize',
+		},
+
+		Handle_e: {
+			...figmol_handle,
+			right: '-0.25rem',
+			top: '50%',
+			margin: {
+				top: '-0.25rem',
+			},
+			cursor: 'ew-resize',
+		},
+
 		'@': {
 
 			figmol_kind: {

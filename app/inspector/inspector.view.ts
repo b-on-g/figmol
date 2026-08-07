@@ -12,6 +12,10 @@ namespace $.$$ {
 	 * Which rows show up depends on the kind of the node, and the rows themselves
 	 * are ordinary named sub-views rather than a keyed factory — there is a fixed,
 	 * small set of them, and naming each one keeps the bindings readable.
+	 *
+	 * Several elements at once get a count and the delete button, and nothing
+	 * else: a width typed into a field would be the width of every one of them,
+	 * which is a decision of its own rather than a row that happens to work.
 	 */
 	export class $bog_figmol_app_inspector extends $.$bog_figmol_app_inspector {
 
@@ -19,7 +23,14 @@ namespace $.$$ {
 			return this.store().kind( this.selected() )
 		}
 
+		many() {
+			return this.selection().length > 1
+		}
+
 		kind_title() {
+
+			if( this.many() ) return this.title_many() + ': ' + this.selection().length
+
 			switch( this.kind() ) {
 				case 'text': return this.title_text()
 				case 'image': return this.title_image()
@@ -30,11 +41,17 @@ namespace $.$$ {
 			}
 		}
 
+		drop_caption() {
+			return this.many() ? this.drop_many_label() : this.drop_label()
+		}
+
 		@ $mol_mem
 		rows(): readonly $mol_view[] {
 
 			const id = this.selected()
 			if( !id ) return []
+
+			if( this.many() ) return [ this.Head(), this.Drop() ]
 
 			const kind = this.kind()
 			const res = [ this.Head() ] as $mol_view[]
@@ -173,11 +190,17 @@ namespace $.$$ {
 
 		@ $mol_action
 		node_drop( next?: any ) {
+
 			if( next === undefined ) return null
-			const id = this.selected()
-			if( !id ) return null
-			this.store().node_drop( id )
+
+			const ids = this.selection()
+			if( !ids.length ) return null
+
+			const store = this.store()
+			for( const id of ids ) store.node_drop( id )
+
 			this.selected( '' )
+
 			return null
 		}
 

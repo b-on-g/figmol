@@ -1,6 +1,7 @@
 $bog_figmol_app_layers $mol_view
 	store $bog_figmol_store
 	selected? \
+	selection /string
 	sub /
 		<= Head $mol_view
 			sub /

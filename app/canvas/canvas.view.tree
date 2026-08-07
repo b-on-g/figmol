@@ -3,7 +3,9 @@ $bog_figmol_app_canvas $mol_view
 	- \A site opened by somebody else's link is drawn, panned and read, never moved
 	editable true
 	tool? \select
-	selected? \
+	- \Everything picked right now. The canvas is the one panel that writes the
+	- \whole list — the rest of the editor deals in a single node.
+	selection? /string
 	- \Node whose caption is being typed right now
 	editing? \
 	- \Viewport transform. Pan is in screen pixels, applied before the scale.
@@ -18,6 +20,7 @@ $bog_figmol_app_canvas $mol_view
 		^
 		tabindex 0
 		figmol_armed <= armed false
+		figmol_grab <= grabbing false
 	style *
 		touch-action \none
 		overscroll-behavior \none
@@ -58,7 +61,16 @@ $bog_figmol_app_canvas $mol_view
 		editable <= editable true
 		id <= shape_id* \
 		selected <= shape_selected* false
+		grips <= shape_grips* false
 		editing <= shape_editing* false
 		dropping <= shape_dropping* false
 		kids <= shape_kids* /$mol_view
 		rect <= shape_rect* /number
+	- \Rubber band of a selection drag. Lives on the sheet, so it is drawn in
+	- \sheet pixels and the viewport transform carries it along.
+	Marquee $mol_view
+		style *
+			left <= marquee_left \
+			top <= marquee_top \
+			width <= marquee_width \
+			height <= marquee_height \
