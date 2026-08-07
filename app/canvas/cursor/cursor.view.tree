@@ -1,0 +1,14 @@
+$bog_figmol_app_canvas_cursor $mol_view
+	- \Colour of the participant this cursor belongs to
+	color \#0091ff
+	- \What they are called
+	mate_name \
+	sub /
+		<= Arrow $mol_view
+			style *
+				borderBottomColor <= color
+		<= Label $mol_view
+			style *
+				backgroundColor <= color
+			sub /
+				<= mate_name

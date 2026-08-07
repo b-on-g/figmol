@@ -162,6 +162,24 @@ namespace $.$$ {
 			return this.inner_direction() ? this.align_style() : ''
 		}
 
+		/**
+		 * Ring around the shape when somebody else has it picked, in their colour.
+		 *
+		 * Written here rather than left to the stylesheet because the ring this
+		 * browser draws for its own selection is a shadow too, and one property
+		 * cannot come from two places: an empty answer hands the shape back to
+		 * the rule behind `figmol_selected`, and a full one spells both rings out.
+		 */
+		style_mark() {
+
+			const mark = this.mark()
+			if( !mark ) return ''
+
+			if( !this.selected() ) return '0 0 0 2px ' + mark
+
+			return '0 0 0 2px #2f7ff7, 0 0 0 4px ' + mark
+		}
+
 		style_color() {
 			return this.store().color( this.id() )
 		}

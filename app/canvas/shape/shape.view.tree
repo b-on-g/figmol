@@ -5,6 +5,8 @@ $bog_figmol_app_canvas_shape $mol_view
 	- \Grips are drawn for somebody who can actually drag them
 	editable true
 	selected false
+	- \Colour of whoever else has this picked, empty when nobody else has
+	mark \
 	- \Grips are for one element at a time — a group is framed and moved, not sized
 	grips true
 	editing false
@@ -35,6 +37,7 @@ $bog_figmol_app_canvas_shape $mol_view
 		fontSize <= style_font_size \
 		fontWeight <= style_weight \
 		textAlign <= style_text_align \
+		boxShadow <= style_mark \
 	sub <= content /
 	Label $mol_view
 		sub /

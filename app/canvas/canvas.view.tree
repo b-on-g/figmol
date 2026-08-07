@@ -1,5 +1,7 @@
 $bog_figmol_app_canvas $mol_view
 	store $bog_figmol_store
+	- \Who else is looking at this site, and where their cursor is
+	live $bog_figmol_live
 	- \A site opened by somebody else's link is drawn, panned and read, never moved
 	editable true
 	tool? \select
@@ -29,6 +31,7 @@ $bog_figmol_app_canvas $mol_view
 		pointermove?event <=> pointer_move?event null
 		pointerup?event <=> pointer_up?event null
 		pointercancel?event <=> pointer_up?event null
+		pointerleave?event <=> pointer_out?event null
 		lostpointercapture?event <=> pointer_up?event null
 		dblclick?event <=> pointer_edit?event null
 		wheel?event <=> wheel_zoom?event null
@@ -64,11 +67,19 @@ $bog_figmol_app_canvas $mol_view
 		editable <= editable true
 		id <= shape_id* \
 		selected <= shape_selected* false
+		mark <= shape_mark* \
 		grips <= shape_grips* false
 		editing <= shape_editing* false
 		dropping <= shape_dropping* false
 		kids <= shape_kids* /$mol_view
 		rect <= shape_rect* /number
+	- \Pointer of somebody else, moved by a transform in screen pixels: a cursor
+	- \is at a place on the page, and the page is drawn at whatever zoom it is.
+	Cursor* $bog_figmol_app_canvas_cursor
+		color <= cursor_color* \
+		mate_name <= cursor_name* \
+		style *
+			transform <= cursor_transform* \
 	- \Rubber band of a selection drag. Lives on the sheet, so it is drawn in
 	- \sheet pixels and the viewport transform carries it along.
 	Marquee $mol_view

@@ -104,6 +104,48 @@ namespace $.$$ {
 		}
 
 		/**
+		 * Colour of whoever else has this node picked, empty when nobody has.
+		 *
+		 * Drawn on the shape rather than as a rectangle over it, and that is the
+		 * whole reason the frame is right: a node inside an auto layout is placed
+		 * by the frame that holds it, so its coordinates say nothing and a
+		 * rectangle drawn from them would sit somewhere else entirely.
+		 */
+		@ $mol_mem_key
+		shape_mark( id: string ) {
+			return this.marks()[ id ] ?? ''
+		}
+
+		/**
+		 * Colour per node picked by somebody else — worked out in one pass and
+		 * read by every shape, rather than every shape walking everybody.
+		 *
+		 * Whoever picked it last wins a node two people have picked. Showing both
+		 * would mean two rings on one box, which reads as a border rather than as
+		 * a selection.
+		 */
+		@ $mol_mem
+		marks(): Readonly< Record< string, string > > {
+
+			const res = {} as Record< string, string >
+
+			try {
+
+				const live = this.live()
+
+				for( const lord of live.crowd( live.place() ) ) {
+					const color = live.color( lord )
+					for( const id of live.pick( lord ) ) res[ id ] = color
+				}
+
+			} catch( error ) {
+				if( !$mol_promise_like( error ) ) $mol_fail_log( error )
+			}
+
+			return res
+		}
+
+		/**
 		 * Grips are drawn for a single element only. Several at once would need a
 		 * box around the lot of them and a resize that divides itself up between
 		 * them — worth doing, and not by pretending each one is alone.
@@ -197,6 +239,7 @@ namespace $.$$ {
 			const guide_x = this.guide_x()
 			const guide_y = this.guide_y()
 			const measures = this.measure_ids()
+			const cursors = this.cursor_ids()
 			const group = this.group_on()
 			const menu = this.menu_on()
 
@@ -206,11 +249,65 @@ namespace $.$$ {
 			if( guide_y !== null ) res.push( this.Guide_y() )
 
 			for( const id of measures ) res.push( this.Measure( id ) )
+			for( const lord of cursors ) res.push( this.Cursor( lord ) )
 
 			if( group ) res.push( this.Group() )
 			if( menu ) res.push( this.Menu() )
 
 			return res
+		}
+
+		/* --------------------------------------------------------------- cursors */
+
+		/**
+		 * Everybody whose pointer belongs on what is drawn right now: on this
+		 * page, or in this component master, and over the sheet at all.
+		 *
+		 * A room that has not arrived yet is nobody. The atom subscribed to what
+		 * it read before suspending and comes back on its own.
+		 */
+		@ $mol_mem
+		cursor_ids(): readonly string[] {
+
+			try {
+
+				const live = this.live()
+
+				return live.crowd( live.place() ).filter( lord => live.spot( lord ).x !== null )
+
+			} catch( error ) {
+				if( !$mol_promise_like( error ) ) $mol_fail_log( error )
+				return []
+			}
+		}
+
+		/**
+		 * Where to put somebody's pointer, in screen pixels.
+		 *
+		 * Screen and not sheet: the overlay is not scaled, so a cursor stays the
+		 * same size however far the page is zoomed out — and panning moves it
+		 * along, `pan_x` and the zoom being read right here.
+		 */
+		@ $mol_mem_key
+		cursor_transform( lord: string ) {
+
+			const spot = this.live().spot( lord )
+			if( spot.x === null || spot.y === null ) return 'translate( -1000px, -1000px )'
+
+			const x = Math.round( this.screen_x( spot.x ) )
+			const y = Math.round( this.screen_y( spot.y ) )
+
+			return `translate( ${ x }px, ${ y }px )`
+		}
+
+		@ $mol_mem_key
+		cursor_color( lord: string ) {
+			return this.live().color( lord )
+		}
+
+		@ $mol_mem_key
+		cursor_name( lord: string ) {
+			return this.live().title( lord )
 		}
 
 		/** Sheet coordinate as a screen one, inside the canvas box. */
@@ -811,6 +908,23 @@ namespace $.$$ {
 			this.grab_pan = [ this.pan_x(), this.pan_y() ]
 		}
 
+		/** Tells the channel where the pointer is, in sheet pixels. */
+		live_point( event: PointerEvent ) {
+			const point = this.sheet_point( event )
+			this.live().point( point[ 0 ], point[ 1 ] )
+		}
+
+		/**
+		 * The pointer has left the canvas, so there is nothing to show anybody:
+		 * a cursor frozen at the edge of the sheet would be a lie about where its
+		 * owner is looking.
+		 */
+		@ $mol_action
+		pointer_out( event?: PointerEvent ) {
+			this.live().point( null, null )
+			return null
+		}
+
 		/**
 		 * A press on a shape: what it does to the selection, and what gesture it
 		 * starts.
@@ -1106,6 +1220,11 @@ namespace $.$$ {
 		pointer_move( event?: PointerEvent ) {
 
 			if( !event ) return null
+
+			// Where the pointer is goes to everybody else looking at this site. A
+			// plain field on the channel, which decides on its own how often that
+			// is worth a write — nothing here repaints because of it.
+			this.live_point( event )
 
 			if( !this.mode ) {
 				this.measure_hover( event )
