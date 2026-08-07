@@ -1,0 +1,14 @@
+$bog_figmol_app_mates $mol_view
+	live $bog_figmol_live
+	sub <= chips /$mol_view
+	- \Name this browser goes by. Sits among the others rather than in a settings
+	- \panel: it is only worth saying when there is somebody to say it to.
+	Name $mol_string
+		value? <=> name? \
+		hint <= name_hint @ \You
+	Chip* $mol_view
+		sub /
+			<= Dot* $mol_view
+				style *
+					backgroundColor <= chip_color* \
+			<= chip_name* \
