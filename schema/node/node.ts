@@ -15,10 +15,21 @@ namespace $ {
 	export class $bog_figmol_schema_node extends $giper_baza_dict.with({
 
 		/**
-		 * `text` | `image` | `button` | `rect` | `frame`, or one of the `bui_`
-		 * blocks borrowed from the component library — see `$bog_figmol_blocks`.
+		 * `text` | `image` | `button` | `rect` | `frame` | `inst`, or one of the
+		 * `bui_` blocks borrowed from the component library — see
+		 * `$bog_figmol_blocks`.
 		 */
 		Kind: $giper_baza_atom_text,
+
+		/**
+		 * Component this node is an instance of, set for the `inst` kind alone.
+		 *
+		 * An instance keeps no copy of what it shows: it is a box with a link,
+		 * and everything inside it is read out of the master. A field of its own
+		 * rather than a key of `Props` — a link is not a string, and the editor
+		 * asks this question of every node it draws.
+		 */
+		Master: $giper_baza_atom_link.to( ()=> $bog_figmol_schema_comp ),
 
 		/**
 		 * Everything kind specific, all of it stringly typed:

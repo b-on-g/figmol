@@ -19,6 +19,8 @@ namespace $ {
 		/** `start` | `center` | `end` | `stretch` */
 		readonly align?: string
 		readonly props?: Readonly< Record< string, string > >
+		/** Component an `inst` node draws. Nothing in the palette carries one. */
+		readonly master?: string
 		readonly kids?: readonly $bog_figmol_blocks_spec[]
 	}
 
@@ -73,6 +75,7 @@ namespace $ {
 		bui_progress: 'Progress',
 		bui_tabs: 'Tabs',
 		bui_avatar: 'Avatar',
+		inst: 'Component',
 	}
 
 	/** Kinds whose children are drawn inside them rather than beside them. */

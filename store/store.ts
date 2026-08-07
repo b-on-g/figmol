@@ -164,8 +164,18 @@ namespace $ {
 			return this.pages().find( page => page.link().str === id ) ?? null
 		}
 
-		/** Frame every element of the current page lives in. */
+		/**
+		 * Frame every element being edited lives in — of the current page, or of
+		 * the component master when one is opened.
+		 *
+		 * Editing a component is therefore the whole editor pointed at another
+		 * root, rather than a mode anybody has to know about: the canvas draws
+		 * what is under this frame, the layer tree lists it and the inspector
+		 * changes it, none of them any the wiser.
+		 */
 		root() {
+			const comp = this.comp_current()
+			if( comp ) return this.comp_by( comp )?.Root()?.remote() ?? null
 			return this.page()?.Root()?.remote() ?? null
 		}
 
@@ -219,6 +229,151 @@ namespace $ {
 			return page.Slug()?.val() ?? ''
 		}
 
+		// === Components ==========================================================
+		//
+		// A component is a name and a node subtree, and an instance is a node of
+		// kind `inst` holding a link to it. Nothing is copied on either side: an
+		// instance draws the master itself, so an edit of the master reaches every
+		// instance the moment it is written.
+
+		comps() {
+			return this.site()?.Comps()?.remote_list() ?? []
+		}
+
+		@ $mol_mem
+		comp_ids(): readonly string[] {
+			return this.comps().map( comp => comp.link().str )
+		}
+
+		comp_by( id: string ) {
+			if( !id ) return null
+			return this.comps().find( comp => comp.link().str === id ) ?? null
+		}
+
+		@ $mol_mem_key
+		comp_title( id: string, next?: string ) {
+			const comp = this.comp_by( id )
+			if( !comp ) return ''
+			if( next !== undefined ) this.comp_edit( id, next )
+			return comp.Title()?.val() ?? ''
+		}
+
+		/** Frame of the master, empty when the component is gone. */
+		@ $mol_mem_key
+		comp_root( id: string ) {
+			return this.comp_by( id )?.Root()?.val()?.str ?? ''
+		}
+
+		/** Component this node is an instance of, empty for everything else. */
+		@ $mol_mem_key
+		master( id: string ) {
+			if( !id ) return ''
+			return this.node( id ).Master()?.val()?.str ?? ''
+		}
+
+		/** Frame an instance draws, empty when it is not an instance of anything. */
+		@ $mol_mem_key
+		inst_root( id: string ) {
+			const comp = this.master( id )
+			return comp ? this.comp_root( comp ) : ''
+		}
+
+		/**
+		 * Which component is open for editing, kept in the address next to the
+		 * page: a reload comes back to the same master, and a link to a shared
+		 * site can point straight at one.
+		 */
+		comp_id( next?: string | null ) {
+			return this.$.$mol_state_arg.value( 'comp', next ) ?? ''
+		}
+
+		/** The same, forgotten once the component it names is gone. */
+		@ $mol_mem
+		comp_current() {
+			const id = this.comp_id()
+			return id && this.comp_ids().includes( id ) ? id : ''
+		}
+
+		/**
+		 * Whether dropping an instance of `comp` where the editor is looking now
+		 * would make a component hold itself.
+		 *
+		 * The only way to build such a loop is to put an instance inside a master,
+		 * so the question is asked once, at the moment of the drop — a cycle that
+		 * got written would be a page that draws until the stack runs out.
+		 */
+		comp_cyclic( comp: string ) {
+			const host = this.comp_current()
+			if( !host || !comp ) return false
+			if( host === comp ) return true
+			return this.comp_uses( comp, host, 0 )
+		}
+
+		/** Whether the master of `comp` holds an instance of `target`, however deep. */
+		comp_uses( comp: string, target: string, deep: number ): boolean {
+			if( deep >= depth_max ) return false
+			const root = this.comp_root( comp )
+			return root ? this.node_uses( root, target, deep ) : false
+		}
+
+		node_uses( id: string, target: string, deep: number ): boolean {
+
+			if( deep >= depth_max ) return false
+
+			const comp = this.master( id )
+			if( comp ) return comp === target || this.comp_uses( comp, target, deep + 1 )
+
+			return this.kids( id ).some( kid => this.node_uses( kid, target, deep + 1 ) )
+		}
+
+		// === Theme ===============================================================
+
+		/** Raw token as written, empty when nothing was. */
+		theme_read( key: string ) {
+			return this.site()?.Theme()?.key( key )?.val() ?? ''
+		}
+
+		theme_write( key: string, val: string ) {
+			this.site()?.Theme( null )!.key( key, null ).val( val )
+		}
+
+		theme_edit( key: string, val: string ) {
+
+			const prev = this.theme_read( key )
+			if( prev === val ) return
+
+			this.theme_write( key, val )
+
+			this.record(
+				'theme:' + key,
+				()=> this.theme_write( key, prev ),
+				()=> this.theme_write( key, val ),
+			)
+		}
+
+		/** One token of the theme, raw — an empty string means "unset". */
+		@ $mol_mem_key
+		theme( key: string, next?: string ) {
+			if( next !== undefined ) this.theme_edit( key, next )
+			return this.theme_read( key )
+		}
+
+		/**
+		 * The whole theme as a plain record, the way the generator takes it. Read
+		 * through the memoized accessor above, so the canvas repaints on a change.
+		 */
+		@ $mol_mem
+		theme_all(): Readonly< Record< string, string > > {
+			const res = {} as Record< string, string >
+			for( const key of Object.keys( $bog_figmol_theme.fallback ) ) res[ key ] = this.theme( key )
+			return res
+		}
+
+		/** One token with its fallback applied. */
+		theme_value( key: string ) {
+			return $bog_figmol_theme.value( this.theme_all(), key )
+		}
+
 		// === Tree ================================================================
 
 		@ $mol_mem
@@ -232,10 +387,21 @@ namespace $ {
 			return ( this.node( id ).Kids()?.items() ?? [] ).map( link => link.str )
 		}
 
+		/** Frames of every component of the site, in the order the panel lists them. */
+		@ $mol_mem
+		comp_roots(): readonly string[] {
+			return this.comp_ids().map( id => this.comp_root( id ) ).filter( id => !!id )
+		}
+
 		/**
 		 * Parent of every node, by link. A node knows its kids and not the other
 		 * way round, while dragging asks the opposite question on every move, so
 		 * the whole tree is walked once and cached.
+		 *
+		 * Masters are walked along with the page. Their nodes are never on it, but
+		 * an instance draws them, and a shape asks whether its parent lays it out
+		 * before it decides where to put itself — a master whose children had no
+		 * known parent would draw its auto layout as a heap of absolute boxes.
 		 *
 		 * A node reached twice keeps its first parent: the schema cannot stop a
 		 * link from appearing in two lists, and a cycle here would hang the walk.
@@ -255,6 +421,8 @@ namespace $ {
 
 			const root = this.root_id()
 			if( root ) walk( root )
+
+			for( const id of this.comp_roots() ) walk( id )
 
 			return res
 		}
@@ -878,6 +1046,145 @@ namespace $ {
 			if( this.page_id() === id ) this.page_id( ids.find( other => other !== id ) ?? '' )
 		}
 
+		/** Name of a component. Nothing else here writes it. */
+		comp_read( id: string ) {
+			return this.comp_by( id )?.Title()?.val() ?? ''
+		}
+
+		comp_write( id: string, val: string ) {
+			this.comp_by( id )?.Title( null )!.val( val )
+		}
+
+		comp_edit( id: string, val: string ) {
+
+			const prev = this.comp_read( id )
+			if( prev === val ) return
+
+			this.comp_write( id, val )
+
+			this.record(
+				'comp:' + id,
+				()=> this.comp_write( id, prev ),
+				()=> this.comp_write( id, val ),
+			)
+		}
+
+		/** Unlinks a component from the site. The master subtree stays where it is. */
+		comp_cut( id: string ) {
+			this.site()?.Comps( null )!.cut( new this.$.$giper_baza_link( id ) )
+		}
+
+		/** Links a component back into the site, at the place it used to have. */
+		comp_put( id: string, at: number ) {
+
+			const comps = this.site()?.Comps( null )
+			if( !comps ) return
+
+			const items = comps.items().filter( item => item.str !== id )
+			const seat = Math.max( 0, Math.min( at < 0 ? items.length : at, items.length ) )
+
+			comps.items([ ... items.slice( 0, seat ), new this.$.$giper_baza_link( id ), ... items.slice( seat ) ])
+		}
+
+		/**
+		 * Turns a node into a component: the node itself becomes the master, and
+		 * an instance of it takes the place it left.
+		 *
+		 * Nothing is copied and nothing is deleted — the subtree keeps its pawns
+		 * and only stops being reachable from the page. The master is moved to the
+		 * origin, because that is where every instance draws it from.
+		 *
+		 * Meant to run inside `group`, like every other multi write gesture here.
+		 */
+		@ $mol_action
+		comp_make( id: string, title: string ) {
+
+			const site = this.site()
+			if( !site ) return ''
+
+			const host = this.parent( id )
+			if( !host ) return ''
+			if( this.master( id ) ) return ''
+
+			const at = this.kids( host ).indexOf( id )
+			const rect = this.rect( id )
+
+			const comp = site.Comps( null )!.make( null )
+			comp.Title( null )!.val( title )
+			comp.Root( null )!.remote( this.node( id ) )
+
+			const made = comp.link().str
+			this.record( '', ()=> this.comp_cut( made ), ()=> this.comp_put( made, -1 ) )
+
+			const home = [ 0, 0, rect[ 2 ], rect[ 3 ] ]
+			this.rect_write( id, home )
+			this.record( '', ()=> this.rect_write( id, rect ), ()=> this.rect_write( id, home ) )
+
+			this.kid_cut( host, id )
+			this.record( '', ()=> this.kid_put( host, id, at ), ()=> this.kid_cut( host, id ) )
+
+			const inst = this.inst_write( made, host, rect[ 0 ], rect[ 1 ], rect[ 2 ], rect[ 3 ] )
+			this.kid_put( host, inst, at )
+			this.record( '', ()=> this.kid_cut( host, inst ), ()=> this.kid_put( host, inst, at ) )
+
+			return inst
+		}
+
+		/** Writes an instance node into a frame, without a word to the journal. */
+		inst_write( comp: string, host: string, x: number, y: number, w: number, h: number ) {
+
+			const node = this.node( host ).Kids( null )!.make( null )
+
+			node.Kind( null )!.val( 'inst' )
+			node.X( null )!.val( Math.round( x ) )
+			node.Y( null )!.val( Math.round( y ) )
+			node.W( null )!.val( Math.max( size_min, Math.round( w ) ) )
+			node.H( null )!.val( Math.max( size_min, Math.round( h ) ) )
+			node.Master( null )!.val( new this.$.$giper_baza_link( comp ) )
+
+			return node.link().str
+		}
+
+		/**
+		 * Places an instance of a component, sized after its master. Refuses the
+		 * one drop that would make a component hold itself.
+		 */
+		@ $mol_action
+		inst_add( comp: string, parent: string, x: number, y: number ) {
+
+			const host = parent || this.root_id()
+			if( !host ) return ''
+
+			const root = this.comp_root( comp )
+			if( !root ) return ''
+			if( this.comp_cyclic( comp ) ) return ''
+
+			const rect = this.rect( root )
+			const id = this.inst_write( comp, host, x, y, rect[ 2 ], rect[ 3 ] )
+
+			this.record_kid( id, host )
+
+			return id
+		}
+
+		/**
+		 * Unlinks a component from the site. Instances of it are left drawing
+		 * nothing rather than being hunted down: the Baza is append-only, so undo
+		 * puts the master back and every one of them fills in again.
+		 */
+		@ $mol_action
+		comp_drop( id: string ) {
+
+			const ids = this.comp_ids()
+			if( !ids.includes( id ) ) return
+
+			const at = ids.indexOf( id )
+
+			this.comp_cut( id )
+
+			this.record( '', ()=> this.comp_put( id, at ), ()=> this.comp_cut( id ) )
+		}
+
 		/** Unlinks a node from a frame. The pawn and its subtree stay where they are. */
 		kid_cut( host: string, id: string ) {
 			this.node( host ).Kids( null )!.cut( new this.$.$giper_baza_link( id ) )
@@ -957,6 +1264,10 @@ namespace $ {
 				if( val ) node.Props( null )!.key( key, null ).val( val )
 			}
 
+			// A copy of an instance is another instance of the same component, not
+			// a copy of what it draws — the master belongs to neither of them.
+			if( spec.master ) node.Master( null )!.val( new this.$.$giper_baza_link( spec.master ) )
+
 			const id = node.link().str
 
 			for( const kid of spec.kids ?? [] ) this.node_make( kid, id, kid.x ?? 0, kid.y ?? 0 )
@@ -993,6 +1304,7 @@ namespace $ {
 				padding: this.padding( id ),
 				align: this.align( id ),
 				props,
+				master: this.master( id ),
 				kids: deep >= depth_max ? [] : this.kids( id ).map( kid => this.node_spec( kid, deep + 1 ) ),
 			}
 		}

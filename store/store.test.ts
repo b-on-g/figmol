@@ -217,6 +217,42 @@ namespace $ {
 
 		},
 
+		/**
+		 * A component holding itself, however far round the loop, would be a page
+		 * that draws until the stack runs out. The only way to build one is to
+		 * drop an instance inside a master, so that is where it is refused.
+		 */
+		'a component that would hold itself is refused'() {
+
+			const store = new $bog_figmol_store
+
+			const roots = { a: 'ra', b: 'rb', c: 'rc' } as Record< string, string >
+
+			store.comp_root = ( id: string )=> roots[ id ] ?? ''
+			store.master = ( id: string )=> id === 'inst_a' ? 'a' : ''
+			store.kids = ( id: string )=> id === 'rb' ? [ 'deep' ] : id === 'deep' ? [ 'inst_a' ] : []
+			store.comp_current = ()=> 'a'
+
+			$mol_assert_equal( store.comp_cyclic( 'a' ), true )
+			$mol_assert_equal( store.comp_cyclic( 'b' ), true )
+			$mol_assert_equal( store.comp_cyclic( 'c' ), false )
+
+		},
+
+		/** Outside a master there is no loop to make, whatever is dropped. */
+		'a component dropped on a page is never a loop'() {
+
+			const store = new $bog_figmol_store
+
+			store.comp_root = ()=> 'rb'
+			store.master = ()=> ''
+			store.kids = ()=> []
+			store.comp_current = ()=> ''
+
+			$mol_assert_equal( store.comp_cyclic( 'b' ), false )
+
+		},
+
 		'an address naming nonsense falls back to the site of this account'() {
 
 			const store = new $bog_figmol_store
