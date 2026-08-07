@@ -56,6 +56,11 @@ $bog_figmol_app_canvas $mol_view
 						width <= sheet_width_style \
 						minHeight <= sheet_height_style \
 					sub <= shapes /
+		- \Guides, rulers, the frame around several elements and the context menu.
+		- \Drawn beside the world rather than inside it, in screen pixels: a
+		- \hairline has to stay a hairline at any zoom, and a label readable.
+		<= Overlay $mol_view
+			sub <= overlay /
 	Shape* $bog_figmol_app_canvas_shape
 		store <= store
 		editable <= editable true
@@ -74,3 +79,79 @@ $bog_figmol_app_canvas $mol_view
 			top <= marquee_top \
 			width <= marquee_width \
 			height <= marquee_height \
+	- \Line the drag has stuck to, drawn across the whole sheet the way every
+	- \editor draws it.
+	Guide_x $mol_view
+		style *
+			left <= guide_x_left \
+			top <= guide_x_top \
+			height <= guide_x_height \
+	Guide_y $mol_view
+		style *
+			top <= guide_y_top \
+			left <= guide_y_left \
+			width <= guide_y_width \
+	- \Distance between the box being dragged and one of its neighbours: a thin
+	- \rule with the number of pixels sitting on top of it.
+	Measure* $mol_view
+		style *
+			left <= measure_left* \
+			top <= measure_top* \
+			width <= measure_width* \
+			height <= measure_height* \
+		sub /
+			<= Measure_label* $mol_view
+				sub /
+					<= measure_text* \
+	- \Frame around several elements at once, with grips that scale the lot of
+	- \them. A single element wears its own grips instead.
+	Group $mol_view
+		attr *
+			^
+			figmol_group \true
+		style *
+			left <= group_left \
+			top <= group_top \
+			width <= group_width \
+			height <= group_height \
+		sub /
+			<= Group_nw $mol_view
+				attr *
+					^
+					figmol_handle \nw
+			<= Group_ne $mol_view
+				attr *
+					^
+					figmol_handle \ne
+			<= Group_sw $mol_view
+				attr *
+					^
+					figmol_handle \sw
+			<= Group_se $mol_view
+				attr *
+					^
+					figmol_handle \se
+	- \What the right button opens over whatever it was pressed on.
+	Menu $mol_view
+		attr *
+			^
+			figmol_menu \true
+		style *
+			left <= menu_left \
+			top <= menu_top \
+		sub /
+			<= Menu_copy $mol_button_minor
+				click? <=> menu_copy? null
+				title <= menu_copy_label @ \Duplicate
+			<= Menu_front $mol_button_minor
+				click? <=> menu_front? null
+				title <= menu_front_label @ \Bring to front
+			<= Menu_back $mol_button_minor
+				click? <=> menu_back? null
+				title <= menu_back_label @ \Send to back
+			<= Menu_wrap $mol_button_minor
+				click? <=> menu_wrap? null
+				title <= menu_wrap_label @ \Wrap in a frame
+			<= Menu_drop $mol_button_minor
+				click? <=> menu_drop? null
+				title <= menu_drop_label @ \Delete

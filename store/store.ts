@@ -1112,6 +1112,30 @@ namespace $ {
 			this.record( '', ()=> this.kid_put( host, id, at ), ()=> this.kid_cut( host, id ) )
 		}
 
+		/**
+		 * Moves a node to the top or to the bottom of the pile inside its own
+		 * frame. Elements are drawn in the order they are listed, so this is the
+		 * whole of what "bring to front" means here — there is no z-index to set
+		 * and nothing for the generated page to carry over.
+		 */
+		@ $mol_action
+		node_lift( id: string, top: boolean ) {
+
+			const host = this.parent( id )
+			if( !host ) return
+
+			const kids = this.kids( host )
+			const at = kids.indexOf( id )
+			if( at < 0 ) return
+
+			const seat = top ? kids.length - 1 : 0
+			if( at === seat ) return
+
+			this.kid_put( host, id, seat )
+
+			this.record( '', ()=> this.kid_put( host, id, at ), ()=> this.kid_put( host, id, seat ) )
+		}
+
 	}
 
 }

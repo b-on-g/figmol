@@ -13,6 +13,16 @@ namespace $.$$ {
 	/** Slack in screen pixels below which a press counts as a click, not a drag. */
 	const figmol_slack = 3
 
+	/**
+	 * How close, in screen pixels, an edge has to come to a neighbour before it
+	 * sticks to it. Screen rather than sheet pixels on purpose: this is about how
+	 * precisely a hand can aim, which has nothing to do with the zoom.
+	 */
+	const figmol_snap = 6
+
+	/** Room the context menu needs, so it opens inwards near an edge. */
+	const figmol_menu = [ 210, 210 ]
+
 	/** Kinds whose caption a double click opens for typing, right on the canvas. */
 	const figmol_captioned = [ 'text', 'button', 'bui_button', 'bui_badge', 'bui_alert' ]
 
@@ -168,6 +178,130 @@ namespace $.$$ {
 			return this.marquee_box()[ 3 ] + 'px'
 		}
 
+		/* --------------------------------------------------------------- overlay */
+
+		/**
+		 * Everything drawn over the sheet instead of on it: the guides a drag has
+		 * stuck to, the rulers between the box and its neighbours, the frame
+		 * around several elements, and the context menu.
+		 *
+		 * All four are read here unconditionally even when nothing is shown. A
+		 * `@$mol_mem` cell keeps its value only while somebody is subscribed to
+		 * it, and this render is the one permanent subscriber they have — reading
+		 * them behind an `if` would leave the ones that are off without a reader,
+		 * and the handler writing such a cell would find it reset a moment later.
+		 */
+		@ $mol_mem
+		overlay(): readonly $mol_view[] {
+
+			const guide_x = this.guide_x()
+			const guide_y = this.guide_y()
+			const measures = this.measure_ids()
+			const group = this.group_on()
+			const menu = this.menu_on()
+
+			const res = [] as $mol_view[]
+
+			if( guide_x !== null ) res.push( this.Guide_x() )
+			if( guide_y !== null ) res.push( this.Guide_y() )
+
+			for( const id of measures ) res.push( this.Measure( id ) )
+
+			if( group ) res.push( this.Group() )
+			if( menu ) res.push( this.Menu() )
+
+			return res
+		}
+
+		/** Sheet coordinate as a screen one, inside the canvas box. */
+		screen_x( sheet_x: number ) {
+			return this.pan_x() + sheet_x * this.zoom()
+		}
+
+		screen_y( sheet_y: number ) {
+			return this.pan_y() + sheet_y * this.zoom()
+		}
+
+		/** Where the drag has stuck, in sheet pixels. `null` means it has not. */
+		@ $mol_mem
+		guide_x( next?: number | null ) {
+			return next ?? null
+		}
+
+		@ $mol_mem
+		guide_y( next?: number | null ) {
+			return next ?? null
+		}
+
+		guide_x_left() {
+			return this.screen_x( this.guide_x() ?? 0 ) - 0.5 + 'px'
+		}
+
+		guide_x_top() {
+			return this.screen_y( 0 ) + 'px'
+		}
+
+		guide_x_height() {
+			return this.sheet_height() * this.zoom() + 'px'
+		}
+
+		guide_y_top() {
+			return this.screen_y( this.guide_y() ?? 0 ) - 0.5 + 'px'
+		}
+
+		guide_y_left() {
+			return this.screen_x( 0 ) + 'px'
+		}
+
+		guide_y_width() {
+			return this.sheet_width() * this.zoom() + 'px'
+		}
+
+		/** Distances worth showing right now, in sheet pixels. */
+		@ $mol_mem
+		measures( next?: readonly $bog_figmol_magnet_gap[] | null ) {
+			return next ?? null
+		}
+
+		@ $mol_mem
+		measure_ids(): readonly string[] {
+			return ( this.measures() ?? [] ).map( ( gap, at )=> String( at ) )
+		}
+
+		measure( id: string ) {
+			return this.measures()?.[ Number( id ) ] ?? null
+		}
+
+		/**
+		 * A ruler is a hairline: it is as long as the gap along its own axis and a
+		 * single pixel across, and that pixel is centred on the line it marks.
+		 */
+		measure_left( id: string ) {
+			const gap = this.measure( id )
+			const at = this.screen_x( gap?.x ?? 0 )
+			return ( gap?.row ? at : at - 0.5 ) + 'px'
+		}
+
+		measure_top( id: string ) {
+			const gap = this.measure( id )
+			const at = this.screen_y( gap?.y ?? 0 )
+			return ( gap?.row ? at - 0.5 : at ) + 'px'
+		}
+
+		measure_width( id: string ) {
+			const gap = this.measure( id )
+			return gap?.row ? gap.size * this.zoom() + 'px' : '1px'
+		}
+
+		measure_height( id: string ) {
+			const gap = this.measure( id )
+			return gap && !gap.row ? gap.size * this.zoom() + 'px' : '1px'
+		}
+
+		measure_text( id: string ) {
+			return String( Math.round( this.measure( id )?.size ?? 0 ) )
+		}
+
 		/* ------------------------------------------------------------ measuring */
 
 		@ $mol_mem
@@ -272,6 +406,37 @@ namespace $.$$ {
 			const sheet = this.Sheet().dom_node().getBoundingClientRect()
 			const zoom = this.zoom_live()
 			return [ ( rect.left - sheet.left ) / zoom, ( rect.top - sheet.top ) / zoom ]
+		}
+
+		/**
+		 * The same top-left, worked out from the frame around the node and the
+		 * node's own coordinates wherever that is possible.
+		 *
+		 * Measuring is only the right answer inside an auto layout, where the
+		 * coordinates say nothing. Everywhere else it is the worse one: a copy
+		 * made a moment ago by an Alt drag has no element on screen yet, and
+		 * measuring one that is not there gives the corner of the sheet.
+		 */
+		node_place( id: string ): readonly number[] {
+
+			const store = this.store()
+			if( store.flow( id ) ) return this.node_origin( id )
+
+			const rect = this.shape_rect( id )
+			const origin = this.node_origin( store.parent( id ) )
+
+			return [ origin[ 0 ] + rect[ 0 ], origin[ 1 ] + rect[ 1 ] ]
+		}
+
+		/**
+		 * Rectangle of a node in sheet pixels, counted from the sheet rather than
+		 * from the frame it sits in — the one coordinate system snapping, rulers
+		 * and the group frame all speak, since a selection may span frames.
+		 */
+		node_rect( id: string ): readonly number[] {
+			const rect = this.shape_rect( id )
+			const place = this.node_place( id )
+			return [ place[ 0 ], place[ 1 ], rect[ 2 ], rect[ 3 ] ]
 		}
 
 		/**
@@ -440,6 +605,55 @@ namespace $.$$ {
 			} )
 		}
 
+		/* --------------------------------------------------------- group frame */
+
+		/**
+		 * Box around everything picked, in sheet pixels — what the frame with the
+		 * group grips is drawn as, and what a group resize scales.
+		 *
+		 * While a gesture is running, the box that gesture is drawing is the
+		 * answer. Measuring the elements again would describe the layout as it
+		 * was before this move: the shapes and this frame are two independent
+		 * atoms, and nothing says the shapes are repainted first.
+		 */
+		@ $mol_mem
+		group_box(): readonly number[] {
+
+			const live = this.drag_box()
+			if( live ) return live
+
+			const ids = this.selection()
+			if( ids.length < 2 ) return []
+
+			return $bog_figmol_magnet.bbox( ids.map( id => this.node_rect( id ) ) )
+		}
+
+		/** Box the gesture is drawing right now, `null` between gestures. */
+		@ $mol_mem
+		drag_box( next?: readonly number[] | null ) {
+			return next ?? null
+		}
+
+		group_on() {
+			return this.group_box().length > 0
+		}
+
+		group_left() {
+			return this.screen_x( this.group_box()[ 0 ] ?? 0 ) + 'px'
+		}
+
+		group_top() {
+			return this.screen_y( this.group_box()[ 1 ] ?? 0 ) + 'px'
+		}
+
+		group_width() {
+			return ( this.group_box()[ 2 ] ?? 0 ) * this.zoom() + 'px'
+		}
+
+		group_height() {
+			return ( this.group_box()[ 3 ] ?? 0 ) * this.zoom() + 'px'
+		}
+
 		/* ----------------------------------------------------- pointer gesture */
 
 		/**
@@ -448,7 +662,7 @@ namespace $.$$ {
 		 * handler is a fresh fiber and killing the previous one drops the only
 		 * subscriber of the cell.
 		 */
-		mode = '' as '' | 'pan' | 'move' | 'resize' | 'marquee'
+		mode = '' as '' | 'pan' | 'move' | 'resize' | 'scale' | 'marquee'
 		grab_id = ''
 		grab_ids = [] as readonly string[]
 		grab_corner = ''
@@ -460,6 +674,17 @@ namespace $.$$ {
 		grab_flows = {} as Record< string, boolean >
 		grab_sheets = {} as Record< string, readonly number[] >
 		grab_pan = [ 0, 0 ] as readonly number[]
+
+		/** What the gesture can stick to, measured once at the press — see `snap_arm`. */
+		grab_box = [ 0, 0, 0, 0 ] as readonly number[]
+		grab_origin = [ 0, 0 ] as readonly number[]
+		grab_boxes = [] as readonly ( readonly number[] )[]
+		grab_lines_x = [] as readonly number[]
+		grab_lines_y = [] as readonly number[]
+		grab_limit = 0
+
+		/** Move the drag has drawn so far, in sheet pixels, snapping included. */
+		grab_shift = [ 0, 0 ] as readonly number[]
 
 		/** Node the press resolved to, and whether it was one of several picked. */
 		grab_pick = ''
@@ -490,6 +715,11 @@ namespace $.$$ {
 			// no default prevented, so the caret lands where it was clicked.
 			if( target.closest( '[figmol_edit]' ) ) return null
 
+			// The same goes for the context menu. Capturing the pointer here would
+			// retarget the click onto the canvas, and the item pressed would never
+			// hear about it.
+			if( target.closest( '[figmol_menu]' ) ) return null
+
 			this.grab_x = event.clientX
 			this.grab_y = event.clientY
 			this.last_x = event.clientX
@@ -501,12 +731,23 @@ namespace $.$$ {
 
 			const tool = this.tool()
 
-			if( this.editable() && tool !== 'select' ) {
+			if( event.button === 0 && this.editable() && tool !== 'select' ) {
 				event.preventDefault()
 				this.node_add( tool, event )
 				this.tool( 'select' )
 				return null
 			}
+
+			const handle = target.closest( '[figmol_handle]' )
+			const shape = target.closest( '[figmol_node]' )
+			const deep = shape?.getAttribute( 'figmol_node' ) ?? ''
+
+			this.press_deep = deep
+
+			// The right button opens the menu, and the event that does so comes
+			// after this one. Nothing is captured and nothing is prevented: this
+			// press has to leave the page exactly as the menu will find it.
+			if( event.button === 2 ) return null
 
 			event.preventDefault()
 
@@ -523,16 +764,17 @@ namespace $.$$ {
 
 			if( this.editing() ) this.editing( '' )
 
-			const handle = target.closest( '[figmol_handle]' )
-			const shape = target.closest( '[figmol_node]' )
-			const deep = shape?.getAttribute( 'figmol_node' ) ?? ''
-
-			this.press_deep = deep
-
 			// Panning is a gesture of its own — the middle button, or space held
 			// down, as everywhere else. The plain drag belongs to the selection.
 			if( event.button !== 0 || this.space() ) {
 				this.pan_start()
+				return null
+			}
+
+			// A grip with no shape around it hangs off the frame drawn around
+			// several elements, which lives beside the sheet rather than on it.
+			if( handle && !deep ) {
+				this.press_scale( handle.getAttribute( 'figmol_handle' ) ?? '' )
 				return null
 			}
 
@@ -603,6 +845,30 @@ namespace $.$$ {
 			this.grab_take( event.altKey ? this.clone( this.selection() ) : this.selection() )
 		}
 
+		/**
+		 * A press on a grip of the frame drawn around several elements: everything
+		 * inside it is about to be scaled together.
+		 *
+		 * Elements an auto layout places are left out. Their frame decides where
+		 * they go and how wide they are, and a scale that wrote coordinates there
+		 * would be overruled the moment it finished.
+		 */
+		@ $mol_action
+		press_scale( corner: string ) {
+
+			if( !this.editable() ) return
+			if( !corner ) return
+
+			const store = this.store()
+			const ids = this.selection().filter( id => !store.flow( id ) )
+
+			if( ids.length < 2 ) return
+
+			this.mode = 'scale'
+			this.grab_corner = corner
+			this.grab_take( ids )
+		}
+
 		/** Remembers where everything about to be dragged started out. */
 		grab_take( ids: readonly string[] ) {
 
@@ -613,12 +879,192 @@ namespace $.$$ {
 			this.grab_rects = {}
 			this.grab_flows = {}
 			this.grab_sheets = {}
+			this.grab_shift = [ 0, 0 ]
 
 			for( const id of ids ) {
 				this.grab_rects[ id ] = this.shape_rect( id )
 				this.grab_flows[ id ] = store.flow( id )
-				this.grab_sheets[ id ] = this.node_origin( id )
+				this.grab_sheets[ id ] = this.node_place( id )
 			}
+
+			this.snap_arm( ids )
+		}
+
+		/**
+		 * Remembers what the gesture about to start can stick to: the neighbours
+		 * at the level being dragged on, and the frame around them — the sheet
+		 * itself, when that level is the page.
+		 *
+		 * Measured once, here, rather than on every move. Nothing but the dragged
+		 * nodes moves during a gesture, so the answer cannot change; measuring it
+		 * again on each pointer move would cost a forced layout per neighbour per
+		 * frame, and that is the one thing a drag cannot afford.
+		 *
+		 * An auto layout places its children itself: a drag inside one is about
+		 * their order and not their coordinates, so there is nothing there worth
+		 * sticking to and the lists are left empty.
+		 */
+		snap_arm( ids: readonly string[] ) {
+
+			const store = this.store()
+			const magnet = $bog_figmol_magnet
+
+			this.grab_lines_x = []
+			this.grab_lines_y = []
+			this.grab_boxes = []
+			this.grab_limit = figmol_snap / ( this.zoom_live() || 1 )
+
+			this.grab_box = magnet.bbox( ids.map( id => {
+				const place = this.grab_sheets[ id ] ?? [ 0, 0 ]
+				const rect = this.grab_rects[ id ] ?? [ 0, 0, 0, 0 ]
+				return [ place[ 0 ], place[ 1 ], rect[ 2 ], rect[ 3 ] ]
+			} ) )
+
+			// Where the frame of the first grabbed node has its own corner, so a
+			// rectangle worked out against the sheet can be written back into the
+			// coordinates the node is actually stored in.
+			const local = this.grab_rects[ ids[ 0 ] ] ?? [ 0, 0, 0, 0 ]
+			const place = this.grab_sheets[ ids[ 0 ] ] ?? [ 0, 0 ]
+			this.grab_origin = [ place[ 0 ] - local[ 0 ], place[ 1 ] - local[ 1 ] ]
+
+			const root = store.root_id()
+			const host = store.parent( ids[ 0 ] ) || root
+
+			if( store.auto_layout( host ) ) return
+
+			const boxes = [] as ( readonly number[] )[]
+
+			for( const id of store.kids( host ) ) {
+				if( ids.includes( id ) ) continue
+				const rect = this.node_rect( id )
+				boxes.push( rect )
+			}
+
+			this.grab_boxes = boxes
+
+			const frame = host && host !== root
+				? this.node_rect( host )
+				: [ 0, 0, this.sheet_width(), this.sheet_height() ]
+
+			this.grab_lines_x = magnet.lines([ ... boxes, frame ], 0 )
+			this.grab_lines_y = magnet.lines([ ... boxes, frame ], 1 )
+		}
+
+		/**
+		 * The move the pointer asked for, corrected so an edge or the middle of
+		 * the box being dragged lands exactly on a neighbour. Puts up the guides
+		 * that show what it landed on, and the rulers to whatever it now stands
+		 * next to.
+		 */
+		snap_move( move_x: number, move_y: number ): readonly number[] {
+
+			const magnet = $bog_figmol_magnet
+			const box = this.grab_box
+
+			const hit_x = magnet.snap(
+				magnet.probes( box[ 0 ] + move_x, box[ 2 ] ),
+				this.grab_lines_x,
+				this.grab_limit,
+			)
+
+			const hit_y = magnet.snap(
+				magnet.probes( box[ 1 ] + move_y, box[ 3 ] ),
+				this.grab_lines_y,
+				this.grab_limit,
+			)
+
+			this.guide_x( hit_x?.line ?? null )
+			this.guide_y( hit_y?.line ?? null )
+
+			const res = [ move_x + ( hit_x?.shift ?? 0 ), move_y + ( hit_y?.shift ?? 0 ) ]
+
+			this.measure_show([ box[ 0 ] + res[ 0 ], box[ 1 ] + res[ 1 ], box[ 2 ], box[ 3 ] ])
+
+			return res
+		}
+
+		/**
+		 * The box a resize is drawing, corrected the same way — but only by the
+		 * edges the grip actually moves. A snap that would squeeze the box past
+		 * its floor is dropped: sticking to a neighbour is worth less than the
+		 * size the user is left with.
+		 */
+		snap_edges( box: readonly number[], corner: string ): readonly number[] {
+
+			const magnet = $bog_figmol_magnet
+
+			let [ x, y, w, h ] = box
+
+			const west = corner.includes( 'w' )
+			const east = corner.includes( 'e' )
+			const north = corner.includes( 'n' )
+			const south = corner.includes( 's' )
+
+			const hit_x = west || east
+				? magnet.snap([ west ? x : x + w ], this.grab_lines_x, this.grab_limit )
+				: null
+
+			const hit_y = north || south
+				? magnet.snap([ north ? y : y + h ], this.grab_lines_y, this.grab_limit )
+				: null
+
+			const wide = hit_x ? w + ( west ? -hit_x.shift : hit_x.shift ) : w
+			const tall = hit_y ? h + ( north ? -hit_y.shift : hit_y.shift ) : h
+
+			const took_x = !!hit_x && wide >= figmol_size_min
+			const took_y = !!hit_y && tall >= figmol_size_min
+
+			if( took_x ) {
+				if( west ) x += hit_x!.shift
+				w = wide
+			}
+
+			if( took_y ) {
+				if( north ) y += hit_y!.shift
+				h = tall
+			}
+
+			this.guide_x( took_x ? hit_x!.line : null )
+			this.guide_y( took_y ? hit_y!.line : null )
+
+			this.measure_show([ x, y, w, h ])
+
+			return [ x, y, w, h ]
+		}
+
+		/** Distances from the box a gesture is drawing to what stands around it. */
+		measure_show( box: readonly number[] ) {
+			const gaps = $bog_figmol_magnet.gaps( box, this.grab_boxes, false )
+			this.measures( gaps.length ? gaps : null )
+		}
+
+		/**
+		 * Alt held over another element, with nothing being dragged: the distances
+		 * between what is picked and what the pointer is over. The one way to ask
+		 * how far apart two things are without moving either of them.
+		 */
+		measure_hover( event: PointerEvent ) {
+
+			const shown = this.measures()
+
+			if( !event.altKey ) {
+				if( shown ) this.measures( null )
+				return
+			}
+
+			const ids = this.selection()
+			const target = event.target as Element
+			const over = target.closest( '[figmol_node]' )?.getAttribute( 'figmol_node' ) ?? ''
+
+			if( !ids.length || !over || ids.includes( over ) ) {
+				if( shown ) this.measures( null )
+				return
+			}
+
+			const box = $bog_figmol_magnet.bbox( ids.map( id => this.node_rect( id ) ) )
+			const gaps = $bog_figmol_magnet.gaps( box, [ this.node_rect( over ) ], true )
+
+			this.measures( gaps.length ? gaps : null )
 		}
 
 		/**
@@ -660,7 +1106,11 @@ namespace $.$$ {
 		pointer_move( event?: PointerEvent ) {
 
 			if( !event ) return null
-			if( !this.mode ) return null
+
+			if( !this.mode ) {
+				this.measure_hover( event )
+				return null
+			}
 
 			this.last_x = event.clientX
 			this.last_y = event.clientY
@@ -694,6 +1144,10 @@ namespace $.$$ {
 					this.grab_ids.length === 1 ? this.frame_at( event, this.grab_id ) : ''
 				)
 
+				const [ snap_x, snap_y ] = this.snap_move( move_x, move_y )
+
+				this.grab_shift = [ snap_x, snap_y ]
+
 				const rects = {} as Record< string, readonly number[] >
 
 				for( const id of this.grab_ids ) {
@@ -703,12 +1157,22 @@ namespace $.$$ {
 					if( this.grab_flows[ id ] ) continue
 
 					const [ x, y, w, h ] = this.grab_rects[ id ] ?? [ 0, 0, 0, 0 ]
-					rects[ id ] = [ Math.round( x + move_x ), Math.round( y + move_y ), w, h ]
+					rects[ id ] = [ Math.round( x + snap_x ), Math.round( y + snap_y ), w, h ]
 
 				}
 
 				this.draft( Object.keys( rects ).length ? rects : null )
 
+				if( this.grab_ids.length > 1 ) {
+					const box = this.grab_box
+					this.drag_box([ box[ 0 ] + snap_x, box[ 1 ] + snap_y, box[ 2 ], box[ 3 ] ])
+				}
+
+				return null
+			}
+
+			if( this.mode === 'scale' ) {
+				this.scale_move( move_x, move_y )
 				return null
 			}
 
@@ -730,11 +1194,82 @@ namespace $.$$ {
 				y2 = y + h - h2
 			}
 
+			// Snapping speaks sheet coordinates, the rectangle is stored against
+			// the frame around it, and the two differ by the corner of that frame.
+			const origin = this.grab_origin
+
+			const snapped = this.snap_edges(
+				[ x2 + origin[ 0 ], y2 + origin[ 1 ], w2, h2 ],
+				corner,
+			)
+
 			this.draft({
-				[ id ]: [ Math.round( x2 ), Math.round( y2 ), Math.round( w2 ), Math.round( h2 ) ],
+				[ id ]: [
+					Math.round( snapped[ 0 ] - origin[ 0 ] ),
+					Math.round( snapped[ 1 ] - origin[ 1 ] ),
+					Math.round( snapped[ 2 ] ),
+					Math.round( snapped[ 3 ] ),
+				],
 			})
 
 			return null
+		}
+
+		/**
+		 * A group being scaled by one of the grips of its frame.
+		 *
+		 * The frame is the thing the pointer drags; every element inside keeps its
+		 * place and its size as a share of that frame, so the whole arrangement is
+		 * stretched rather than each element being resized on its own. The corner
+		 * opposite the grip stays where it is, as it does for a single element.
+		 */
+		@ $mol_action
+		scale_move( move_x: number, move_y: number ) {
+
+			const box = this.grab_box
+			const corner = this.grab_corner
+
+			const west = corner.includes( 'w' )
+			const north = corner.includes( 'n' )
+
+			const wide = Math.max( figmol_size_min, box[ 2 ] + ( west ? -move_x : move_x ) )
+			const tall = Math.max( figmol_size_min, box[ 3 ] + ( north ? -move_y : move_y ) )
+
+			const drawn = this.snap_edges(
+				[
+					west ? box[ 0 ] + box[ 2 ] - wide : box[ 0 ],
+					north ? box[ 1 ] + box[ 3 ] - tall : box[ 1 ],
+					wide,
+					tall,
+				],
+				corner,
+			)
+
+			const scale_x = drawn[ 2 ] / ( box[ 2 ] || 1 )
+			const scale_y = drawn[ 3 ] / ( box[ 3 ] || 1 )
+
+			const rects = {} as Record< string, readonly number[] >
+
+			for( const id of this.grab_ids ) {
+
+				const place = this.grab_sheets[ id ] ?? [ 0, 0 ]
+				const rect = this.grab_rects[ id ] ?? [ 0, 0, 0, 0 ]
+
+				// Back from the sheet into the coordinates of whatever frame this
+				// particular element lives in — a selection may span several.
+				const origin = [ place[ 0 ] - rect[ 0 ], place[ 1 ] - rect[ 1 ] ]
+
+				rects[ id ] = [
+					Math.round( drawn[ 0 ] + ( place[ 0 ] - box[ 0 ] ) * scale_x - origin[ 0 ] ),
+					Math.round( drawn[ 1 ] + ( place[ 1 ] - box[ 1 ] ) * scale_y - origin[ 1 ] ),
+					Math.max( figmol_size_min, Math.round( rect[ 2 ] * scale_x ) ),
+					Math.max( figmol_size_min, Math.round( rect[ 3 ] * scale_y ) ),
+				]
+
+			}
+
+			this.draft( rects )
+			this.drag_box( drawn )
 		}
 
 		/**
@@ -780,6 +1315,10 @@ namespace $.$$ {
 			this.draft( null )
 			this.drop_target( '' )
 			this.marquee( null )
+			this.guide_x( null )
+			this.guide_y( null )
+			this.measures( null )
+			this.drag_box( null )
 
 			return null
 		}
@@ -829,10 +1368,13 @@ namespace $.$$ {
 				return
 			}
 
-			const zoom = this.zoom()
+			// The move the drag actually drew, snapping included — not the raw
+			// travel of the pointer. Dropping into another frame would otherwise
+			// undo the sticking that was on screen a moment ago.
 			const grab = this.grab_sheets[ id ] ?? [ 0, 0 ]
-			const sheet_x = grab[ 0 ] + ( this.last_x - this.grab_x ) / zoom
-			const sheet_y = grab[ 1 ] + ( this.last_y - this.grab_y ) / zoom
+			const shift = this.grab_shift
+			const sheet_x = grab[ 0 ] + shift[ 0 ]
+			const sheet_y = grab[ 1 ] + shift[ 1 ]
 			const origin = this.node_origin( target )
 
 			store.node_reparent( id, target, index, sheet_x - origin[ 0 ], sheet_y - origin[ 1 ] )
@@ -1061,6 +1603,15 @@ namespace $.$$ {
 				if( this.space() ) $mol_wire_async( this ).space( false )
 			} )
 
+			// A press anywhere but on the menu closes it, including a press into
+			// the panels beside the canvas — which the canvas never hears about.
+			win.addEventListener( 'pointerdown', ( event: PointerEvent )=> {
+				const node = event.target as Element | null
+				if( node?.closest?.( '[figmol_menu]' ) ) return
+				if( !this.menu() ) return
+				$mol_wire_async( this ).menu( null )
+			} )
+
 			return null
 		}
 
@@ -1085,13 +1636,192 @@ namespace $.$$ {
 			$mol_wire_async( this ).space( down )
 		}
 
+		/* ------------------------------------------------------------ menu */
+
+		/** Where the menu stands, in screen pixels of the canvas. Closed is `null`. */
+		@ $mol_mem
+		menu( next?: readonly number[] | null ) {
+			return next ?? null
+		}
+
+		menu_on() {
+			return !!this.menu()
+		}
+
+		menu_left() {
+			return ( this.menu()?.[ 0 ] ?? 0 ) + 'px'
+		}
+
+		menu_top() {
+			return ( this.menu()?.[ 1 ] ?? 0 ) + 'px'
+		}
+
+		/**
+		 * The right button opens the menu over whatever it was pressed on, picking
+		 * that element first when it was not picked already — the same rule every
+		 * editor follows, and the reason the menu can talk about "the selection"
+		 * without ever meaning something the user cannot see.
+		 *
+		 * A press on empty space has nothing to offer, so it only clears the menu.
+		 */
+		@ $mol_action
 		context_menu( event?: MouseEvent ) {
-			event?.preventDefault()
+
+			if( !event ) return null
+
+			event.preventDefault()
+
+			if( !this.editable() ) return null
+
+			const target = event.target as Element
+			const shape = target.closest( '[figmol_node]' )
+			const deep = shape?.getAttribute( 'figmol_node' ) || this.press_deep
+			const id = this.pick( deep, event )
+
+			if( id && !this.selection().includes( id ) ) this.selection([ id ])
+
+			if( !id || !this.selection().length ) {
+				this.menu( null )
+				return null
+			}
+
+			const view = this.viewport()
+
+			this.menu([
+				Math.max( 0, Math.min( event.clientX - view.left, view.width - figmol_menu[ 0 ] ) ),
+				Math.max( 0, Math.min( event.clientY - view.top, view.height - figmol_menu[ 1 ] ) ),
+			])
+
+			return null
+		}
+
+		@ $mol_action
+		menu_copy( next?: any ) {
+
+			if( next === undefined ) return null
+
+			this.menu( null )
+
+			const store = this.store()
+			const made = [] as string[]
+
+			store.group( ()=> {
+				for( const id of this.selection() ) {
+					const copy = store.node_copy( id )
+					if( copy ) made.push( copy )
+				}
+			} )
+
+			if( made.length ) this.selection( made )
+
+			return null
+		}
+
+		@ $mol_action
+		menu_front( next?: any ) {
+			if( next === undefined ) return null
+			this.lift( true )
+			return null
+		}
+
+		@ $mol_action
+		menu_back( next?: any ) {
+			if( next === undefined ) return null
+			this.lift( false )
+			return null
+		}
+
+		@ $mol_action
+		menu_drop( next?: any ) {
+			if( next === undefined ) return null
+			this.menu( null )
+			this.drop( true )
+			return null
+		}
+
+		/**
+		 * Moves everything picked to the top or to the bottom of the pile inside
+		 * its own frame, keeping the order the elements had among themselves: they
+		 * are lifted starting from the one that was lowest, so the one that was on
+		 * top ends up on top.
+		 */
+		@ $mol_action
+		lift( top: boolean ) {
+
+			this.menu( null )
+
+			const store = this.store()
+			const order = store.node_ids()
+
+			const ids = [ ... this.selection() ]
+				.sort( ( left, right )=> order.indexOf( left ) - order.indexOf( right ) )
+
+			if( !top ) ids.reverse()
+
+			store.group( ()=> {
+				for( const id of ids ) store.node_lift( id, top )
+			} )
+		}
+
+		/**
+		 * Puts a frame around everything picked and moves it inside, keeping every
+		 * element exactly where it was on the page.
+		 *
+		 * The frame places its children freely rather than by an auto layout. A
+		 * layout would be the more useful frame to end up with, and it would also
+		 * reflow a hand-made arrangement the moment it appeared — which is not
+		 * what "wrap this" means to anybody watching it happen. Turning the layout
+		 * on afterwards is one click in the inspector.
+		 *
+		 * Only elements sharing one frame can be wrapped: the box is measured in
+		 * the coordinates of that frame, and elements placed by an auto layout
+		 * have no coordinates of their own to move.
+		 */
+		@ $mol_action
+		menu_wrap( next?: any ) {
+
+			if( next === undefined ) return null
+
+			this.menu( null )
+
+			const store = this.store()
+			const ids = this.selection().filter( id => !store.flow( id ) )
+			if( !ids.length ) return null
+
+			const host = store.parent( ids[ 0 ] )
+			if( !host ) return null
+			if( ids.some( id => store.parent( id ) !== host ) ) return null
+
+			const box = $bog_figmol_magnet.bbox( ids.map( id => store.rect( id ) ) )
+
+			let made = ''
+
+			store.group( ()=> {
+
+				made = store.node_add( 'frame', host, box[ 0 ], box[ 1 ], '' )
+				if( !made ) return
+
+				store.rect_set( made, box )
+
+				// A fresh frame comes out of the palette laying its children out in
+				// a column. That is the right default for an empty one and the
+				// wrong one here, where the children are already placed.
+				store.direction( made, '' )
+
+				ids.forEach( ( id, at )=> {
+					store.node_reparent( id, made, at, store.x( id ) - box[ 0 ], store.y( id ) - box[ 1 ] )
+				} )
+
+			} )
+
+			if( made ) this.selection([ made ])
+
 			return null
 		}
 
 		@ $mol_action
 		deselect( next?: any ) {
+			this.menu( null )
 			this.editing( '' )
 			this.scope( '' )
 			this.selection([])
