@@ -96,6 +96,43 @@ namespace $ {
 		} ],
 	}
 
+	/**
+	 * One component, placed twice, plus an instance of something the site no
+	 * longer has — the state a page is in right after a component is deleted.
+	 */
+	const figmol_gen_test_kit: $bog_figmol_gen_site = {
+		title: 'Kit',
+		theme: { base: 'zinc', lights: 'dark', font: 'garamond', accent: '#ff0066' },
+		comps: [ {
+			id: 'c1',
+			title: 'Call to action',
+			root: {
+				kind: 'frame',
+				w: 320, h: 120,
+				direction: 'column', gap: 8, padding: 16, align: 'center',
+				props: { back: '#111111' },
+				kids: [
+					{ kind: 'text', w: 280, h: 32, props: { text: 'Ready?' } },
+					{ kind: 'button', w: 160, h: 44, props: { text: 'Go', uri: '#' } },
+				],
+			},
+		} ],
+		pages: [ {
+			title: 'Home',
+			slug: '',
+			root: {
+				kind: 'frame',
+				kids: [
+					{ kind: 'inst', master: 'c1', x: 40, y: 40, w: 320, h: 120 },
+					{ kind: 'inst', master: 'c1', x: 40, y: 200, w: 320, h: 120 },
+					{ kind: 'inst', master: 'gone', x: 40, y: 400, w: 100, h: 40 },
+				],
+			},
+		} ],
+	}
+
+	const figmol_gen_test_kit_files = ()=> $bog_figmol_gen.files( figmol_gen_test_kit, { name: 'kit' } )
+
 	$mol_test({
 
 		'every file of a repository is generated'() {
@@ -552,6 +589,129 @@ namespace $ {
 			$mol_assert_ok( css.includes( '\t\tNode1: {' ) )
 			$mol_assert_ok( css.includes( '\t\tNode2: {' ) )
 			$mol_assert_ok( css.includes( '\t\tNode9: {' ) )
+
+		},
+
+		/** Whatever is placed more than once is declared once and named. */
+		'a component becomes a class of its own'() {
+
+			const tree = figmol_gen_test_kit_files()[ 'kit.view.tree' ]
+			const comp = figmol_gen_test_sign( 'kit_c_calltoaction' )
+
+			$mol_assert_ok( tree.includes( comp + ' ' + figmol_gen_test_sign( 'mol_view' ) + '\n' ) )
+			$mol_assert_ok( tree.includes( '\t\t<= Node1 ' + figmol_gen_test_sign( 'mol_paragraph' ) ) )
+			$mol_assert_ok( tree.includes( 'title \\Ready?' ) )
+
+		},
+
+		'an instance is a placement and the name of its component'() {
+
+			const tree = figmol_gen_test_kit_files()[ 'kit.view.tree' ]
+			const comp = figmol_gen_test_sign( 'kit_c_calltoaction' )
+			const rows = tree.split( '\n' )
+
+			// Both instances point at the same class, and neither carries a copy of
+			// what it draws: the line after each of them is the next instance.
+			$mol_assert_ok( tree.includes( '<= Node1 ' + comp ) )
+			$mol_assert_ok( tree.includes( '<= Node2 ' + comp ) )
+
+			const at = rows.findIndex( row => row.includes( '<= Node1 ' + comp ) )
+			$mol_assert_ok( rows[ at + 1 ].includes( '<= Node2 ' + comp ) )
+
+			const plan = $bog_figmol_gen.plan( figmol_gen_test_kit, { name: 'kit' } )
+			const units = plan.screens[ 0 ].units
+
+			$mol_assert_equal( units[ 0 ].kids.length, 0 )
+			$mol_assert_equal( units[ 0 ].style.position, 'absolute' )
+			$mol_assert_equal( units[ 0 ].style.top, '40px' )
+			$mol_assert_equal( units[ 1 ].style.top, '200px' )
+
+		},
+
+		/** A page half drawn is worse than a box where a component used to be. */
+		'an instance of a component that is gone falls back to a plain box'() {
+
+			const plan = $bog_figmol_gen.plan( figmol_gen_test_kit, { name: 'kit' } )
+
+			$mol_assert_equal( plan.screens[ 0 ].units[ 2 ].comp, figmol_gen_test_sign( 'mol_view' ) )
+
+		},
+
+		/**
+		 * The size belongs to the instance, so the class gets the layout of the
+		 * master and no width of its own — one component fits a column and a row.
+		 */
+		'the class of a component carries the layout of its master'() {
+
+			const plan = $bog_figmol_gen.plan( figmol_gen_test_kit, { name: 'kit' } )
+			const part = plan.parts[ 0 ]
+
+			$mol_assert_equal( part.comp, figmol_gen_test_sign( 'kit_c_calltoaction' ) )
+			$mol_assert_like( part.style.flex, { direction: 'column' } )
+			$mol_assert_equal( part.style.gap, '8px' )
+			$mol_assert_equal( part.style.padding, '16px' )
+			$mol_assert_like( part.style.background, { color: '#111111' } )
+			$mol_assert_equal( part.style.width, undefined )
+
+			const css = figmol_gen_test_kit_files()[ 'kit.view.css.ts' ]
+			$mol_assert_ok( css.includes(
+				figmol_gen_test_sign( 'mol_style_define' ) + '( ' + figmol_gen_test_sign( 'kit_c_calltoaction' ) + ', {'
+			) )
+
+		},
+
+		'components with the same name get distinct classes'() {
+
+			const plan = $bog_figmol_gen.plan({
+				title: 'X',
+				comps: [
+					{ id: 'a', title: 'Card' },
+					{ id: 'b', title: 'Card' },
+					{ id: 'c', title: '' },
+				],
+			})
+
+			$mol_assert_like(
+				plan.parts.map( part => part.comp ),
+				[
+					figmol_gen_test_sign( 'x_c_card' ),
+					figmol_gen_test_sign( 'x_c_card2' ),
+					figmol_gen_test_sign( 'x_c_comp3' ),
+				],
+			)
+
+		},
+
+		/** The very attributes the editor had on its sheet, or the two would drift. */
+		'the theme of the site reaches the root as attributes'() {
+
+			const tree = figmol_gen_test_kit_files()[ 'kit.view.tree' ]
+
+			$mol_assert_ok( tree.includes( '\t\tbog_builderui_base \\zinc' ) )
+			$mol_assert_ok( tree.includes( '\t\tbog_builderui_lights \\dark' ) )
+			$mol_assert_ok( tree.includes( '\t\tbog_builderui_font_body \\eb-garamond' ) )
+			$mol_assert_ok( tree.includes( '\t\tbog_builderui_font_head \\eb-garamond' ) )
+
+			const css = figmol_gen_test_kit_files()[ 'kit.view.css.ts' ]
+			$mol_assert_ok( css.includes( "family: '\\'EB Garamond\\', Georgia, serif'" ) )
+
+		},
+
+		/** The one place a colour picked in the panel shows up on its own. */
+		'the accent paints a plain button'() {
+
+			const plan = $bog_figmol_gen.plan( figmol_gen_test_kit, { name: 'kit' } )
+			const button = plan.parts[ 0 ].units[ 1 ]
+
+			$mol_assert_equal( button.kind, 'button' )
+			$mol_assert_like( button.style.background, { color: '#ff0066' } )
+
+			const plain = $bog_figmol_gen.plan({
+				title: 'X',
+				pages: [ { root: { kind: 'frame', kids: [ { kind: 'button' } ] } } ],
+			})
+
+			$mol_assert_like( plain.screens[ 0 ].units[ 0 ].style.background, { color: '#2563eb' } )
 
 		},
 

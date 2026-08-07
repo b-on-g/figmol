@@ -19,7 +19,20 @@ namespace $ {
 			return {
 				title: site.Title()?.val() ?? '',
 				theme: this.dict( site.Theme() ),
+				comps: ( site.Comps()?.remote_list() ?? [] ).map( comp => this.comp( comp ) ),
 				pages: ( site.Pages()?.remote_list() ?? [] ).map( page => this.page( page ) ),
+			}
+		}
+
+		/**
+		 * A component, keyed by its own link — that is what the instances of it
+		 * carry, so nothing else can be used to tie the two together.
+		 */
+		static comp( comp: $bog_figmol_schema_comp ): $bog_figmol_gen_comp {
+			return {
+				id: comp.link().str,
+				title: comp.Title()?.val() ?? '',
+				root: this.node( comp.Root()?.remote() ?? null, 0 ),
 			}
 		}
 
@@ -43,6 +56,7 @@ namespace $ {
 			return {
 				kind: node.Kind()?.val() ?? 'rect',
 				props: this.dict( node.Props() ),
+				master: node.Master()?.val()?.str ?? '',
 				x: node.X()?.val() ?? 0,
 				y: node.Y()?.val() ?? 0,
 				w: node.W()?.val() ?? 0,

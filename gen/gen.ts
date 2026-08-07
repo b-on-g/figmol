@@ -167,7 +167,16 @@ namespace $ {
 		readonly padding?: number
 		/** `start` | `center` | `end` | `stretch` */
 		readonly align?: string
+		/** Component an `inst` node draws, by the id it has in `comps`. */
+		readonly master?: string
 		readonly kids?: readonly $bog_figmol_gen_node[]
+	}
+
+	/** A component of the site: a name and the subtree its instances draw. */
+	export type $bog_figmol_gen_comp = {
+		readonly id?: string
+		readonly title?: string
+		readonly root?: $bog_figmol_gen_node | null
 	}
 
 	export type $bog_figmol_gen_page = {
@@ -179,6 +188,7 @@ namespace $ {
 	export type $bog_figmol_gen_site = {
 		readonly title?: string
 		readonly theme?: Readonly< Record< string, string > >
+		readonly comps?: readonly $bog_figmol_gen_comp[]
 		readonly pages?: readonly $bog_figmol_gen_page[]
 	}
 
@@ -218,10 +228,32 @@ namespace $ {
 		readonly style: Record< string, unknown >
 	}
 
+	/** A component after naming: a class of its own, used wherever it is placed. */
+	export type $bog_figmol_gen_part = {
+		readonly id: string
+		readonly title: string
+		readonly comp: string
+		readonly units: readonly $bog_figmol_gen_unit[]
+		readonly style: Record< string, unknown >
+	}
+
+	/**
+	 * What every node being named needs to know: the counter its name comes off,
+	 * the accent colour of the site, and which class every component became.
+	 */
+	export type $bog_figmol_gen_ctx = {
+		count: number
+		readonly accent: string
+		readonly comps: Readonly< Record< string, string > >
+	}
+
 	export type $bog_figmol_gen_plan = {
 		readonly name: string
 		readonly title: string
 		readonly root: string
+		/** Attributes the root carries: the palette and the family of the library. */
+		readonly attrs: Readonly< Record< string, string > >
+		readonly parts: readonly $bog_figmol_gen_part[]
 		readonly screens: readonly $bog_figmol_gen_screen[]
 		readonly style: Record< string, unknown >
 	}
@@ -267,6 +299,36 @@ namespace $ {
 			if( figmol_gen_reserved.includes( name ) ) name += 'site'
 
 			const root = figmol_gen_sign( name )
+			const theme = site.theme ?? {}
+			const accent = $bog_figmol_theme.value( theme, 'accent' )
+
+			// Components are named before anything is walked: a page may place one,
+			// and so may another component, so every reference needs an answer
+			// before the first subtree is turned into units.
+			const comps = site.comps ?? []
+			const names = {} as Record< string, string >
+			const claimed = new Set< string >()
+
+			const slugs = comps.map( ( comp, index )=> {
+
+				const raw = figmol_gen_line( comp.title ?? '' ).trim()
+
+				let slug = figmol_gen_ident( raw, 'comp' + ( index + 1 ) )
+				if( claimed.has( slug ) ) slug = slug + ( index + 1 )
+				claimed.add( slug )
+
+				if( comp.id ) names[ comp.id ] = root + '_c_' + slug
+
+				return slug
+			} )
+
+			const parts = comps.map( ( comp, index )=> this.part( comp, {
+				id: comp.id ?? '',
+				title: figmol_gen_line( comp.title ?? '' ).trim() || 'Component ' + ( index + 1 ),
+				comp: root + '_c_' + slugs[ index ],
+				accent,
+				comps: names,
+			} ) )
 
 			const pages = site.pages?.length ? site.pages : [ {} as $bog_figmol_gen_page ]
 
@@ -280,28 +342,55 @@ namespace $ {
 				if( taken.has( id ) ) id = id + ( index + 1 )
 				taken.add( id )
 
-				return this.screen( page, { id, title: page_title, root } )
+				return this.screen( page, { id, title: page_title, root, accent, comps: names } )
 			} )
 
 			return {
 				name,
 				title,
 				root,
+				attrs: this.attrs( site ),
+				parts,
 				screens,
 				style: this.style_root( site, screens ),
 			}
 		}
 
+		/**
+		 * Attributes of the root: the palette the library blocks paint themselves
+		 * with, and the family everything is set in. The very ones the editor put
+		 * on its sheet — a canvas and a site that disagree here would be a canvas
+		 * nobody could trust.
+		 */
+		static attrs( site: $bog_figmol_gen_site ): Readonly< Record< string, string > > {
+
+			const theme = site.theme ?? {}
+			const font = $bog_figmol_theme.font_attr( $bog_figmol_theme.value( theme, 'font' ) )
+
+			return {
+				bog_builderui_base: $bog_figmol_theme.value( theme, 'base' ),
+				bog_builderui_lights: $bog_figmol_theme.value( theme, 'lights' ),
+				bog_builderui_font_body: font,
+				bog_builderui_font_head: font,
+			}
+		}
+
 		static screen(
 			page: $bog_figmol_gen_page,
-			about: { id: string, title: string, root: string },
+			about: {
+				id: string,
+				title: string,
+				root: string,
+				accent: string,
+				comps: Readonly< Record< string, string > >,
+			},
 		): $bog_figmol_gen_screen {
 
 			const frame = page.root ?? null
 			const flow = this.flow( frame )
 
-			const counter = { count: 0 }
-			const units = ( frame?.kids ?? [] ).map( kid => this.unit( kid, flow, counter, frame ?? undefined ) )
+			const ctx = { count: 0, accent: about.accent, comps: about.comps }
+			const units = ( frame?.kids ?? [] ).map( kid => this.unit( kid, flow, ctx, frame ?? undefined ) )
 
 			const style: Record< string, unknown > = {}
 
@@ -320,13 +409,7 @@ namespace $ {
 			const flex = ( style.flex ?? {} ) as { direction?: string }
 			style.flex = { grow: 1, direction: flex.direction ?? 'column' }
 
-			const spread = ( list: readonly $bog_figmol_gen_unit[] )=> {
-				for( const unit of list ) {
-					style[ unit.name ] = unit.style
-					spread( unit.kids )
-				}
-			}
-			spread( units )
+			this.spread( style, units )
 
 			return {
 				id: about.id,
@@ -336,6 +419,58 @@ namespace $ {
 				nav: 'Nav_' + about.id,
 				units,
 				style,
+			}
+		}
+
+		/**
+		 * A component becomes a class like a page does, and for the same reason:
+		 * whatever is placed several times is declared once and referred to by
+		 * name. Instances of it carry only where they sit.
+		 *
+		 * The frame of the master gives the class its layout and nothing else —
+		 * the size belongs to each instance, which is what makes one component
+		 * usable in a narrow column and in a wide row.
+		 */
+		static part(
+			comp: $bog_figmol_gen_comp,
+			about: {
+				id: string,
+				title: string,
+				comp: string,
+				accent: string,
+				comps: Readonly< Record< string, string > >,
+			},
+		): $bog_figmol_gen_part {
+
+			const frame = comp.root ?? null
+			const flow = this.flow( frame )
+
+			const ctx = { count: 0, accent: about.accent, comps: about.comps }
+			const units = ( frame?.kids ?? [] ).map( kid => this.unit( kid, flow, ctx, frame ?? undefined ) )
+
+			const style: Record< string, unknown > = {}
+
+			if( flow ) figmol_gen_assign( style, this.style_flow( frame! ) )
+			else style.position = 'relative'
+
+			figmol_gen_assign( style, this.style_props( frame?.props ?? {} ) )
+
+			this.spread( style, units )
+
+			return {
+				id: about.id,
+				title: about.title,
+				comp: about.comp,
+				units,
+				style,
+			}
+		}
+
+		/** Every node of a subtree as a rule of the style sheet of its component. */
+		static spread( style: Record< string, unknown >, units: readonly $bog_figmol_gen_unit[] ) {
+			for( const unit of units ) {
+				style[ unit.name ] = unit.style
+				this.spread( style, unit.kids )
 			}
 		}
 
@@ -349,31 +484,37 @@ namespace $ {
 		static unit(
 			node: $bog_figmol_gen_node,
 			flowed: boolean,
-			counter: { count: number },
+			ctx: $bog_figmol_gen_ctx,
 			parent?: $bog_figmol_gen_node,
 		): $bog_figmol_gen_unit {
 
 			const kind = String( node.kind ?? 'rect' )
-			const name = 'Node' + ( ++counter.count )
+			const name = 'Node' + ( ++ctx.count )
 			const props = node.props ?? {}
 			const flow = this.flow( node )
 			const holds = $bog_figmol_blocks.container( kind )
 
+			// An instance is a placement and a class name. What it draws is
+			// declared once, in the component, so nothing of it is repeated here —
+			// and a component the site no longer has leaves an empty box behind
+			// rather than half a page.
+			const master = kind === 'inst' ? ( ctx.comps[ String( node.master ?? '' ) ] ?? '' ) : ''
+
 			const style: Record< string, unknown > = {}
 			figmol_gen_assign( style, this.style_place( node, flowed, parent ) )
-			figmol_gen_assign( style, this.style_kind( node ) )
+			figmol_gen_assign( style, this.style_kind( node, ctx.accent ) )
 			if( flow ) figmol_gen_assign( style, this.style_flow( node ) )
 			else if( holds ) style.position = style.position ?? 'relative'
 			figmol_gen_assign( style, this.style_props( props ) )
 
 			const kids = holds
-				? ( node.kids ?? [] ).map( kid => this.unit( kid, flow, counter, node ) )
+				? ( node.kids ?? [] ).map( kid => this.unit( kid, flow, ctx, node ) )
 				: []
 
 			return {
 				name,
 				kind,
-				comp: this.comp( kind ),
+				comp: master || this.comp( kind ),
 				title: figmol_gen_line( props.text ?? props.title ?? '' ),
 				note: figmol_gen_line( props.note ?? '' ),
 				variant: figmol_gen_variant( props.variant ),
@@ -425,7 +566,7 @@ namespace $ {
 			const text = figmol_gen_color( theme.text ?? theme.color )
 			if( text ) style.color = text
 
-			const family = figmol_gen_family( theme.font ?? theme.family )
+			const family = this.family( theme )
 			if( family ) style.font = { family }
 
 			if( screens.length < 2 ) return style
@@ -441,7 +582,7 @@ namespace $ {
 				flex: { grow: 1, direction: 'column' },
 			}
 
-			const accent = figmol_gen_color( theme.accent ) ?? '#2563eb'
+			const accent = $bog_figmol_theme.value( theme, 'accent' )
 
 			for( const screen of screens ) {
 				style[ screen.nav ] = {
@@ -452,6 +593,24 @@ namespace $ {
 			}
 
 			return style
+		}
+
+		/**
+		 * Css family the site is set in.
+		 *
+		 * A token of the theme names one of the families the component library
+		 * carries, and that is what the panel writes. A stack spelled out by hand
+		 * is still taken as it is: sites themed before the panel existed have one,
+		 * and dropping it would silently restyle them.
+		 */
+		static family( theme: Readonly< Record< string, string > > ) {
+
+			const raw = String( theme.font ?? theme.family ?? '' ).trim()
+			const known = $bog_figmol_theme.font_family( $bog_figmol_theme.value( theme, 'font' ) )
+
+			if( !raw || $bog_figmol_theme.fonts.includes( raw ) ) return known
+
+			return figmol_gen_family( raw ) ?? known
 		}
 
 		/** Placement of a node inside its parent. */
@@ -506,7 +665,7 @@ namespace $ {
 			return style
 		}
 
-		static style_kind( node: $bog_figmol_gen_node ) {
+		static style_kind( node: $bog_figmol_gen_node, accent = '#2563eb' ) {
 
 			const kind = String( node.kind ?? 'rect' )
 			const style: Record< string, unknown > = {}
@@ -524,7 +683,10 @@ namespace $ {
 				style.justify = { content: 'center' }
 				style.padding = { top: '0.5rem', bottom: '0.5rem', left: '1rem', right: '1rem' }
 				style.borderRadius = '0.5rem'
-				style.background = { color: '#2563eb' }
+				// The accent of the theme is what a plain button is painted with,
+				// which is the one place a colour picked in the panel shows up
+				// without anybody putting it on an element by hand.
+				style.background = { color: accent }
 				style.color = '#ffffff'
 				style.textAlign = 'center'
 			}
@@ -583,11 +745,12 @@ namespace $ {
 
 		static view_tree( plan: $bog_figmol_gen_plan ) {
 
-			const parts = [ this.view_tree_root( plan ) ]
+			const rows = [ this.view_tree_root( plan ) ]
 
-			for( const screen of plan.screens ) parts.push( this.view_tree_screen( screen ) )
+			for( const screen of plan.screens ) rows.push( this.view_tree_block( screen.comp, screen.units ) )
+			for( const part of plan.parts ) rows.push( this.view_tree_block( part.comp, part.units ) )
 
-			return parts.join( '\n' )
+			return rows.join( '\n' )
 		}
 
 		static view_tree_root( plan: $bog_figmol_gen_plan ) {
@@ -600,13 +763,13 @@ namespace $ {
 			// component and would otherwise name the site after its own class.
 			rows.push( '\ttitle \\' + figmol_gen_line( plan.title ) )
 
-			// Palette the library blocks paint themselves with. Their own default
-			// is the dark one, and the editor drew them on a light sheet — these
-			// are the attributes it had on it.
+			// The theme of the site, in the form the component library reads it:
+			// the very attributes the editor had on its sheet.
 			rows.push( '\tattr *' )
 			rows.push( '\t\t^' )
-			rows.push( '\t\tbog_builderui_base \\slate' )
-			rows.push( '\t\tbog_builderui_lights \\light' )
+			for( const [ key, val ] of Object.entries( plan.attrs ) ) {
+				rows.push( '\t\t' + key + ' \\' + figmol_gen_line( val ) )
+			}
 
 			if( plan.screens.length < 2 ) {
 				const only = plan.screens[ 0 ]
@@ -636,14 +799,15 @@ namespace $ {
 			return rows.join( '\n' ) + '\n'
 		}
 
-		static view_tree_screen( screen: $bog_figmol_gen_screen ) {
+		/** One declared component: a page, or a component of the site. */
+		static view_tree_block( comp: string, units: readonly $bog_figmol_gen_unit[] ) {
 
-			const rows = [ screen.comp + ' ' + figmol_gen_sign( 'mol_view' ) ]
+			const rows = [ comp + ' ' + figmol_gen_sign( 'mol_view' ) ]
 
-			if( !screen.units.length ) return rows.join( '\n' ) + '\n'
+			if( !units.length ) return rows.join( '\n' ) + '\n'
 
 			rows.push( '\tsub /' )
-			for( const unit of screen.units ) rows.push( ... this.view_tree_unit( unit, 2 ) )
+			for( const unit of units ) rows.push( ... this.view_tree_unit( unit, 2 ) )
 
 			return rows.join( '\n' ) + '\n'
 		}
@@ -762,6 +926,11 @@ namespace $ {
 			for( const screen of plan.screens ) {
 				rows.push( '' )
 				rows.push( '\t' + define + '( ' + screen.comp + ', ' + this.code( screen.style, 1 ) + ' )' )
+			}
+
+			for( const part of plan.parts ) {
+				rows.push( '' )
+				rows.push( '\t' + define + '( ' + part.comp + ', ' + this.code( part.style, 1 ) + ' )' )
 			}
 
 			rows.push( '' )
