@@ -514,6 +514,21 @@ $bog_figmol_app_tools $mol_view
 	Icon_rect $mol_icon_vector_rectangle
 	Icon_frame $mol_icon_crop_free
 
+- \The page of the site under the shapes, wearing the theme of that site.
+$bog_figmol_app_sheet $mol_view
+	store $bog_figmol_store
+	attr *
+		^
+		bog_builderui_base <= theme_base \slate
+		bog_builderui_lights <= theme_lights \light
+		bog_builderui_font_body <= theme_font \inter
+		bog_builderui_font_head <= theme_font \inter
+	style *
+		^
+		background <= theme_back \
+		color <= theme_text \
+		fontFamily <= theme_family \
+
 $mol_icon_account $mol_icon path \M12,4A4,4 0 0,1 16,8A4,4 0 0,1 12,12A4,4 0 0,1 8,8A4,4 0 0,1 12,4M12,14C16.42,14 20,15.79 20,18V20H4V18C4,15.79 7.58,14 12,14Z
 
 $mol_image $mol_view
@@ -532,6 +547,21 @@ $mol_image $mol_view
 		load? <=> load? null
 	minimal_width 16
 	minimal_height 16
+
+- \Master of a component, drawn read only inside every instance of it.
+$bog_figmol_app_ghost $mol_view
+	store $bog_figmol_store
+	- \Frame of the master, empty when the component is gone
+	id \
+	- \Box of the instance in sheet pixels. The master is stretched into it.
+	rect /number
+	sub <= shapes /$mol_view
+	Shape* $bog_figmol_app_canvas_shape
+		store <= store
+		editable false
+		id <= shape_id* \
+		rect <= shape_rect* /number
+		kids <= shape_kids* /$mol_view
 
 $bog_builderui_div $mol_view
 
@@ -925,6 +955,11 @@ $bog_figmol_app_canvas_shape $mol_view
 			<= label
 	Picture $mol_image
 		uri <= uri \
+	- \Master of a component, drawn read only inside its instance
+	Ghost $bog_figmol_app_ghost
+		store <= store
+		id <= master_root \
+		rect <= rect
 	Editor $mol_string
 		value? <=> label?
 		attr *
@@ -1043,15 +1078,13 @@ $bog_figmol_app_canvas $mol_view
 			style *
 				transform <= world_transform \
 			sub /
-				- \The palette the library blocks paint themselves with. Their own
-				- \default is the dark one, and a sheet is a page of a site — the
-				- \generated project carries the very same attributes.
-				<= Sheet $mol_view
-					attr *
-						^
-						bog_builderui_base \slate
-						bog_builderui_lights \light
+				- \A page of the site rather than a part of the editor: the palette,
+				- \the colours and the family come from the theme of that site, and
+				- \the generated project carries the very same ones.
+				<= Sheet $bog_figmol_app_sheet
+					store <= store
 					style *
+						^
 						width <= sheet_width_style \
 						minHeight <= sheet_height_style \
 					sub <= shapes /
@@ -1364,10 +1397,33 @@ $mol_textarea_edit $mol_string
 		^
 		scrollTop 0
 
+$mol_icon_pencil $mol_icon path \M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z
+
+$mol_icon_puzzle $mol_icon path \M20.5,11H19V7C19,5.89 18.1,5 17,5H13V3.5A2.5,2.5 0 0,0 10.5,1A2.5,2.5 0 0,0 8,3.5V5H4A2,2 0 0,0 2,7V10.8H3.5C5,10.8 6.2,12 6.2,13.5C6.2,15 5,16.2 3.5,16.2H2V20A2,2 0 0,0 4,22H7.8V20.5C7.8,19 9,17.8 10.5,17.8C12,17.8 13.2,19 13.2,20.5V22H17A2,2 0 0,0 19,20V16H20.5A2.5,2.5 0 0,0 23,13.5A2.5,2.5 0 0,0 20.5,11Z
+
+$mol_icon_align_horizontal_left $mol_icon path \M4 22H2V2H4V22M22 7H6V10H22V7M16 14H6V17H16V14Z
+
+$mol_icon_align_horizontal_center $mol_icon path \M11 2H13V7H21V10H13V14H18V17H13V22H11V17H6V14H11V10H3V7H11V2Z
+
+$mol_icon_align_horizontal_right $mol_icon path \M20 2H22V22H20V2M2 10H18V7H2V10M8 17H18V14H8V17Z
+
+$mol_icon_align_horizontal_distribute $mol_icon path \M4 22H2V2H4V22M22 2H20V22H22V2M13.5 7H10.5V17H13.5V7Z
+
+$mol_icon_align_vertical_top $mol_icon path \M22 2V4H2V2H22M7 22H10V6H7V22M14 16H17V6H14V16Z
+
+$mol_icon_align_vertical_center $mol_icon path \M22 11H17V6H14V11H10V3H7V11H1.8V13H7V21H10V13H14V18H17V13H22V11Z
+
+$mol_icon_align_vertical_bottom $mol_icon path \M22 22H2V20H22V22M10 2H7V18H10V2M17 8H14V18H17V8Z
+
+$mol_icon_align_vertical_distribute $mol_icon path \M22 2V4H2V2H22M7 10.5V13.5H17V10.5H7M2 20V22H22V20H2Z
+
 $bog_figmol_app_inspector $mol_view
 	store $bog_figmol_store
 	selected? \
 	selection /string
+	- \Written with the name of an alignment the app is asked to carry out. The
+	- \panel has the buttons, the app has the measurements.
+	arrange? \
 	sub <= rows /$mol_view
 	title_many @ \Selected
 	title_text @ \Text
@@ -1524,6 +1580,67 @@ $bog_figmol_app_inspector $mol_view
 			<= Options $mol_string
 				value? <=> options? \
 				hint \One | Two | Three
+	- \Name of the component an instance draws, and the way into its master
+	Field_comp $bog_figmol_app_inspector_field
+		title @ \Component
+		content /
+			<= Comp_name $mol_view
+				sub /
+					<= comp_title \
+	Comp_edit $mol_button_minor
+		click? <=> comp_edit? null
+		sub /
+			<= Comp_edit_icon $mol_icon_pencil
+			<= comp_edit_label @ \Edit component
+	Comp_make $mol_button_minor
+		click? <=> comp_make? null
+		sub /
+			<= Comp_make_icon $mol_icon_puzzle
+			<= comp_make_label @ \Make component
+	- \Lining several elements up. Drawn as a strip of icons, the way every
+	- \editor draws it, and only for a selection that has coordinates of its own.
+	Arrange $mol_view
+		sub /
+			<= Align_left $mol_button_minor
+				click? <=> align_left? null
+				hint @ \Align left
+				sub /
+					<= Align_left_icon $mol_icon_align_horizontal_left
+			<= Align_hcenter $mol_button_minor
+				click? <=> align_hcenter? null
+				hint @ \Align centres across
+				sub /
+					<= Align_hcenter_icon $mol_icon_align_horizontal_center
+			<= Align_right $mol_button_minor
+				click? <=> align_right? null
+				hint @ \Align right
+				sub /
+					<= Align_right_icon $mol_icon_align_horizontal_right
+			<= Align_hspace $mol_button_minor
+				click? <=> align_hspace? null
+				hint @ \Even out the gaps across
+				sub /
+					<= Align_hspace_icon $mol_icon_align_horizontal_distribute
+			<= Align_top $mol_button_minor
+				click? <=> align_top? null
+				hint @ \Align top
+				sub /
+					<= Align_top_icon $mol_icon_align_vertical_top
+			<= Align_vcenter $mol_button_minor
+				click? <=> align_vcenter? null
+				hint @ \Align centres down
+				sub /
+					<= Align_vcenter_icon $mol_icon_align_vertical_center
+			<= Align_bottom $mol_button_minor
+				click? <=> align_bottom? null
+				hint @ \Align bottom
+				sub /
+					<= Align_bottom_icon $mol_icon_align_vertical_bottom
+			<= Align_vspace $mol_button_minor
+				click? <=> align_vspace? null
+				hint @ \Even out the gaps down
+				sub /
+					<= Align_vspace_icon $mol_icon_align_vertical_distribute
 	Drop $mol_button_minor
 		click? <=> node_drop? null
 		sub /
@@ -1603,6 +1720,102 @@ $bog_figmol_app_blocks $mol_view
 		title <= section_title* \
 		enabled <= ready false
 
+$mol_icon_check $mol_icon path \M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z
+
+- \Components of the site: pick one to drop an instance, or open its master.
+$bog_figmol_app_comps $mol_view
+	store $bog_figmol_store
+	- \Middle of the viewport in sheet pixels, where a dropped instance lands
+	spot /number
+	- \Set to whatever was just dropped on the page
+	selected? \
+	sub <= panels /$mol_view
+	Head $mol_view
+		sub /
+			- \Named apart from the block palette above, which is a library and
+			- \not something anybody here made
+			<= title @ \My components
+	List $mol_view
+		sub <= rows /
+	Empty $mol_view
+		sub /
+			<= empty_label @ \Pick an element and press Make component
+	Editing $mol_view
+		sub /
+			<= editing_label @ \Editing a component
+			<= Done $mol_button_minor
+				click? <=> comp_leave? null
+				sub /
+					<= Done_icon $mol_icon_check
+					<= done_label @ \Done
+	Field_title $bog_figmol_app_inspector_field
+		title @ \Name
+		content /
+			<= Title $mol_string
+				value? <=> current_title? \
+	Drop $mol_button_minor
+		click? <=> comp_drop? null
+		sub /
+			<= Drop_icon $mol_icon_delete_outline
+			<= drop_label @ \Delete component
+	Row* $mol_view
+		sub <= row_content* /
+	Pick* $bog_figmol_app_row
+		click? <=> row_click*? null
+		title <= row_title* \
+		active <= row_active* false
+		enabled <= row_enabled* true
+		hint <= pick_hint @ \Place an instance
+	Edit* $mol_button_minor
+		click? <=> row_edit*? null
+		hint <= edit_hint @ \Open the master
+		sub /
+			<= Edit_icon* $mol_icon_pencil
+
+- \Look of the site: the colours, the family and the palette its blocks wear.
+$bog_figmol_app_theme $mol_view
+	store $bog_figmol_store
+	sub /
+		<= Head $mol_view
+			sub /
+				<= title @ \Theme
+		<= Field_back $bog_figmol_app_inspector_field
+			title @ \Background
+			content /
+				<= Back $mol_string
+					value? <=> back? \
+					hint \#ffffff
+		<= Field_text $bog_figmol_app_inspector_field
+			title @ \Text
+			content /
+				<= Text $mol_string
+					value? <=> text? \
+					hint \#111827
+		<= Field_accent $bog_figmol_app_inspector_field
+			title @ \Accent
+			content /
+				<= Accent $mol_string
+					value? <=> accent? \
+					hint \#2563eb
+		<= Field_font $bog_figmol_app_inspector_field
+			title @ \Font
+			content /
+				<= Font $mol_switch
+					value? <=> font? \
+					options <= font_options *
+		<= Field_base $bog_figmol_app_inspector_field
+			title @ \Palette
+			content /
+				<= Base $mol_switch
+					value? <=> base? \
+					options <= base_options *
+		<= Field_lights $bog_figmol_app_inspector_field
+			title @ \Lights
+			content /
+				<= Lights $mol_switch
+					value? <=> lights? \
+					options <= lights_options *
+
 $bog_figmol_app_layers $mol_view
 	store $bog_figmol_store
 	selected? \
@@ -1640,6 +1853,12 @@ $bog_figmol_app_side $mol_view
 		store <= store
 		spot <= spot /number
 		selected? <=> selected? \
+	Comps $bog_figmol_app_comps
+		store <= store
+		spot <= spot /number
+		selected? <=> selected? \
+	Theme $bog_figmol_app_theme
+		store <= store
 	Layers $bog_figmol_app_layers
 		store <= store
 		selected? <=> selected? \
@@ -1925,6 +2144,9 @@ $bog_figmol_app $mol_view
 	- \shows a single element follows
 	selected? \
 	selection? /string
+	- \Alignment the inspector asks for, by name. Carried out here, where the
+	- \canvas is and the elements can be measured.
+	arrange? \
 	- \Publishing panel takes the right rail over from the inspector
 	publishing? false
 	- \Repository the site is pushed into, and the module name of the sources
@@ -1982,6 +2204,7 @@ $bog_figmol_app $mol_view
 		store <= store
 		selected? <=> selected? \
 		selection <= selection /string
+		arrange? <=> arrange? \
 	Publish $bog_figmol_deploy_publish
 		files <= publish_files *
 		name? <=> publish_name? \

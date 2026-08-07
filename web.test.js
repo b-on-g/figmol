@@ -5619,6 +5619,58 @@ var $;
 ;
 "use strict";
 var $;
+(function ($) {
+    $mol_test({
+        /** An unset token is not an empty look, it is the look nobody changed. */
+        'a token nobody wrote comes back as the default'() {
+            $mol_assert_equal($bog_figmol_theme.value({}, 'base'), 'slate');
+            $mol_assert_equal($bog_figmol_theme.value({}, 'lights'), 'light');
+            $mol_assert_equal($bog_figmol_theme.value({}, 'font'), 'inter');
+            $mol_assert_equal($bog_figmol_theme.value({}, 'accent'), '#2563eb');
+            // A page is white because the sheet is, not because the theme says so:
+            // an unset colour has to reach the generator as nothing at all.
+            $mol_assert_equal($bog_figmol_theme.value({}, 'back'), '');
+            $mol_assert_equal($bog_figmol_theme.value({}, 'text'), '');
+        },
+        /**
+         * Anything the component library has no rule for would arrive on the built
+         * page as an attribute that matches nothing, so it never leaves here.
+         */
+        'a value the library knows nothing about falls back'() {
+            $mol_assert_equal($bog_figmol_theme.value({ base: 'neon' }, 'base'), 'slate');
+            $mol_assert_equal($bog_figmol_theme.value({ lights: 'dusk' }, 'lights'), 'light');
+            $mol_assert_equal($bog_figmol_theme.value({ font: 'Comic Sans' }, 'font'), 'inter');
+            $mol_assert_equal($bog_figmol_theme.value({ accent: 'red' }, 'accent'), '#2563eb');
+        },
+        'a written value is taken as it is'() {
+            $mol_assert_equal($bog_figmol_theme.value({ base: 'zinc' }, 'base'), 'zinc');
+            $mol_assert_equal($bog_figmol_theme.value({ lights: 'dark' }, 'lights'), 'dark');
+            $mol_assert_equal($bog_figmol_theme.value({ font: 'dmsans' }, 'font'), 'dmsans');
+            $mol_assert_equal($bog_figmol_theme.value({ back: '#0F172A' }, 'back'), '#0F172A');
+        },
+        /** The key travels through view.tree dictionaries, the attribute does not. */
+        'a font token knows both its attribute and its stack'() {
+            $mol_assert_equal($bog_figmol_theme.font_attr('dmsans'), 'dm-sans');
+            $mol_assert_equal($bog_figmol_theme.font_attr('garamond'), 'eb-garamond');
+            $mol_assert_equal($bog_figmol_theme.font_attr('nonsense'), 'inter');
+            $mol_assert_ok($bog_figmol_theme.font_family('manrope').startsWith('Manrope'));
+            $mol_assert_ok($bog_figmol_theme.font_family('nonsense').startsWith('Inter'));
+        },
+        'every option offered has a caption'() {
+            for (const key of $bog_figmol_theme.fonts) {
+                $mol_assert_ok(!!$bog_figmol_theme.font_titles()[key]);
+            }
+            for (const key of $bog_figmol_theme.bases) {
+                $mol_assert_ok(!!$bog_figmol_theme.base_titles()[key]);
+            }
+            $mol_assert_like($bog_figmol_theme.lights, ['light', 'dark']);
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
 (function ($_1) {
     $mol_test_mocks.push($ => {
         class $giper_baza_yard_mock extends $.$giper_baza_yard {
@@ -6825,6 +6877,31 @@ var $;
             store.prop_edit('a', 'text', 'other');
             $mol_assert_equal(store.can_redo(), false);
         },
+        /**
+         * A component holding itself, however far round the loop, would be a page
+         * that draws until the stack runs out. The only way to build one is to
+         * drop an instance inside a master, so that is where it is refused.
+         */
+        'a component that would hold itself is refused'() {
+            const store = new $bog_figmol_store;
+            const roots = { a: 'ra', b: 'rb', c: 'rc' };
+            store.comp_root = (id) => roots[id] ?? '';
+            store.master = (id) => id === 'inst_a' ? 'a' : '';
+            store.kids = (id) => id === 'rb' ? ['deep'] : id === 'deep' ? ['inst_a'] : [];
+            store.comp_current = () => 'a';
+            $mol_assert_equal(store.comp_cyclic('a'), true);
+            $mol_assert_equal(store.comp_cyclic('b'), true);
+            $mol_assert_equal(store.comp_cyclic('c'), false);
+        },
+        /** Outside a master there is no loop to make, whatever is dropped. */
+        'a component dropped on a page is never a loop'() {
+            const store = new $bog_figmol_store;
+            store.comp_root = () => 'rb';
+            store.master = () => '';
+            store.kids = () => [];
+            store.comp_current = () => '';
+            $mol_assert_equal(store.comp_cyclic('b'), false);
+        },
         'an address naming nonsense falls back to the site of this account'() {
             const store = new $bog_figmol_store;
             store.share_id = () => 'not a link at all';
@@ -7666,6 +7743,41 @@ var $;
                 },
             }],
     };
+    /**
+     * One component, placed twice, plus an instance of something the site no
+     * longer has — the state a page is in right after a component is deleted.
+     */
+    const figmol_gen_test_kit = {
+        title: 'Kit',
+        theme: { base: 'zinc', lights: 'dark', font: 'garamond', accent: '#ff0066' },
+        comps: [{
+                id: 'c1',
+                title: 'Call to action',
+                root: {
+                    kind: 'frame',
+                    w: 320, h: 120,
+                    direction: 'column', gap: 8, padding: 16, align: 'center',
+                    props: { back: '#111111' },
+                    kids: [
+                        { kind: 'text', w: 280, h: 32, props: { text: 'Ready?' } },
+                        { kind: 'button', w: 160, h: 44, props: { text: 'Go', uri: '#' } },
+                    ],
+                },
+            }],
+        pages: [{
+                title: 'Home',
+                slug: '',
+                root: {
+                    kind: 'frame',
+                    kids: [
+                        { kind: 'inst', master: 'c1', x: 40, y: 40, w: 320, h: 120 },
+                        { kind: 'inst', master: 'c1', x: 40, y: 200, w: 320, h: 120 },
+                        { kind: 'inst', master: 'gone', x: 40, y: 400, w: 100, h: 40 },
+                    ],
+                },
+            }],
+    };
+    const figmol_gen_test_kit_files = () => $bog_figmol_gen.files(figmol_gen_test_kit, { name: 'kit' });
     $mol_test({
         'every file of a repository is generated'() {
             const files = figmol_gen_test_files();
@@ -7984,6 +8096,139 @@ var $;
             $mol_assert_ok(css.includes('\t\tNode2: {'));
             $mol_assert_ok(css.includes('\t\tNode9: {'));
         },
+        /** Whatever is placed more than once is declared once and named. */
+        'a component becomes a class of its own'() {
+            const tree = figmol_gen_test_kit_files()['kit.view.tree'];
+            const comp = figmol_gen_test_sign('kit_c_calltoaction');
+            $mol_assert_ok(tree.includes(comp + ' ' + figmol_gen_test_sign('mol_view') + '\n'));
+            $mol_assert_ok(tree.includes('\t\t<= Node1 ' + figmol_gen_test_sign('mol_paragraph')));
+            $mol_assert_ok(tree.includes('title \\Ready?'));
+        },
+        /**
+         * A component made out of a card has to stay a card, and one made out of a
+         * text has to keep its caption — the master is what the class is.
+         */
+        'a component is built out of whatever its master is'() {
+            const files = $bog_figmol_gen.files({
+                title: 'Kit',
+                comps: [
+                    {
+                        id: 'c1',
+                        title: 'Panel',
+                        root: {
+                            kind: 'bui_card',
+                            w: 320, h: 200,
+                            direction: 'column', gap: 10, padding: 20, align: 'stretch',
+                            kids: [{ kind: 'text', w: 260, h: 28, props: { text: 'Inside' } }],
+                        },
+                    },
+                    {
+                        id: 'c2',
+                        title: 'Slogan',
+                        root: { kind: 'text', w: 240, h: 40, props: { text: 'Ship it', size: '24' } },
+                    },
+                ],
+                pages: [{ title: 'Home', root: { kind: 'frame', kids: [
+                                { kind: 'inst', master: 'c1', x: 0, y: 0, w: 320, h: 200 },
+                                { kind: 'inst', master: 'c2', x: 0, y: 240, w: 240, h: 40 },
+                            ] } }],
+            }, { name: 'kit' });
+            const tree = files['kit.view.tree'];
+            $mol_assert_ok(tree.includes(figmol_gen_test_sign('kit_c_panel') + ' ' + figmol_gen_test_sign('bog_builderui_card') + '\n'));
+            $mol_assert_ok(tree.includes(figmol_gen_test_sign('kit_c_slogan') + ' ' + figmol_gen_test_sign('mol_paragraph') + '\n\ttitle \\Ship it\n'));
+            const plan = $bog_figmol_gen.plan({
+                title: 'Kit',
+                comps: [{ id: 'c1', title: 'Panel', root: {
+                            kind: 'bui_card',
+                            direction: 'column', gap: 10, padding: 20,
+                            w: 320, h: 200,
+                        } }],
+            }, { name: 'kit' });
+            const style = plan.parts[0].style;
+            // A card of the library carries a bottom margin for the masonry column
+            // it is meant to sit in, and here it is placed by hand.
+            $mol_assert_equal(style.margin, 0);
+            // Where the master sat and how big it was belongs to every instance.
+            $mol_assert_equal(style.position, undefined);
+            $mol_assert_equal(style.left, undefined);
+            $mol_assert_equal(style.width, undefined);
+            $mol_assert_equal(style.gap, '10px');
+        },
+        'an instance is a placement and the name of its component'() {
+            const tree = figmol_gen_test_kit_files()['kit.view.tree'];
+            const comp = figmol_gen_test_sign('kit_c_calltoaction');
+            const rows = tree.split('\n');
+            // Both instances point at the same class, and neither carries a copy of
+            // what it draws: the line after each of them is the next instance.
+            $mol_assert_ok(tree.includes('<= Node1 ' + comp));
+            $mol_assert_ok(tree.includes('<= Node2 ' + comp));
+            const at = rows.findIndex(row => row.includes('<= Node1 ' + comp));
+            $mol_assert_ok(rows[at + 1].includes('<= Node2 ' + comp));
+            const plan = $bog_figmol_gen.plan(figmol_gen_test_kit, { name: 'kit' });
+            const units = plan.screens[0].units;
+            $mol_assert_equal(units[0].kids.length, 0);
+            $mol_assert_equal(units[0].style.position, 'absolute');
+            $mol_assert_equal(units[0].style.top, '40px');
+            $mol_assert_equal(units[1].style.top, '200px');
+        },
+        /** A page half drawn is worse than a box where a component used to be. */
+        'an instance of a component that is gone falls back to a plain box'() {
+            const plan = $bog_figmol_gen.plan(figmol_gen_test_kit, { name: 'kit' });
+            $mol_assert_equal(plan.screens[0].units[2].comp, figmol_gen_test_sign('mol_view'));
+        },
+        /**
+         * The size belongs to the instance, so the class gets the layout of the
+         * master and no width of its own — one component fits a column and a row.
+         */
+        'the class of a component carries the layout of its master'() {
+            const plan = $bog_figmol_gen.plan(figmol_gen_test_kit, { name: 'kit' });
+            const part = plan.parts[0];
+            $mol_assert_equal(part.comp, figmol_gen_test_sign('kit_c_calltoaction'));
+            $mol_assert_like(part.style.flex, { direction: 'column' });
+            $mol_assert_equal(part.style.gap, '8px');
+            $mol_assert_equal(part.style.padding, '16px');
+            $mol_assert_like(part.style.background, { color: '#111111' });
+            $mol_assert_equal(part.style.width, undefined);
+            const css = figmol_gen_test_kit_files()['kit.view.css.ts'];
+            $mol_assert_ok(css.includes(figmol_gen_test_sign('mol_style_define') + '( ' + figmol_gen_test_sign('kit_c_calltoaction') + ', {'));
+        },
+        'components with the same name get distinct classes'() {
+            const plan = $bog_figmol_gen.plan({
+                title: 'X',
+                comps: [
+                    { id: 'a', title: 'Card' },
+                    { id: 'b', title: 'Card' },
+                    { id: 'c', title: '' },
+                ],
+            });
+            $mol_assert_like(plan.parts.map(part => part.comp), [
+                figmol_gen_test_sign('x_c_card'),
+                figmol_gen_test_sign('x_c_card2'),
+                figmol_gen_test_sign('x_c_comp3'),
+            ]);
+        },
+        /** The very attributes the editor had on its sheet, or the two would drift. */
+        'the theme of the site reaches the root as attributes'() {
+            const tree = figmol_gen_test_kit_files()['kit.view.tree'];
+            $mol_assert_ok(tree.includes('\t\tbog_builderui_base \\zinc'));
+            $mol_assert_ok(tree.includes('\t\tbog_builderui_lights \\dark'));
+            $mol_assert_ok(tree.includes('\t\tbog_builderui_font_body \\eb-garamond'));
+            $mol_assert_ok(tree.includes('\t\tbog_builderui_font_head \\eb-garamond'));
+            const css = figmol_gen_test_kit_files()['kit.view.css.ts'];
+            $mol_assert_ok(css.includes("family: '\\'EB Garamond\\', Georgia, serif'"));
+        },
+        /** The one place a colour picked in the panel shows up on its own. */
+        'the accent paints a plain button'() {
+            const plan = $bog_figmol_gen.plan(figmol_gen_test_kit, { name: 'kit' });
+            const button = plan.parts[0].units[1];
+            $mol_assert_equal(button.kind, 'button');
+            $mol_assert_like(button.style.background, { color: '#ff0066' });
+            const plain = $bog_figmol_gen.plan({
+                title: 'X',
+                pages: [{ root: { kind: 'frame', kids: [{ kind: 'button' }] } }],
+            });
+            $mol_assert_like(plain.screens[0].units[0].style.background, { color: '#2563eb' });
+        },
         'pages with the same slug get distinct names'() {
             const plan = $bog_figmol_gen.plan({
                 title: 'X',
@@ -7994,6 +8239,71 @@ var $;
             });
             $mol_assert_equal(plan.screens[0].id, 'news');
             $mol_assert_equal(plan.screens[1].id, 'news2');
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    /** Three boxes of different sizes, deliberately out of order. */
+    const figmol_arrange_test_boxes = [
+        [100, 40, 60, 20],
+        [20, 10, 40, 60],
+        [200, 80, 20, 30],
+    ];
+    $mol_test({
+        'aligning to an edge puts every box against the same line'() {
+            const left = $bog_figmol_app_arrange.place('left', figmol_arrange_test_boxes);
+            $mol_assert_like(left.map(box => box[0]), [20, 20, 20]);
+            // Rightmost edge is 220, so each box starts its own width short of it.
+            const right = $bog_figmol_app_arrange.place('right', figmol_arrange_test_boxes);
+            $mol_assert_like(right.map(box => box[0]), [160, 180, 200]);
+            const top = $bog_figmol_app_arrange.place('top', figmol_arrange_test_boxes);
+            $mol_assert_like(top.map(box => box[1]), [10, 10, 10]);
+            const bottom = $bog_figmol_app_arrange.place('bottom', figmol_arrange_test_boxes);
+            $mol_assert_like(bottom.map(box => box[1]), [90, 50, 80]);
+        },
+        /** The middle is of the whole selection, not of any one box in it. */
+        'centring measures the box the selection makes'() {
+            const across = $bog_figmol_app_arrange.place('hcenter', figmol_arrange_test_boxes);
+            $mol_assert_like(across.map(box => box[0]), [90, 100, 110]);
+            const down = $bog_figmol_app_arrange.place('vcenter', figmol_arrange_test_boxes);
+            $mol_assert_like(down.map(box => box[1]), [50, 30, 45]);
+        },
+        /** Only the coordinate of the axis being aligned is allowed to change. */
+        'aligning across leaves the other axis alone'() {
+            const left = $bog_figmol_app_arrange.place('left', figmol_arrange_test_boxes);
+            $mol_assert_like(left.map(box => box[1]), [40, 10, 80]);
+        },
+        /**
+         * Widths differ, so equal gaps are not equal steps: 20…220 is 200 wide,
+         * the boxes take up 120 of it, and the two gaps get 40 each.
+         */
+        'distributing evens out the gaps and keeps the outer two put'() {
+            const res = $bog_figmol_app_arrange.place('hspace', figmol_arrange_test_boxes);
+            $mol_assert_like(res.map(box => box[0]), [100, 20, 200]);
+            const sorted = [...res].sort((a, b) => a[0] - b[0]);
+            const sizes = [40, 60, 20];
+            for (let at = 1; at < sorted.length; ++at) {
+                $mol_assert_equal(sorted[at][0] - (sorted[at - 1][0] + sizes[at - 1]), 40);
+            }
+        },
+        'distributing down uses the heights'() {
+            const res = $bog_figmol_app_arrange.place('vspace', figmol_arrange_test_boxes);
+            // 10…110 is 100 tall, the three boxes take 110 of it, so the gap is -5.
+            $mol_assert_like(res.map(box => box[1]), [65, 10, 80]);
+        },
+        /** Two boxes have no gap between them to even out, and one has no lot. */
+        'a selection too small to arrange is left where it is'() {
+            const pair = figmol_arrange_test_boxes.slice(0, 2);
+            $mol_assert_like($bog_figmol_app_arrange.place('hspace', pair), [[100, 40], [20, 10]]);
+            const lone = figmol_arrange_test_boxes.slice(0, 1);
+            $mol_assert_like($bog_figmol_app_arrange.place('left', lone), [[100, 40]]);
+        },
+        'an unknown mode moves nothing'() {
+            $mol_assert_like($bog_figmol_app_arrange.place('sideways', figmol_arrange_test_boxes), [[100, 40], [20, 10], [200, 80]]);
         },
     });
 })($ || ($ = {}));
@@ -8313,25 +8623,176 @@ var $;
         },
         /**
          * A width typed into a field would be the width of every element picked,
-         * which is a decision of its own — so a group gets a count and a way out.
+         * which is a decision of its own — so a group gets a count, the strip of
+         * alignments and a way out.
          */
         'the inspector counts a group instead of describing it'() {
             const inspector = new $bog_figmol_app_inspector;
             inspector.selection = () => ['a', 'b'];
             inspector.selected('b');
+            inspector.store().flow = () => false;
             // The captions come out of the locale, which is not what is being
             // checked here — only which of them the panel reaches for.
             inspector.title_many = () => 'Selected';
             inspector.drop_label = () => 'one';
             inspector.drop_many_label = () => 'many';
-            $mol_assert_like(inspector.rows(), [inspector.Head(), inspector.Drop()]);
+            $mol_assert_like(inspector.rows(), [inspector.Head(), inspector.Arrange(), inspector.Drop()]);
             $mol_assert_equal(inspector.kind_title(), 'Selected: 2');
             $mol_assert_equal(inspector.drop_caption(), 'many');
         },
-        /** Nothing on this panel writes but the palette, so the rest stays put. */
+        /**
+         * Inside an auto layout the frame decides where its children sit, so a
+         * button that wrote coordinates for them would write numbers nobody sees.
+         */
+        'a group laid out by its frames is offered no alignments'() {
+            const inspector = new $bog_figmol_app_inspector;
+            inspector.selection = () => ['a', 'b'];
+            inspector.selected('b');
+            inspector.store().flow = () => true;
+            $mol_assert_equal(inspector.arrangeable(), false);
+            $mol_assert_like(inspector.rows(), [inspector.Head(), inspector.Drop()]);
+        },
+        /** An instance is named after what it draws and leads to the master. */
+        'the inspector of an instance offers the way into its component'() {
+            const inspector = new $bog_figmol_app_inspector;
+            const store = inspector.store();
+            store.kind = () => 'inst';
+            store.flow = () => false;
+            store.container = () => false;
+            store.master = () => 'comp';
+            store.comp_title = () => 'Call to action';
+            store.parent = () => 'root';
+            inspector.selected('node');
+            $mol_assert_equal(inspector.kind_title(), 'Call to action');
+            $mol_assert_ok(inspector.rows().includes(inspector.Field_comp()));
+            $mol_assert_ok(inspector.rows().includes(inspector.Comp_edit()));
+            // An instance is a component already, so it is not offered to become one.
+            $mol_assert_equal(inspector.makeable(), false);
+            $mol_assert_equal(inspector.rows().includes(inspector.Comp_make()), false);
+        },
+        /** The page itself has nowhere to put the instance that would replace it. */
+        'the root frame cannot become a component'() {
+            const inspector = new $bog_figmol_app_inspector;
+            const store = inspector.store();
+            store.kind = () => 'frame';
+            store.parent = (id) => id === 'root' ? '' : 'root';
+            inspector.selected('root');
+            $mol_assert_equal(inspector.makeable(), false);
+            inspector.selected('other');
+            $mol_assert_equal(inspector.makeable(), true);
+        },
+        /**
+         * Two instances of one component are two sets of shapes over the same
+         * nodes: one view cannot be in two places, and a component placed twice
+         * has to be.
+         */
+        'an instance draws the master out of the store'() {
+            const ghost = new $bog_figmol_app_ghost;
+            ghost.id = () => 'master';
+            ghost.rect = () => [0, 0, 400, 120];
+            ghost.store().kids = (id) => id === 'master' ? ['kid'] : [];
+            ghost.store().rect = () => [12, 34, 100, 40];
+            $mol_assert_like(ghost.shapes(), [ghost.Shape('master')]);
+            $mol_assert_like(ghost.shape_kids('master'), [ghost.Shape('kid')]);
+            // The master frame is stretched into the box of the instance, and
+            // everything below it keeps the geometry it was drawn with.
+            $mol_assert_like(ghost.shape_rect('master'), [0, 0, 400, 120]);
+            $mol_assert_like(ghost.shape_rect('kid'), [12, 34, 100, 40]);
+            const twin = new $bog_figmol_app_ghost;
+            twin.id = () => 'master';
+            $mol_assert_equal(twin.Shape('master') === ghost.Shape('master'), false);
+        },
+        /** A component that is gone leaves an empty box, not a broken shape. */
+        'an instance of nothing draws nothing'() {
+            const ghost = new $bog_figmol_app_ghost;
+            ghost.id = () => '';
+            $mol_assert_like(ghost.shapes(), []);
+        },
+        /**
+         * A component may hold anything but itself. The row is disabled rather
+         * than refusing on click — a button that does nothing reads as a bug.
+         */
+        'a component cannot be placed inside itself'() {
+            const comps = new $bog_figmol_app_comps;
+            const roots = { a: 'ra', b: 'rb', c: 'rc' };
+            const store = comps.store();
+            store.comp_ids = () => ['a', 'b', 'c'];
+            store.comp_root = (id) => roots[id] ?? '';
+            store.master = (id) => id === 'inst_a' ? 'a' : '';
+            store.kids = (id) => id === 'rb' ? ['inst_a'] : [];
+            store.comp_current = () => 'a';
+            // Itself outright, and anything that holds an instance of it.
+            $mol_assert_equal(comps.row_enabled('a'), false);
+            $mol_assert_equal(comps.row_enabled('b'), false);
+            $mol_assert_equal(comps.row_enabled('c'), true);
+            // Outside a master there is no loop to make.
+            store.comp_current = () => '';
+            const free = new $bog_figmol_app_comps;
+            free.store().comp_current = () => '';
+            free.store().comp_root = (id) => roots[id] ?? '';
+            $mol_assert_equal(free.row_enabled('a'), true);
+        },
+        /** Editing a master grows the panel a name and a way back out. */
+        'the component panel says when a master is open'() {
+            const closed = new $bog_figmol_app_comps;
+            closed.store().comp_ids = () => ['a'];
+            closed.store().comp_current = () => '';
+            $mol_assert_like(closed.panels(), [closed.Head(), closed.List()]);
+            const open = new $bog_figmol_app_comps;
+            open.store().comp_ids = () => ['a'];
+            open.store().comp_current = () => 'a';
+            $mol_assert_like(open.panels(), [open.Head(), open.List(), open.Editing(), open.Field_title(), open.Drop()]);
+            // A site with no components at all says where they come from.
+            const empty = new $bog_figmol_app_comps;
+            empty.store().comp_ids = () => [];
+            empty.store().comp_current = () => '';
+            $mol_assert_like(empty.panels(), [empty.Head(), empty.Empty()]);
+        },
+        /** Every token of the theme reaches the sheet the shapes are drawn on. */
+        'the sheet wears the theme of the site'() {
+            const sheet = new $bog_figmol_app_sheet;
+            const values = {
+                base: 'zinc',
+                lights: 'dark',
+                font: 'garamond',
+                back: '#0f172a',
+                text: '#f8fafc',
+            };
+            sheet.store().theme_value = (key) => values[key] ?? '';
+            $mol_assert_equal(sheet.theme_base(), 'zinc');
+            $mol_assert_equal(sheet.theme_lights(), 'dark');
+            $mol_assert_equal(sheet.theme_font(), 'eb-garamond');
+            $mol_assert_equal(sheet.theme_back(), '#0f172a');
+            $mol_assert_equal(sheet.theme_text(), '#f8fafc');
+            $mol_assert_ok(sheet.theme_family().startsWith("'EB Garamond'"));
+        },
+        /**
+         * The switches show what is in force rather than what was written: a site
+         * nobody has themed has an empty `font`, and a row of buttons with none of
+         * them pressed would lie about what the canvas is drawing.
+         */
+        'the theme panel shows the value in force'() {
+            const panel = new $bog_figmol_app_theme;
+            const written = {};
+            panel.store().theme = (key, next) => {
+                if (next !== undefined)
+                    written[key] = next;
+                return written[key] ?? '';
+            };
+            panel.store().theme_value = (key) => written[key] || $bog_figmol_theme.fallback[key];
+            $mol_assert_equal(panel.font(), 'inter');
+            $mol_assert_equal(panel.base(), 'slate');
+            $mol_assert_equal(panel.lights(), 'light');
+            $mol_assert_equal(panel.back(), '');
+            panel.font('manrope');
+            $mol_assert_equal(written.font, 'manrope');
+            $mol_assert_equal(panel.font(), 'manrope');
+            panel.back('#000000');
+            $mol_assert_equal(written.back, '#000000');
+        },
         'a site opened by link keeps the lists and loses the palette'() {
             const own = new $bog_figmol_app_side;
-            $mol_assert_like(own.panels(), [own.Pages(), own.Blocks(), own.Layers()]);
+            $mol_assert_like(own.panels(), [own.Pages(), own.Blocks(), own.Comps(), own.Theme(), own.Layers()]);
             const guest = new $bog_figmol_app_side;
             guest.editable = () => false;
             $mol_assert_like(guest.panels(), [guest.Pages(), guest.Layers()]);

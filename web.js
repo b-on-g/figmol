@@ -13854,6 +13854,7 @@ var $;
         bui_progress: 'Progress',
         bui_tabs: 'Tabs',
         bui_avatar: 'Avatar',
+        inst: 'Component',
     };
     /** Kinds whose children are drawn inside them rather than beside them. */
     const figmol_blocks_container = ['frame', 'bui_card'];
@@ -14024,6 +14025,50 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Entity dictionary Model with Title property included by default */
+    class $giper_baza_entity extends $giper_baza_dict.with({
+        /** Entity Title - default property for use */
+        Title: $giper_baza_atom_text,
+    }) {
+        title(next) {
+            return this.Title(next)?.val(next) ?? '';
+        }
+    }
+    __decorate([
+        $mol_mem
+    ], $giper_baza_entity.prototype, "title", null);
+    $.$giper_baza_entity = $giper_baza_entity;
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    /**
+     * A component of the site: a name and a subtree of nodes drawn under it.
+     *
+     * The master is an ordinary node with ordinary children — the very same
+     * shapes the canvas draws anywhere else. Nothing marks it as special except
+     * being reachable from here instead of from a page, which is what lets the
+     * editor, the layer tree and the inspector work on it without knowing that
+     * a component is what they are looking at.
+     *
+     * An instance is a node of kind `inst` whose `Master` points back here. It
+     * holds no copy of anything: every instance reads this subtree, so an edit
+     * of the master shows up in all of them at once.
+     */
+    class $bog_figmol_schema_comp extends $giper_baza_entity.with({
+        /** Frame the elements of the component live in. */
+        Root: $giper_baza_atom_link.to(() => $bog_figmol_schema_node),
+    }) {
+    }
+    $.$bog_figmol_schema_comp = $bog_figmol_schema_comp;
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
     /**
      * One element on the canvas.
      *
@@ -14038,10 +14083,20 @@ var $;
      */
     class $bog_figmol_schema_node extends $giper_baza_dict.with({
         /**
-         * `text` | `image` | `button` | `rect` | `frame`, or one of the `bui_`
-         * blocks borrowed from the component library — see `$bog_figmol_blocks`.
+         * `text` | `image` | `button` | `rect` | `frame` | `inst`, or one of the
+         * `bui_` blocks borrowed from the component library — see
+         * `$bog_figmol_blocks`.
          */
         Kind: $giper_baza_atom_text,
+        /**
+         * Component this node is an instance of, set for the `inst` kind alone.
+         *
+         * An instance keeps no copy of what it shows: it is a box with a link,
+         * and everything inside it is read out of the master. A field of its own
+         * rather than a key of `Props` — a link is not a string, and the editor
+         * asks this question of every node it draws.
+         */
+        Master: $giper_baza_atom_link.to(() => $bog_figmol_schema_comp),
         /**
          * Everything kind specific, all of it stringly typed:
          *
@@ -14072,6 +14127,102 @@ var $;
     }) {
     }
     $.$bog_figmol_schema_node = $bog_figmol_schema_node;
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    /**
+     * Families the component library ships with: the value its attribute takes,
+     * the css stack behind that value, and the name a human picks it by.
+     *
+     * Keys are spelled without dashes because they travel through `view.tree`
+     * dictionaries, where a dash is not part of an identifier.
+     */
+    const figmol_theme_fonts = {
+        inter: ['inter', "Inter, system-ui, sans-serif", 'Inter'],
+        manrope: ['manrope', "Manrope, system-ui, sans-serif", 'Manrope'],
+        dmsans: ['dm-sans', "'DM Sans', system-ui, sans-serif", 'DM Sans'],
+        garamond: ['eb-garamond', "'EB Garamond', Georgia, serif", 'Garamond'],
+    };
+    /** Neutral palettes of the library, by the value of its `base` attribute. */
+    const figmol_theme_bases = {
+        slate: 'Slate',
+        stone: 'Stone',
+        zinc: 'Zinc',
+        gray: 'Gray',
+    };
+    const figmol_theme_lights = {
+        light: 'Light',
+        dark: 'Dark',
+    };
+    const figmol_theme_hex = /^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+    /**
+     * The look of a site, as a handful of tokens.
+     *
+     * Plain data and pure functions, with no idea where the values came from:
+     * the editor reads them out of the Baza to paint the sheet, and the
+     * generator reads them out of a snapshot to paint the published page. One
+     * answer to "what does `font` mean" is the whole point — a canvas and a site
+     * that disagree about the theme is a canvas that lies.
+     */
+    class $bog_figmol_theme {
+        /**
+         * What a token means when nothing is written into it.
+         *
+         * `back` and `text` are deliberately empty: an unset colour is not white,
+         * it is "whatever the sheet and the library already say", and the
+         * generated project carries no rule for it at all.
+         */
+        static fallback = {
+            back: '',
+            text: '',
+            accent: '#2563eb',
+            font: 'inter',
+            base: 'slate',
+            lights: 'light',
+        };
+        static fonts = Object.keys(figmol_theme_fonts);
+        static bases = Object.keys(figmol_theme_bases);
+        static lights = Object.keys(figmol_theme_lights);
+        /** Captions of every option, for the switches of the theme panel. */
+        static font_titles() {
+            const res = {};
+            for (const key of this.fonts)
+                res[key] = figmol_theme_fonts[key][2];
+            return res;
+        }
+        static base_titles() {
+            return { ...figmol_theme_bases };
+        }
+        static lights_titles() {
+            return { ...figmol_theme_lights };
+        }
+        /** Value of a token, with the fallback for anything unset or unknown. */
+        static value(theme, key) {
+            const raw = String(theme[key] ?? '').trim();
+            const back = this.fallback[key] ?? '';
+            switch (key) {
+                case 'font': return raw in figmol_theme_fonts ? raw : back;
+                case 'base': return raw in figmol_theme_bases ? raw : back;
+                case 'lights': return raw in figmol_theme_lights ? raw : back;
+                case 'back':
+                case 'text':
+                case 'accent': return figmol_theme_hex.test(raw) ? raw : back;
+            }
+            return raw || back;
+        }
+        /** Value of the `bog_builderui_font_body` attribute for a font token. */
+        static font_attr(key) {
+            return figmol_theme_fonts[key]?.[0] ?? figmol_theme_fonts.inter[0];
+        }
+        /** Css font stack of a font token. */
+        static font_family(key) {
+            return figmol_theme_fonts[key]?.[1] ?? figmol_theme_fonts.inter[1];
+        }
+    }
+    $.$bog_figmol_theme = $bog_figmol_theme;
 })($ || ($ = {}));
 
 ;
@@ -22233,25 +22384,6 @@ var $;
 
 ;
 "use strict";
-var $;
-(function ($) {
-    /** Entity dictionary Model with Title property included by default */
-    class $giper_baza_entity extends $giper_baza_dict.with({
-        /** Entity Title - default property for use */
-        Title: $giper_baza_atom_text,
-    }) {
-        title(next) {
-            return this.Title(next)?.val(next) ?? '';
-        }
-    }
-    __decorate([
-        $mol_mem
-    ], $giper_baza_entity.prototype, "title", null);
-    $.$giper_baza_entity = $giper_baza_entity;
-})($ || ($ = {}));
-
-;
-"use strict";
 
 
 ;
@@ -28037,8 +28169,19 @@ var $;
             const id = this.page_current();
             return this.pages().find(page => page.link().str === id) ?? null;
         }
-        /** Frame every element of the current page lives in. */
+        /**
+         * Frame every element being edited lives in — of the current page, or of
+         * the component master when one is opened.
+         *
+         * Editing a component is therefore the whole editor pointed at another
+         * root, rather than a mode anybody has to know about: the canvas draws
+         * what is under this frame, the layer tree lists it and the inspector
+         * changes it, none of them any the wiser.
+         */
         root() {
+            const comp = this.comp_current();
+            if (comp)
+                return this.comp_by(comp)?.Root()?.remote() ?? null;
             return this.page()?.Root()?.remote() ?? null;
         }
         node(id) {
@@ -28084,6 +28227,125 @@ var $;
                 this.page_edit(id, 'slug', next);
             return page.Slug()?.val() ?? '';
         }
+        // === Components ==========================================================
+        //
+        // A component is a name and a node subtree, and an instance is a node of
+        // kind `inst` holding a link to it. Nothing is copied on either side: an
+        // instance draws the master itself, so an edit of the master reaches every
+        // instance the moment it is written.
+        comps() {
+            return this.site()?.Comps()?.remote_list() ?? [];
+        }
+        comp_ids() {
+            return this.comps().map(comp => comp.link().str);
+        }
+        comp_by(id) {
+            if (!id)
+                return null;
+            return this.comps().find(comp => comp.link().str === id) ?? null;
+        }
+        comp_title(id, next) {
+            const comp = this.comp_by(id);
+            if (!comp)
+                return '';
+            if (next !== undefined)
+                this.comp_edit(id, next);
+            return comp.Title()?.val() ?? '';
+        }
+        /** Frame of the master, empty when the component is gone. */
+        comp_root(id) {
+            return this.comp_by(id)?.Root()?.val()?.str ?? '';
+        }
+        /** Component this node is an instance of, empty for everything else. */
+        master(id) {
+            if (!id)
+                return '';
+            return this.node(id).Master()?.val()?.str ?? '';
+        }
+        /** Frame an instance draws, empty when it is not an instance of anything. */
+        inst_root(id) {
+            const comp = this.master(id);
+            return comp ? this.comp_root(comp) : '';
+        }
+        /**
+         * Which component is open for editing, kept in the address next to the
+         * page: a reload comes back to the same master, and a link to a shared
+         * site can point straight at one.
+         */
+        comp_id(next) {
+            return this.$.$mol_state_arg.value('comp', next) ?? '';
+        }
+        /** The same, forgotten once the component it names is gone. */
+        comp_current() {
+            const id = this.comp_id();
+            return id && this.comp_ids().includes(id) ? id : '';
+        }
+        /**
+         * Whether dropping an instance of `comp` where the editor is looking now
+         * would make a component hold itself.
+         *
+         * The only way to build such a loop is to put an instance inside a master,
+         * so the question is asked once, at the moment of the drop — a cycle that
+         * got written would be a page that draws until the stack runs out.
+         */
+        comp_cyclic(comp) {
+            const host = this.comp_current();
+            if (!host || !comp)
+                return false;
+            if (host === comp)
+                return true;
+            return this.comp_uses(comp, host, 0);
+        }
+        /** Whether the master of `comp` holds an instance of `target`, however deep. */
+        comp_uses(comp, target, deep) {
+            if (deep >= depth_max)
+                return false;
+            const root = this.comp_root(comp);
+            return root ? this.node_uses(root, target, deep) : false;
+        }
+        node_uses(id, target, deep) {
+            if (deep >= depth_max)
+                return false;
+            const comp = this.master(id);
+            if (comp)
+                return comp === target || this.comp_uses(comp, target, deep + 1);
+            return this.kids(id).some(kid => this.node_uses(kid, target, deep + 1));
+        }
+        // === Theme ===============================================================
+        /** Raw token as written, empty when nothing was. */
+        theme_read(key) {
+            return this.site()?.Theme()?.key(key)?.val() ?? '';
+        }
+        theme_write(key, val) {
+            this.site()?.Theme(null).key(key, null).val(val);
+        }
+        theme_edit(key, val) {
+            const prev = this.theme_read(key);
+            if (prev === val)
+                return;
+            this.theme_write(key, val);
+            this.record('theme:' + key, () => this.theme_write(key, prev), () => this.theme_write(key, val));
+        }
+        /** One token of the theme, raw — an empty string means "unset". */
+        theme(key, next) {
+            if (next !== undefined)
+                this.theme_edit(key, next);
+            return this.theme_read(key);
+        }
+        /**
+         * The whole theme as a plain record, the way the generator takes it. Read
+         * through the memoized accessor above, so the canvas repaints on a change.
+         */
+        theme_all() {
+            const res = {};
+            for (const key of Object.keys($bog_figmol_theme.fallback))
+                res[key] = this.theme(key);
+            return res;
+        }
+        /** One token with its fallback applied. */
+        theme_value(key) {
+            return $bog_figmol_theme.value(this.theme_all(), key);
+        }
         // === Tree ================================================================
         root_id() {
             return this.root()?.link().str ?? '';
@@ -28093,10 +28355,19 @@ var $;
                 return [];
             return (this.node(id).Kids()?.items() ?? []).map(link => link.str);
         }
+        /** Frames of every component of the site, in the order the panel lists them. */
+        comp_roots() {
+            return this.comp_ids().map(id => this.comp_root(id)).filter(id => !!id);
+        }
         /**
          * Parent of every node, by link. A node knows its kids and not the other
          * way round, while dragging asks the opposite question on every move, so
          * the whole tree is walked once and cached.
+         *
+         * Masters are walked along with the page. Their nodes are never on it, but
+         * an instance draws them, and a shape asks whether its parent lays it out
+         * before it decides where to put itself — a master whose children had no
+         * known parent would draw its auto layout as a heap of absolute boxes.
          *
          * A node reached twice keeps its first parent: the schema cannot stop a
          * link from appearing in two lists, and a cycle here would hang the walk.
@@ -28114,6 +28385,8 @@ var $;
             const root = this.root_id();
             if (root)
                 walk(root);
+            for (const id of this.comp_roots())
+                walk(id);
             return res;
         }
         parent(id) {
@@ -28649,6 +28922,111 @@ var $;
             if (this.page_id() === id)
                 this.page_id(ids.find(other => other !== id) ?? '');
         }
+        /** Name of a component. Nothing else here writes it. */
+        comp_read(id) {
+            return this.comp_by(id)?.Title()?.val() ?? '';
+        }
+        comp_write(id, val) {
+            this.comp_by(id)?.Title(null).val(val);
+        }
+        comp_edit(id, val) {
+            const prev = this.comp_read(id);
+            if (prev === val)
+                return;
+            this.comp_write(id, val);
+            this.record('comp:' + id, () => this.comp_write(id, prev), () => this.comp_write(id, val));
+        }
+        /** Unlinks a component from the site. The master subtree stays where it is. */
+        comp_cut(id) {
+            this.site()?.Comps(null).cut(new this.$.$giper_baza_link(id));
+        }
+        /** Links a component back into the site, at the place it used to have. */
+        comp_put(id, at) {
+            const comps = this.site()?.Comps(null);
+            if (!comps)
+                return;
+            const items = comps.items().filter(item => item.str !== id);
+            const seat = Math.max(0, Math.min(at < 0 ? items.length : at, items.length));
+            comps.items([...items.slice(0, seat), new this.$.$giper_baza_link(id), ...items.slice(seat)]);
+        }
+        /**
+         * Turns a node into a component: the node itself becomes the master, and
+         * an instance of it takes the place it left.
+         *
+         * Nothing is copied and nothing is deleted — the subtree keeps its pawns
+         * and only stops being reachable from the page. The master is moved to the
+         * origin, because that is where every instance draws it from.
+         *
+         * Meant to run inside `group`, like every other multi write gesture here.
+         */
+        comp_make(id, title) {
+            const site = this.site();
+            if (!site)
+                return '';
+            const host = this.parent(id);
+            if (!host)
+                return '';
+            if (this.master(id))
+                return '';
+            const at = this.kids(host).indexOf(id);
+            const rect = this.rect(id);
+            const comp = site.Comps(null).make(null);
+            comp.Title(null).val(title);
+            comp.Root(null).remote(this.node(id));
+            const made = comp.link().str;
+            this.record('', () => this.comp_cut(made), () => this.comp_put(made, -1));
+            const home = [0, 0, rect[2], rect[3]];
+            this.rect_write(id, home);
+            this.record('', () => this.rect_write(id, rect), () => this.rect_write(id, home));
+            this.kid_cut(host, id);
+            this.record('', () => this.kid_put(host, id, at), () => this.kid_cut(host, id));
+            const inst = this.inst_write(made, host, rect[0], rect[1], rect[2], rect[3]);
+            this.kid_put(host, inst, at);
+            this.record('', () => this.kid_cut(host, inst), () => this.kid_put(host, inst, at));
+            return inst;
+        }
+        /** Writes an instance node into a frame, without a word to the journal. */
+        inst_write(comp, host, x, y, w, h) {
+            const node = this.node(host).Kids(null).make(null);
+            node.Kind(null).val('inst');
+            node.X(null).val(Math.round(x));
+            node.Y(null).val(Math.round(y));
+            node.W(null).val(Math.max(size_min, Math.round(w)));
+            node.H(null).val(Math.max(size_min, Math.round(h)));
+            node.Master(null).val(new this.$.$giper_baza_link(comp));
+            return node.link().str;
+        }
+        /**
+         * Places an instance of a component, sized after its master. Refuses the
+         * one drop that would make a component hold itself.
+         */
+        inst_add(comp, parent, x, y) {
+            const host = parent || this.root_id();
+            if (!host)
+                return '';
+            const root = this.comp_root(comp);
+            if (!root)
+                return '';
+            if (this.comp_cyclic(comp))
+                return '';
+            const rect = this.rect(root);
+            const id = this.inst_write(comp, host, x, y, rect[2], rect[3]);
+            this.record_kid(id, host);
+            return id;
+        }
+        /**
+         * Unlinks a component from the site. Instances of it are left drawing
+         * nothing rather than being hunted down: the Baza is append-only, so undo
+         * puts the master back and every one of them fills in again.
+         */
+        comp_drop(id) {
+            const ids = this.comp_ids();
+            if (!ids.includes(id))
+                return;
+            const at = ids.indexOf(id);
+            this.comp_cut(id);
+            this.record('', () => this.comp_put(id, at), () => this.comp_cut(id));
+        }
         /** Unlinks a node from a frame. The pawn and its subtree stay where they are. */
         kid_cut(host, id) {
             this.node(host).Kids(null).cut(new this.$.$giper_baza_link(id));
@@ -28716,6 +29094,10 @@ var $;
                 if (val)
                     node.Props(null).key(key, null).val(val);
             }
+            // A copy of an instance is another instance of the same component, not
+            // a copy of what it draws — the master belongs to neither of them.
+            if (spec.master)
+                node.Master(null).val(new this.$.$giper_baza_link(spec.master));
             const id = node.link().str;
             for (const kid of spec.kids ?? [])
                 this.node_make(kid, id, kid.x ?? 0, kid.y ?? 0);
@@ -28747,6 +29129,7 @@ var $;
                 padding: this.padding(id),
                 align: this.align(id),
                 props,
+                master: this.master(id),
                 kids: deep >= depth_max ? [] : this.kids(id).map(kid => this.node_spec(kid, deep + 1)),
             };
         }
@@ -28876,10 +29259,37 @@ var $;
     ], $bog_figmol_store.prototype, "page_slug", null);
     __decorate([
         $mol_mem
+    ], $bog_figmol_store.prototype, "comp_ids", null);
+    __decorate([
+        $mol_mem_key
+    ], $bog_figmol_store.prototype, "comp_title", null);
+    __decorate([
+        $mol_mem_key
+    ], $bog_figmol_store.prototype, "comp_root", null);
+    __decorate([
+        $mol_mem_key
+    ], $bog_figmol_store.prototype, "master", null);
+    __decorate([
+        $mol_mem_key
+    ], $bog_figmol_store.prototype, "inst_root", null);
+    __decorate([
+        $mol_mem
+    ], $bog_figmol_store.prototype, "comp_current", null);
+    __decorate([
+        $mol_mem_key
+    ], $bog_figmol_store.prototype, "theme", null);
+    __decorate([
+        $mol_mem
+    ], $bog_figmol_store.prototype, "theme_all", null);
+    __decorate([
+        $mol_mem
     ], $bog_figmol_store.prototype, "root_id", null);
     __decorate([
         $mol_mem_key
     ], $bog_figmol_store.prototype, "kids", null);
+    __decorate([
+        $mol_mem
+    ], $bog_figmol_store.prototype, "comp_roots", null);
     __decorate([
         $mol_mem
     ], $bog_figmol_store.prototype, "parents", null);
@@ -28967,6 +29377,15 @@ var $;
     __decorate([
         $mol_action
     ], $bog_figmol_store.prototype, "page_drop", null);
+    __decorate([
+        $mol_action
+    ], $bog_figmol_store.prototype, "comp_make", null);
+    __decorate([
+        $mol_action
+    ], $bog_figmol_store.prototype, "inst_add", null);
+    __decorate([
+        $mol_action
+    ], $bog_figmol_store.prototype, "comp_drop", null);
     __decorate([
         $mol_action
     ], $bog_figmol_store.prototype, "node_add", null);
@@ -29862,6 +30281,123 @@ var $;
 
 
 ;
+	($.$bog_figmol_app_sheet) = class $bog_figmol_app_sheet extends ($.$mol_view) {
+		theme_base(){
+			return "slate";
+		}
+		theme_lights(){
+			return "light";
+		}
+		theme_font(){
+			return "inter";
+		}
+		theme_back(){
+			return "";
+		}
+		theme_text(){
+			return "";
+		}
+		theme_family(){
+			return "";
+		}
+		store(){
+			const obj = new this.$.$bog_figmol_store();
+			return obj;
+		}
+		attr(){
+			return {
+				...(super.attr()), 
+				"bog_builderui_base": (this.theme_base()), 
+				"bog_builderui_lights": (this.theme_lights()), 
+				"bog_builderui_font_body": (this.theme_font()), 
+				"bog_builderui_font_head": (this.theme_font())
+			};
+		}
+		style(){
+			return {
+				...(super.style()), 
+				"background": (this.theme_back()), 
+				"color": (this.theme_text()), 
+				"fontFamily": (this.theme_family())
+			};
+		}
+	};
+	($mol_mem(($.$bog_figmol_app_sheet.prototype), "store"));
+
+
+;
+"use strict";
+
+
+;
+"use strict";
+var $;
+(function ($) {
+    var $$;
+    (function ($$) {
+        /**
+         * The sheet the canvas draws on — a page of the site rather than a part of
+         * the editor, so it is painted by the theme of that site and not by the
+         * theme of the application around it.
+         *
+         * Every attribute here is the one the generator puts on the root of the
+         * built project, and every style is the rule it writes for it. That is the
+         * whole reason the sheet is a component of its own: one place deciding what
+         * a theme token means on screen, and a canvas that cannot drift away from
+         * the site it publishes.
+         *
+         * An unset colour is left empty on purpose — the style sheet below carries
+         * the defaults, and an inline value would only overwrite them with the same
+         * thing.
+         */
+        class $bog_figmol_app_sheet extends $.$bog_figmol_app_sheet {
+            theme_base() {
+                return this.store().theme_value('base');
+            }
+            theme_lights() {
+                return this.store().theme_value('lights');
+            }
+            theme_font() {
+                return $bog_figmol_theme.font_attr(this.store().theme_value('font'));
+            }
+            theme_family() {
+                return $bog_figmol_theme.font_family(this.store().theme_value('font'));
+            }
+            theme_back() {
+                return this.store().theme_value('back');
+            }
+            theme_text() {
+                return this.store().theme_value('text');
+            }
+        }
+        $$.$bog_figmol_app_sheet = $bog_figmol_app_sheet;
+    })($$ = $.$$ || ($.$$ = {}));
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    $mol_style_define($bog_figmol_app_sheet, {
+        display: 'block',
+        position: 'relative',
+        /**
+         * What a page looks like before the theme says anything. The shapes on
+         * top inherit both, so a colour typed into the theme panel reaches every
+         * caption at once instead of being repeated on each of them.
+         */
+        background: {
+            color: '#ffffff',
+        },
+        color: '#111827',
+        font: {
+            family: 'sans-serif',
+        },
+        boxShadow: '0 0.5rem 2rem #00000040',
+    });
+})($ || ($ = {}));
+
+;
 	($.$mol_image) = class $mol_image extends ($.$mol_view) {
 		uri(){
 			return "";
@@ -29962,6 +30498,129 @@ var $;
 var $;
 (function ($) {
     $mol_style_attach("mol/image/image.view.css", "[mol_image] {\n\tborder-radius: var(--mol_gap_round);\n\toverflow: hidden;\n\tflex: 0 1 auto;\n\tmax-width: 100%;\n\tobject-fit: cover;\n\theight: fit-content;\n}\n");
+})($ || ($ = {}));
+
+;
+	($.$bog_figmol_app_ghost) = class $bog_figmol_app_ghost extends ($.$mol_view) {
+		shapes(){
+			return [];
+		}
+		shape_id(id){
+			return "";
+		}
+		shape_rect(id){
+			return [];
+		}
+		shape_kids(id){
+			return [];
+		}
+		store(){
+			const obj = new this.$.$bog_figmol_store();
+			return obj;
+		}
+		id(){
+			return "";
+		}
+		rect(){
+			return [];
+		}
+		sub(){
+			return (this.shapes());
+		}
+		Shape(id){
+			const obj = new this.$.$bog_figmol_app_canvas_shape();
+			(obj.store) = () => ((this.store()));
+			(obj.editable) = () => (false);
+			(obj.id) = () => ((this.shape_id(id)));
+			(obj.rect) = () => ((this.shape_rect(id)));
+			(obj.kids) = () => ((this.shape_kids(id)));
+			return obj;
+		}
+	};
+	($mol_mem(($.$bog_figmol_app_ghost.prototype), "store"));
+	($mol_mem_key(($.$bog_figmol_app_ghost.prototype), "Shape"));
+
+
+;
+"use strict";
+
+
+;
+"use strict";
+var $;
+(function ($) {
+    var $$;
+    (function ($$) {
+        /**
+         * What an instance of a component shows: the master subtree, drawn by the
+         * very shapes the canvas draws everything else with.
+         *
+         * Reusing the shape is the point — a component that looked different from
+         * the elements it is made of would be a second renderer to keep in step. The
+         * shapes here are made by this view rather than by the canvas, so two
+         * instances of one component are two sets of views over the same nodes,
+         * instead of one view that would have to be in two places at once.
+         *
+         * Nothing in here takes a press: the styles switch pointer events off, so a
+         * click anywhere over an instance walks up to the instance itself. That is
+         * also what keeps the master out of the selection — its nodes are not on
+         * the page, and picking one would be picking something that is not there.
+         */
+        class $bog_figmol_app_ghost extends $.$bog_figmol_app_ghost {
+            shapes() {
+                const id = this.id();
+                return id ? [this.Shape(id)] : [];
+            }
+            shape_id(id) {
+                return id;
+            }
+            /**
+             * The master frame is stretched into the box of the instance, the way a
+             * resized instance behaves everywhere else. Everything below it keeps the
+             * geometry the master was drawn with.
+             */
+            shape_rect(id) {
+                if (id !== this.id())
+                    return this.store().rect(id);
+                const box = this.rect();
+                return [0, 0, box[2] ?? 0, box[3] ?? 0];
+            }
+            shape_kids(id) {
+                return this.store().kids(id).map(kid => this.Shape(kid));
+            }
+        }
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_app_ghost.prototype, "shapes", null);
+        __decorate([
+            $mol_mem_key
+        ], $bog_figmol_app_ghost.prototype, "shape_rect", null);
+        __decorate([
+            $mol_mem_key
+        ], $bog_figmol_app_ghost.prototype, "shape_kids", null);
+        $$.$bog_figmol_app_ghost = $bog_figmol_app_ghost;
+    })($$ = $.$$ || ($.$$ = {}));
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    $mol_style_define($bog_figmol_app_ghost, {
+        /**
+         * Fills the instance and positions the master frame inside it, which is
+         * absolute like every other shape. Clipped, because the master keeps its
+         * own layout and an instance made smaller than it must not spill.
+         */
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        /** A press over an instance belongs to the instance, not to the master. */
+        pointerEvents: 'none',
+    });
 })($ || ($ = {}));
 
 ;
@@ -30845,6 +31504,9 @@ var $;
 		uri(){
 			return "";
 		}
+		master_root(){
+			return "";
+		}
 		inner_direction(){
 			return "";
 		}
@@ -30946,6 +31608,13 @@ var $;
 		Picture(){
 			const obj = new this.$.$mol_image();
 			(obj.uri) = () => ((this.uri()));
+			return obj;
+		}
+		Ghost(){
+			const obj = new this.$.$bog_figmol_app_ghost();
+			(obj.store) = () => ((this.store()));
+			(obj.id) = () => ((this.master_root()));
+			(obj.rect) = () => ((this.rect()));
 			return obj;
 		}
 		Editor(){
@@ -31055,6 +31724,7 @@ var $;
 	($mol_mem(($.$bog_figmol_app_canvas_shape.prototype), "label"));
 	($mol_mem(($.$bog_figmol_app_canvas_shape.prototype), "Label"));
 	($mol_mem(($.$bog_figmol_app_canvas_shape.prototype), "Picture"));
+	($mol_mem(($.$bog_figmol_app_canvas_shape.prototype), "Ghost"));
 	($mol_mem(($.$bog_figmol_app_canvas_shape.prototype), "Editor"));
 	($mol_mem(($.$bog_figmol_app_canvas_shape.prototype), "Bui_card"));
 	($mol_mem(($.$bog_figmol_app_canvas_shape.prototype), "Bui_button"));
@@ -31138,6 +31808,15 @@ var $;
             }
             flow() {
                 return this.store().flow(this.id());
+            }
+            /**
+             * Frame of the component this shape is an instance of, empty for anything
+             * that is not one. The master is drawn by `Ghost`, which owns its own
+             * shapes — two instances of one component would otherwise be one view
+             * asked to be in two places.
+             */
+            master_root() {
+                return this.kind() === 'inst' ? this.store().inst_root(this.id()) : '';
             }
             /**
              * A block that hands its children to the library component instead of
@@ -31252,6 +31931,8 @@ var $;
                     if (this.uri())
                         res.push(this.Picture());
                 }
+                else if (kind === 'inst')
+                    res.push(this.Ghost());
                 else if (bui)
                     res.push(bui);
                 else if (kind !== 'rect' && kind !== 'frame')
@@ -31319,9 +32000,14 @@ var $;
         },
         padding: 0,
         cursor: 'move',
-        color: '#111827',
+        /**
+         * Colour and family come down from the sheet, which wears the theme of
+         * the site. Spelling them out here would make every caption on the canvas
+         * ignore the theme panel — and disagree with the published page.
+         */
+        color: 'inherit',
         font: {
-            family: 'sans-serif',
+            family: 'inherit',
             size: '1rem',
         },
         /**
@@ -31625,13 +32311,13 @@ var $;
 			return [];
 		}
 		Sheet(){
-			const obj = new this.$.$mol_view();
-			(obj.attr) = () => ({
-				...(this.$.$mol_view.prototype.attr.call(obj)), 
-				"bog_builderui_base": "slate", 
-				"bog_builderui_lights": "light"
+			const obj = new this.$.$bog_figmol_app_sheet();
+			(obj.store) = () => ((this.store()));
+			(obj.style) = () => ({
+				...(this.$.$bog_figmol_app_sheet.prototype.style.call(obj)), 
+				"width": (this.sheet_width_style()), 
+				"minHeight": (this.sheet_height_style())
 			});
-			(obj.style) = () => ({"width": (this.sheet_width_style()), "minHeight": (this.sheet_height_style())});
 			(obj.sub) = () => ((this.shapes()));
 			return obj;
 		}
@@ -34289,6 +34975,126 @@ var $;
 
 
 ;
+	($.$mol_icon_pencil) = class $mol_icon_pencil extends ($.$mol_icon) {
+		path(){
+			return "M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z";
+		}
+	};
+
+
+;
+"use strict";
+
+
+;
+	($.$mol_icon_puzzle) = class $mol_icon_puzzle extends ($.$mol_icon) {
+		path(){
+			return "M20.5,11H19V7C19,5.89 18.1,5 17,5H13V3.5A2.5,2.5 0 0,0 10.5,1A2.5,2.5 0 0,0 8,3.5V5H4A2,2 0 0,0 2,7V10.8H3.5C5,10.8 6.2,12 6.2,13.5C6.2,15 5,16.2 3.5,16.2H2V20A2,2 0 0,0 4,22H7.8V20.5C7.8,19 9,17.8 10.5,17.8C12,17.8 13.2,19 13.2,20.5V22H17A2,2 0 0,0 19,20V16H20.5A2.5,2.5 0 0,0 23,13.5A2.5,2.5 0 0,0 20.5,11Z";
+		}
+	};
+
+
+;
+"use strict";
+
+
+;
+	($.$mol_icon_align_horizontal_left) = class $mol_icon_align_horizontal_left extends ($.$mol_icon) {
+		path(){
+			return "M4 22H2V2H4V22M22 7H6V10H22V7M16 14H6V17H16V14Z";
+		}
+	};
+
+
+;
+"use strict";
+
+
+;
+	($.$mol_icon_align_horizontal_center) = class $mol_icon_align_horizontal_center extends ($.$mol_icon) {
+		path(){
+			return "M11 2H13V7H21V10H13V14H18V17H13V22H11V17H6V14H11V10H3V7H11V2Z";
+		}
+	};
+
+
+;
+"use strict";
+
+
+;
+	($.$mol_icon_align_horizontal_right) = class $mol_icon_align_horizontal_right extends ($.$mol_icon) {
+		path(){
+			return "M20 2H22V22H20V2M2 10H18V7H2V10M8 17H18V14H8V17Z";
+		}
+	};
+
+
+;
+"use strict";
+
+
+;
+	($.$mol_icon_align_horizontal_distribute) = class $mol_icon_align_horizontal_distribute extends ($.$mol_icon) {
+		path(){
+			return "M4 22H2V2H4V22M22 2H20V22H22V2M13.5 7H10.5V17H13.5V7Z";
+		}
+	};
+
+
+;
+"use strict";
+
+
+;
+	($.$mol_icon_align_vertical_top) = class $mol_icon_align_vertical_top extends ($.$mol_icon) {
+		path(){
+			return "M22 2V4H2V2H22M7 22H10V6H7V22M14 16H17V6H14V16Z";
+		}
+	};
+
+
+;
+"use strict";
+
+
+;
+	($.$mol_icon_align_vertical_center) = class $mol_icon_align_vertical_center extends ($.$mol_icon) {
+		path(){
+			return "M22 11H17V6H14V11H10V3H7V11H1.8V13H7V21H10V13H14V18H17V13H22V11Z";
+		}
+	};
+
+
+;
+"use strict";
+
+
+;
+	($.$mol_icon_align_vertical_bottom) = class $mol_icon_align_vertical_bottom extends ($.$mol_icon) {
+		path(){
+			return "M22 22H2V20H22V22M10 2H7V18H10V2M17 8H14V18H17V8Z";
+		}
+	};
+
+
+;
+"use strict";
+
+
+;
+	($.$mol_icon_align_vertical_distribute) = class $mol_icon_align_vertical_distribute extends ($.$mol_icon) {
+		path(){
+			return "M22 2V4H2V2H22M7 10.5V13.5H17V10.5H7M2 20V22H22V20H2Z";
+		}
+	};
+
+
+;
+"use strict";
+
+
+;
 	($.$bog_figmol_app_inspector) = class $bog_figmol_app_inspector extends ($.$mol_view) {
 		rows(){
 			return [];
@@ -34525,6 +35331,156 @@ var $;
 			(obj.hint) = () => ("One | Two | Three");
 			return obj;
 		}
+		comp_title(){
+			return "";
+		}
+		Comp_name(){
+			const obj = new this.$.$mol_view();
+			(obj.sub) = () => ([(this.comp_title())]);
+			return obj;
+		}
+		comp_edit(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		Comp_edit_icon(){
+			const obj = new this.$.$mol_icon_pencil();
+			return obj;
+		}
+		comp_edit_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_inspector_comp_edit_label"));
+		}
+		comp_make(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		Comp_make_icon(){
+			const obj = new this.$.$mol_icon_puzzle();
+			return obj;
+		}
+		comp_make_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_inspector_comp_make_label"));
+		}
+		align_left(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		Align_left_icon(){
+			const obj = new this.$.$mol_icon_align_horizontal_left();
+			return obj;
+		}
+		Align_left(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.align_left(next)));
+			(obj.hint) = () => ((this.$.$mol_locale.text("$bog_figmol_app_inspector_Align_left_hint")));
+			(obj.sub) = () => ([(this.Align_left_icon())]);
+			return obj;
+		}
+		align_hcenter(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		Align_hcenter_icon(){
+			const obj = new this.$.$mol_icon_align_horizontal_center();
+			return obj;
+		}
+		Align_hcenter(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.align_hcenter(next)));
+			(obj.hint) = () => ((this.$.$mol_locale.text("$bog_figmol_app_inspector_Align_hcenter_hint")));
+			(obj.sub) = () => ([(this.Align_hcenter_icon())]);
+			return obj;
+		}
+		align_right(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		Align_right_icon(){
+			const obj = new this.$.$mol_icon_align_horizontal_right();
+			return obj;
+		}
+		Align_right(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.align_right(next)));
+			(obj.hint) = () => ((this.$.$mol_locale.text("$bog_figmol_app_inspector_Align_right_hint")));
+			(obj.sub) = () => ([(this.Align_right_icon())]);
+			return obj;
+		}
+		align_hspace(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		Align_hspace_icon(){
+			const obj = new this.$.$mol_icon_align_horizontal_distribute();
+			return obj;
+		}
+		Align_hspace(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.align_hspace(next)));
+			(obj.hint) = () => ((this.$.$mol_locale.text("$bog_figmol_app_inspector_Align_hspace_hint")));
+			(obj.sub) = () => ([(this.Align_hspace_icon())]);
+			return obj;
+		}
+		align_top(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		Align_top_icon(){
+			const obj = new this.$.$mol_icon_align_vertical_top();
+			return obj;
+		}
+		Align_top(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.align_top(next)));
+			(obj.hint) = () => ((this.$.$mol_locale.text("$bog_figmol_app_inspector_Align_top_hint")));
+			(obj.sub) = () => ([(this.Align_top_icon())]);
+			return obj;
+		}
+		align_vcenter(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		Align_vcenter_icon(){
+			const obj = new this.$.$mol_icon_align_vertical_center();
+			return obj;
+		}
+		Align_vcenter(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.align_vcenter(next)));
+			(obj.hint) = () => ((this.$.$mol_locale.text("$bog_figmol_app_inspector_Align_vcenter_hint")));
+			(obj.sub) = () => ([(this.Align_vcenter_icon())]);
+			return obj;
+		}
+		align_bottom(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		Align_bottom_icon(){
+			const obj = new this.$.$mol_icon_align_vertical_bottom();
+			return obj;
+		}
+		Align_bottom(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.align_bottom(next)));
+			(obj.hint) = () => ((this.$.$mol_locale.text("$bog_figmol_app_inspector_Align_bottom_hint")));
+			(obj.sub) = () => ([(this.Align_bottom_icon())]);
+			return obj;
+		}
+		align_vspace(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		Align_vspace_icon(){
+			const obj = new this.$.$mol_icon_align_vertical_distribute();
+			return obj;
+		}
+		Align_vspace(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.align_vspace(next)));
+			(obj.hint) = () => ((this.$.$mol_locale.text("$bog_figmol_app_inspector_Align_vspace_hint")));
+			(obj.sub) = () => ([(this.Align_vspace_icon())]);
+			return obj;
+		}
 		node_drop(next){
 			if(next !== undefined) return next;
 			return null;
@@ -34546,6 +35502,10 @@ var $;
 		}
 		selection(){
 			return [];
+		}
+		arrange(next){
+			if(next !== undefined) return next;
+			return "";
 		}
 		sub(){
 			return (this.rows());
@@ -34711,6 +35671,38 @@ var $;
 			(obj.content) = () => ([(this.Options())]);
 			return obj;
 		}
+		Field_comp(){
+			const obj = new this.$.$bog_figmol_app_inspector_field();
+			(obj.title) = () => ((this.$.$mol_locale.text("$bog_figmol_app_inspector_Field_comp_title")));
+			(obj.content) = () => ([(this.Comp_name())]);
+			return obj;
+		}
+		Comp_edit(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.comp_edit(next)));
+			(obj.sub) = () => ([(this.Comp_edit_icon()), (this.comp_edit_label())]);
+			return obj;
+		}
+		Comp_make(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.comp_make(next)));
+			(obj.sub) = () => ([(this.Comp_make_icon()), (this.comp_make_label())]);
+			return obj;
+		}
+		Arrange(){
+			const obj = new this.$.$mol_view();
+			(obj.sub) = () => ([
+				(this.Align_left()), 
+				(this.Align_hcenter()), 
+				(this.Align_right()), 
+				(this.Align_hspace()), 
+				(this.Align_top()), 
+				(this.Align_vcenter()), 
+				(this.Align_bottom()), 
+				(this.Align_vspace())
+			]);
+			return obj;
+		}
 		Drop(){
 			const obj = new this.$.$mol_button_minor();
 			(obj.click) = (next) => ((this.node_drop(next)));
@@ -34767,10 +35759,40 @@ var $;
 	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Max"));
 	($mol_mem(($.$bog_figmol_app_inspector.prototype), "options"));
 	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Options"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Comp_name"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "comp_edit"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Comp_edit_icon"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "comp_make"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Comp_make_icon"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "align_left"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Align_left_icon"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Align_left"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "align_hcenter"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Align_hcenter_icon"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Align_hcenter"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "align_right"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Align_right_icon"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Align_right"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "align_hspace"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Align_hspace_icon"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Align_hspace"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "align_top"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Align_top_icon"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Align_top"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "align_vcenter"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Align_vcenter_icon"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Align_vcenter"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "align_bottom"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Align_bottom_icon"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Align_bottom"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "align_vspace"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Align_vspace_icon"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Align_vspace"));
 	($mol_mem(($.$bog_figmol_app_inspector.prototype), "node_drop"));
 	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Drop_icon"));
 	($mol_mem(($.$bog_figmol_app_inspector.prototype), "store"));
 	($mol_mem(($.$bog_figmol_app_inspector.prototype), "selected"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "arrange"));
 	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Head"));
 	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Field_x"));
 	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Field_y"));
@@ -34795,6 +35817,10 @@ var $;
 	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Field_value"));
 	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Field_max"));
 	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Field_options"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Field_comp"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Comp_edit"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Comp_make"));
+	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Arrange"));
 	($mol_mem(($.$bog_figmol_app_inspector.prototype), "Drop"));
 
 
@@ -34841,6 +35867,9 @@ var $;
                     case 'button': return this.title_button();
                     case 'frame': return this.title_frame();
                     case 'rect': return this.title_rect();
+                    // An instance is named after what it draws — the kind of every one
+                    // of them is the same word, and the component is the useful half.
+                    case 'inst': return this.comp_title() || $bog_figmol_blocks.title('inst');
                     default: return $bog_figmol_blocks.title(this.kind());
                 }
             }
@@ -34851,8 +35880,13 @@ var $;
                 const id = this.selected();
                 if (!id)
                     return [];
-                if (this.many())
-                    return [this.Head(), this.Drop()];
+                if (this.many()) {
+                    const res = [this.Head()];
+                    if (this.arrangeable())
+                        res.push(this.Arrange());
+                    res.push(this.Drop());
+                    return res;
+                }
                 const kind = this.kind();
                 const res = [this.Head()];
                 // Coordinates of a node inside an auto layout would be a lie: the frame
@@ -34863,8 +35897,106 @@ var $;
                 if (this.store().container(id))
                     res.push(this.Field_direction(), this.Field_gap(), this.Field_padding(), this.Field_align());
                 res.push(...this.kind_rows(kind));
+                if (this.makeable())
+                    res.push(this.Comp_make());
                 res.push(this.Drop());
                 return res;
+            }
+            /* ----------------------------------------------------------- components */
+            /**
+             * Whether this element can become a component. The root frame cannot: it
+             * is the page, and a page that is an instance of something has nowhere to
+             * put the instance. An instance cannot either — it is one already.
+             */
+            makeable() {
+                const id = this.selected();
+                const store = this.store();
+                return !!id && !!store.parent(id) && store.kind(id) !== 'inst';
+            }
+            comp_title() {
+                const store = this.store();
+                return store.comp_title(store.master(this.selected()));
+            }
+            /**
+             * Turns the selected element into a component and picks the instance that
+             * took its place. One gesture, so one step back: the master moves, the
+             * node is unlinked and an instance is written, and Ctrl+Z undoes the lot.
+             */
+            comp_make(next) {
+                if (next === undefined)
+                    return null;
+                const store = this.store();
+                const id = this.selected();
+                if (!id)
+                    return null;
+                const title = store.text(id).replace(/\s+/g, ' ').trim()
+                    || $bog_figmol_blocks.title(store.kind(id));
+                let made = '';
+                store.group(() => { made = store.comp_make(id, title); });
+                if (made)
+                    this.selected(made);
+                return null;
+            }
+            /**
+             * Opens the master of this instance. The selection goes with it: the node
+             * it names belongs to the page, which the canvas is about to leave.
+             */
+            comp_edit(next) {
+                if (next === undefined)
+                    return null;
+                const store = this.store();
+                const comp = store.master(this.selected());
+                if (!comp)
+                    return null;
+                store.comp_id(comp);
+                this.selected('');
+                return null;
+            }
+            /* ------------------------------------------------------------ arranging */
+            /**
+             * Whether there is anything to line up: two elements at least, and every
+             * one of them placed by its own coordinates. Inside an auto layout the
+             * frame decides where things go, and a button that fought it would only
+             * write numbers nobody would see.
+             */
+            arrangeable() {
+                const store = this.store();
+                return this.selection().filter(id => !store.flow(id)).length > 1;
+            }
+            align_left(next) {
+                return this.align_ask('left', next);
+            }
+            align_hcenter(next) {
+                return this.align_ask('hcenter', next);
+            }
+            align_right(next) {
+                return this.align_ask('right', next);
+            }
+            align_hspace(next) {
+                return this.align_ask('hspace', next);
+            }
+            align_top(next) {
+                return this.align_ask('top', next);
+            }
+            align_vcenter(next) {
+                return this.align_ask('vcenter', next);
+            }
+            align_bottom(next) {
+                return this.align_ask('bottom', next);
+            }
+            align_vspace(next) {
+                return this.align_ask('vspace', next);
+            }
+            /**
+             * Hands the mode over to the app, which is where the canvas is and hence
+             * where the elements can be measured. The panel knows what was asked for
+             * and nothing about where anything sits.
+             */
+            align_ask(mode, next) {
+                if (next === undefined)
+                    return null;
+                this.arrange(mode);
+                return null;
             }
             /** Rows that only one kind of element has any use for. */
             kind_rows(kind) {
@@ -34887,6 +36019,7 @@ var $;
                     case 'bui_progress': return [this.Field_value(), this.Field_max()];
                     case 'bui_tabs': return [this.Field_options()];
                     case 'bui_avatar': return [this.Field_uri()];
+                    case 'inst': return [this.Field_comp(), this.Comp_edit()];
                 }
                 return [];
             }
@@ -34977,6 +36110,12 @@ var $;
         ], $bog_figmol_app_inspector.prototype, "rows", null);
         __decorate([
             $mol_action
+        ], $bog_figmol_app_inspector.prototype, "comp_make", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_inspector.prototype, "comp_edit", null);
+        __decorate([
+            $mol_action
         ], $bog_figmol_app_inspector.prototype, "node_drop", null);
         $$.$bog_figmol_app_inspector = $bog_figmol_app_inspector;
     })($$ = $.$$ || ($.$$ = {}));
@@ -35019,6 +36158,54 @@ var $;
         },
         Text: {
             minHeight: '4rem',
+        },
+        /** Four across, two down: lining up and spreading out, one axis per row. */
+        Arrange: {
+            flex: {
+                shrink: 0,
+            },
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+            gap: '1px',
+            margin: {
+                top: $mol_gap.text,
+            },
+        },
+        Comp_name: {
+            flex: {
+                grow: 1,
+            },
+            minWidth: 0,
+            padding: {
+                top: '0.25rem',
+                bottom: '0.25rem',
+            },
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+        },
+        Comp_edit: {
+            flex: {
+                shrink: 0,
+            },
+            gap: $mol_gap.text,
+            justify: {
+                content: 'flex-start',
+            },
+            color: $mol_theme.current,
+        },
+        Comp_make: {
+            flex: {
+                shrink: 0,
+            },
+            gap: $mol_gap.text,
+            justify: {
+                content: 'flex-start',
+            },
+            margin: {
+                top: $mol_gap.text,
+            },
+            color: $mol_theme.current,
         },
         Drop: {
             flex: {
@@ -35224,12 +36411,20 @@ var $;
             page_title(id) {
                 return this.store().page_title(id) || this.page_default();
             }
+            /** A component being edited is not on any page, so no row is current. */
             page_active(id) {
-                return this.store().page_current() === id;
+                const store = this.store();
+                return !store.comp_current() && store.page_current() === id;
             }
+            /**
+             * Picking a page also leaves whatever component was open — the canvas
+             * shows one root at a time, and the list is where a user goes to get back
+             * out of a master.
+             */
             page_click(id, next) {
                 if (next === undefined)
                     return null;
+                this.store().comp_id(null);
                 this.store().page_id(id);
                 this.selected('');
                 return null;
@@ -35246,6 +36441,7 @@ var $;
                 const count = store.page_ids().length + 1;
                 const id = store.page_add(this.page_default() + ' ' + count, 'page' + count);
                 if (id) {
+                    store.comp_id(null);
                     store.page_id(id);
                     this.selected('');
                 }
@@ -35649,6 +36845,724 @@ var $;
 })($ || ($ = {}));
 
 ;
+	($.$mol_icon_check) = class $mol_icon_check extends ($.$mol_icon) {
+		path(){
+			return "M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z";
+		}
+	};
+
+
+;
+"use strict";
+
+
+;
+	($.$bog_figmol_app_comps) = class $bog_figmol_app_comps extends ($.$mol_view) {
+		panels(){
+			return [];
+		}
+		title(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_comps_title"));
+		}
+		rows(){
+			return [];
+		}
+		empty_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_comps_empty_label"));
+		}
+		editing_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_comps_editing_label"));
+		}
+		comp_leave(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		Done_icon(){
+			const obj = new this.$.$mol_icon_check();
+			return obj;
+		}
+		done_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_comps_done_label"));
+		}
+		Done(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.comp_leave(next)));
+			(obj.sub) = () => ([(this.Done_icon()), (this.done_label())]);
+			return obj;
+		}
+		current_title(next){
+			if(next !== undefined) return next;
+			return "";
+		}
+		Title(){
+			const obj = new this.$.$mol_string();
+			(obj.value) = (next) => ((this.current_title(next)));
+			return obj;
+		}
+		comp_drop(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		Drop_icon(){
+			const obj = new this.$.$mol_icon_delete_outline();
+			return obj;
+		}
+		drop_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_comps_drop_label"));
+		}
+		row_content(id){
+			return [];
+		}
+		row_click(id, next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		row_title(id){
+			return "";
+		}
+		row_active(id){
+			return false;
+		}
+		row_enabled(id){
+			return true;
+		}
+		pick_hint(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_comps_pick_hint"));
+		}
+		row_edit(id, next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		edit_hint(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_comps_edit_hint"));
+		}
+		Edit_icon(id){
+			const obj = new this.$.$mol_icon_pencil();
+			return obj;
+		}
+		store(){
+			const obj = new this.$.$bog_figmol_store();
+			return obj;
+		}
+		spot(){
+			return [];
+		}
+		selected(next){
+			if(next !== undefined) return next;
+			return "";
+		}
+		sub(){
+			return (this.panels());
+		}
+		Head(){
+			const obj = new this.$.$mol_view();
+			(obj.sub) = () => ([(this.title())]);
+			return obj;
+		}
+		List(){
+			const obj = new this.$.$mol_view();
+			(obj.sub) = () => ((this.rows()));
+			return obj;
+		}
+		Empty(){
+			const obj = new this.$.$mol_view();
+			(obj.sub) = () => ([(this.empty_label())]);
+			return obj;
+		}
+		Editing(){
+			const obj = new this.$.$mol_view();
+			(obj.sub) = () => ([(this.editing_label()), (this.Done())]);
+			return obj;
+		}
+		Field_title(){
+			const obj = new this.$.$bog_figmol_app_inspector_field();
+			(obj.title) = () => ((this.$.$mol_locale.text("$bog_figmol_app_comps_Field_title_title")));
+			(obj.content) = () => ([(this.Title())]);
+			return obj;
+		}
+		Drop(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.comp_drop(next)));
+			(obj.sub) = () => ([(this.Drop_icon()), (this.drop_label())]);
+			return obj;
+		}
+		Row(id){
+			const obj = new this.$.$mol_view();
+			(obj.sub) = () => ((this.row_content(id)));
+			return obj;
+		}
+		Pick(id){
+			const obj = new this.$.$bog_figmol_app_row();
+			(obj.click) = (next) => ((this.row_click(id, next)));
+			(obj.title) = () => ((this.row_title(id)));
+			(obj.active) = () => ((this.row_active(id)));
+			(obj.enabled) = () => ((this.row_enabled(id)));
+			(obj.hint) = () => ((this.pick_hint()));
+			return obj;
+		}
+		Edit(id){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.row_edit(id, next)));
+			(obj.hint) = () => ((this.edit_hint()));
+			(obj.sub) = () => ([(this.Edit_icon(id))]);
+			return obj;
+		}
+	};
+	($mol_mem(($.$bog_figmol_app_comps.prototype), "comp_leave"));
+	($mol_mem(($.$bog_figmol_app_comps.prototype), "Done_icon"));
+	($mol_mem(($.$bog_figmol_app_comps.prototype), "Done"));
+	($mol_mem(($.$bog_figmol_app_comps.prototype), "current_title"));
+	($mol_mem(($.$bog_figmol_app_comps.prototype), "Title"));
+	($mol_mem(($.$bog_figmol_app_comps.prototype), "comp_drop"));
+	($mol_mem(($.$bog_figmol_app_comps.prototype), "Drop_icon"));
+	($mol_mem_key(($.$bog_figmol_app_comps.prototype), "row_click"));
+	($mol_mem_key(($.$bog_figmol_app_comps.prototype), "row_edit"));
+	($mol_mem_key(($.$bog_figmol_app_comps.prototype), "Edit_icon"));
+	($mol_mem(($.$bog_figmol_app_comps.prototype), "store"));
+	($mol_mem(($.$bog_figmol_app_comps.prototype), "selected"));
+	($mol_mem(($.$bog_figmol_app_comps.prototype), "Head"));
+	($mol_mem(($.$bog_figmol_app_comps.prototype), "List"));
+	($mol_mem(($.$bog_figmol_app_comps.prototype), "Empty"));
+	($mol_mem(($.$bog_figmol_app_comps.prototype), "Editing"));
+	($mol_mem(($.$bog_figmol_app_comps.prototype), "Field_title"));
+	($mol_mem(($.$bog_figmol_app_comps.prototype), "Drop"));
+	($mol_mem_key(($.$bog_figmol_app_comps.prototype), "Row"));
+	($mol_mem_key(($.$bog_figmol_app_comps.prototype), "Pick"));
+	($mol_mem_key(($.$bog_figmol_app_comps.prototype), "Edit"));
+
+
+;
+"use strict";
+
+
+;
+"use strict";
+var $;
+(function ($) {
+    var $$;
+    (function ($$) {
+        /** Distance an instance is dropped from whatever already sits on the spot. */
+        const figmol_comps_step = 40;
+        /** How close two elements have to be before the second one steps aside. */
+        const figmol_comps_near = 12;
+        const figmol_comps_tries = 20;
+        /**
+         * The components of the site, in the left rail next to the blocks.
+         *
+         * A row does two things, which is why it is two buttons: the wide one drops
+         * an instance in the middle of the viewport, the narrow one opens the master
+         * for editing. Opening it points the whole editor at another root — the
+         * canvas, the layer tree and the inspector go on working on it without
+         * knowing they are inside a component — and the panel grows a way back.
+         *
+         * A component may not be dropped into itself, directly or through another
+         * one: those rows are disabled rather than silently refusing, because a row
+         * that does nothing when clicked reads as a broken panel.
+         */
+        class $bog_figmol_app_comps extends $.$bog_figmol_app_comps {
+            editing() {
+                return !!this.store().comp_current();
+            }
+            panels() {
+                const res = [this.Head()];
+                res.push(this.store().comp_ids().length ? this.List() : this.Empty());
+                if (this.editing())
+                    res.push(this.Editing(), this.Field_title(), this.Drop());
+                return res;
+            }
+            rows() {
+                return this.store().comp_ids().map(id => this.Row(id));
+            }
+            row_content(id) {
+                return [this.Pick(id), this.Edit(id)];
+            }
+            /** A component with no name yet is still worth a line in the list. */
+            row_title(id) {
+                return this.store().comp_title(id) || $bog_figmol_blocks.title('inst');
+            }
+            row_active(id) {
+                return this.store().comp_current() === id;
+            }
+            row_enabled(id) {
+                return !this.store().comp_cyclic(id);
+            }
+            /**
+             * Where an instance lands: the middle of what the user is looking at, then
+             * stepped aside while something already starts there — the same rule the
+             * block palette follows, and for the same reason.
+             */
+            place(id) {
+                const store = this.store();
+                const rect = store.rect(store.comp_root(id));
+                const spot = this.spot();
+                let x = Math.max(0, Math.round((spot[0] ?? 0) - (rect[2] ?? 160) / 2));
+                let y = Math.max(0, Math.round((spot[1] ?? 0) - (rect[3] ?? 48) / 2));
+                for (let guard = 0; guard < figmol_comps_tries && this.taken(x, y); ++guard) {
+                    x += figmol_comps_step;
+                    y += figmol_comps_step;
+                }
+                return [x, y];
+            }
+            taken(x, y) {
+                const store = this.store();
+                return store.kids(store.root_id()).some(id => {
+                    const rect = store.rect(id);
+                    return Math.abs(rect[0] - x) < figmol_comps_near
+                        && Math.abs(rect[1] - y) < figmol_comps_near;
+                });
+            }
+            row_click(id, next) {
+                if (next === undefined)
+                    return null;
+                const store = this.store();
+                const at = this.place(id);
+                const made = store.inst_add(id, store.root_id(), at[0], at[1]);
+                if (made)
+                    this.selected(made);
+                return null;
+            }
+            /**
+             * Opens the master. The selection is dropped along the way: it names a
+             * node of the page just left, and the inspector would go on offering to
+             * change something nobody can see any more.
+             */
+            row_edit(id, next) {
+                if (next === undefined)
+                    return null;
+                this.store().comp_id(id);
+                this.selected('');
+                return null;
+            }
+            comp_leave(next) {
+                if (next === undefined)
+                    return null;
+                this.store().comp_id(null);
+                this.selected('');
+                return null;
+            }
+            current_title(next) {
+                return this.store().comp_title(this.store().comp_current(), next);
+            }
+            comp_drop(next) {
+                if (next === undefined)
+                    return null;
+                const store = this.store();
+                const id = store.comp_current();
+                if (!id)
+                    return null;
+                store.comp_drop(id);
+                store.comp_id(null);
+                this.selected('');
+                return null;
+            }
+        }
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_app_comps.prototype, "panels", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_app_comps.prototype, "rows", null);
+        __decorate([
+            $mol_mem_key
+        ], $bog_figmol_app_comps.prototype, "row_active", null);
+        __decorate([
+            $mol_mem_key
+        ], $bog_figmol_app_comps.prototype, "row_enabled", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_comps.prototype, "row_click", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_comps.prototype, "row_edit", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_comps.prototype, "comp_leave", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_comps.prototype, "comp_drop", null);
+        $$.$bog_figmol_app_comps = $bog_figmol_app_comps;
+    })($$ = $.$$ || ($.$$ = {}));
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    $mol_style_define($bog_figmol_app_comps, {
+        flex: {
+            direction: 'column',
+            shrink: 0,
+        },
+        gap: $mol_gap.text,
+        padding: $mol_gap.text,
+        border: {
+            bottom: {
+                width: '1px',
+                style: 'solid',
+                color: $mol_theme.line,
+            },
+        },
+        Head: {
+            flex: {
+                shrink: 0,
+            },
+            color: $mol_theme.shade,
+            font: {
+                size: '0.6875rem',
+                weight: 'bold',
+            },
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+        },
+        List: {
+            flex: {
+                direction: 'column',
+            },
+            gap: '1px',
+        },
+        /** Says where components come from, so an empty list is not a dead end. */
+        Empty: {
+            color: $mol_theme.shade,
+            font: {
+                size: '0.6875rem',
+            },
+        },
+        /** The name and the wide button share a line; the pencil takes what is left. */
+        Row: {
+            flex: {
+                direction: 'row',
+            },
+            align: {
+                items: 'stretch',
+            },
+            gap: '1px',
+        },
+        Pick: {
+            flex: {
+                grow: 1,
+                shrink: 1,
+            },
+            minWidth: 0,
+        },
+        Edit: {
+            flex: {
+                shrink: 0,
+            },
+            padding: {
+                left: '0.25rem',
+                right: '0.25rem',
+            },
+        },
+        Editing: {
+            flex: {
+                direction: 'row',
+                shrink: 0,
+            },
+            align: {
+                items: 'center',
+            },
+            gap: $mol_gap.text,
+            margin: {
+                top: $mol_gap.text,
+            },
+            color: $mol_theme.shade,
+            font: {
+                size: '0.6875rem',
+            },
+        },
+        Done: {
+            flex: {
+                shrink: 0,
+            },
+            gap: '0.25rem',
+            color: $mol_theme.current,
+        },
+        Drop: {
+            flex: {
+                shrink: 0,
+            },
+            gap: $mol_gap.text,
+            justify: {
+                content: 'flex-start',
+            },
+            color: '#ef4444',
+        },
+    });
+})($ || ($ = {}));
+
+;
+	($.$bog_figmol_app_theme) = class $bog_figmol_app_theme extends ($.$mol_view) {
+		title(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_theme_title"));
+		}
+		Head(){
+			const obj = new this.$.$mol_view();
+			(obj.sub) = () => ([(this.title())]);
+			return obj;
+		}
+		back(next){
+			if(next !== undefined) return next;
+			return "";
+		}
+		Back(){
+			const obj = new this.$.$mol_string();
+			(obj.value) = (next) => ((this.back(next)));
+			(obj.hint) = () => ("#ffffff");
+			return obj;
+		}
+		Field_back(){
+			const obj = new this.$.$bog_figmol_app_inspector_field();
+			(obj.title) = () => ((this.$.$mol_locale.text("$bog_figmol_app_theme_Field_back_title")));
+			(obj.content) = () => ([(this.Back())]);
+			return obj;
+		}
+		text(next){
+			if(next !== undefined) return next;
+			return "";
+		}
+		Text(){
+			const obj = new this.$.$mol_string();
+			(obj.value) = (next) => ((this.text(next)));
+			(obj.hint) = () => ("#111827");
+			return obj;
+		}
+		Field_text(){
+			const obj = new this.$.$bog_figmol_app_inspector_field();
+			(obj.title) = () => ((this.$.$mol_locale.text("$bog_figmol_app_theme_Field_text_title")));
+			(obj.content) = () => ([(this.Text())]);
+			return obj;
+		}
+		accent(next){
+			if(next !== undefined) return next;
+			return "";
+		}
+		Accent(){
+			const obj = new this.$.$mol_string();
+			(obj.value) = (next) => ((this.accent(next)));
+			(obj.hint) = () => ("#2563eb");
+			return obj;
+		}
+		Field_accent(){
+			const obj = new this.$.$bog_figmol_app_inspector_field();
+			(obj.title) = () => ((this.$.$mol_locale.text("$bog_figmol_app_theme_Field_accent_title")));
+			(obj.content) = () => ([(this.Accent())]);
+			return obj;
+		}
+		font(next){
+			if(next !== undefined) return next;
+			return "";
+		}
+		font_options(){
+			return {};
+		}
+		Font(){
+			const obj = new this.$.$mol_switch();
+			(obj.value) = (next) => ((this.font(next)));
+			(obj.options) = () => ((this.font_options()));
+			return obj;
+		}
+		Field_font(){
+			const obj = new this.$.$bog_figmol_app_inspector_field();
+			(obj.title) = () => ((this.$.$mol_locale.text("$bog_figmol_app_theme_Field_font_title")));
+			(obj.content) = () => ([(this.Font())]);
+			return obj;
+		}
+		base(next){
+			if(next !== undefined) return next;
+			return "";
+		}
+		base_options(){
+			return {};
+		}
+		Base(){
+			const obj = new this.$.$mol_switch();
+			(obj.value) = (next) => ((this.base(next)));
+			(obj.options) = () => ((this.base_options()));
+			return obj;
+		}
+		Field_base(){
+			const obj = new this.$.$bog_figmol_app_inspector_field();
+			(obj.title) = () => ((this.$.$mol_locale.text("$bog_figmol_app_theme_Field_base_title")));
+			(obj.content) = () => ([(this.Base())]);
+			return obj;
+		}
+		lights(next){
+			if(next !== undefined) return next;
+			return "";
+		}
+		lights_options(){
+			return {};
+		}
+		Lights(){
+			const obj = new this.$.$mol_switch();
+			(obj.value) = (next) => ((this.lights(next)));
+			(obj.options) = () => ((this.lights_options()));
+			return obj;
+		}
+		Field_lights(){
+			const obj = new this.$.$bog_figmol_app_inspector_field();
+			(obj.title) = () => ((this.$.$mol_locale.text("$bog_figmol_app_theme_Field_lights_title")));
+			(obj.content) = () => ([(this.Lights())]);
+			return obj;
+		}
+		store(){
+			const obj = new this.$.$bog_figmol_store();
+			return obj;
+		}
+		sub(){
+			return [
+				(this.Head()), 
+				(this.Field_back()), 
+				(this.Field_text()), 
+				(this.Field_accent()), 
+				(this.Field_font()), 
+				(this.Field_base()), 
+				(this.Field_lights())
+			];
+		}
+	};
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "Head"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "back"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "Back"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "Field_back"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "text"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "Text"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "Field_text"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "accent"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "Accent"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "Field_accent"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "font"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "Font"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "Field_font"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "base"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "Base"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "Field_base"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "lights"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "Lights"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "Field_lights"));
+	($mol_mem(($.$bog_figmol_app_theme.prototype), "store"));
+
+
+;
+"use strict";
+
+
+;
+"use strict";
+var $;
+(function ($) {
+    var $$;
+    (function ($$) {
+        /**
+         * The theme of the site, in the left rail.
+         *
+         * Every field writes one token straight into the document, and both the
+         * sheet and the generator read those same tokens back — so what the canvas
+         * shows after a click here is what the published page will show. Nothing is
+         * previewed and nothing is applied: there is one copy of the value, and it
+         * is the one in the Baza.
+         *
+         * The switches offer what the component library actually ships with. A free
+         * text colour is a colour anybody can type, but a family the library has no
+         * font for would simply not arrive on the built page.
+         */
+        class $bog_figmol_app_theme extends $.$bog_figmol_app_theme {
+            font_options() {
+                return $bog_figmol_theme.font_titles();
+            }
+            base_options() {
+                return $bog_figmol_theme.base_titles();
+            }
+            lights_options() {
+                return $bog_figmol_theme.lights_titles();
+            }
+            back(next) {
+                return this.store().theme('back', next);
+            }
+            text(next) {
+                return this.store().theme('text', next);
+            }
+            accent(next) {
+                return this.store().theme('accent', next);
+            }
+            /**
+             * The switches show the value that is in force rather than the one that
+             * was written: a site nobody has themed yet has an empty `font`, and a
+             * row of buttons with none of them pressed would be a lie about what the
+             * canvas is drawing.
+             */
+            font(next) {
+                return this.token('font', next);
+            }
+            base(next) {
+                return this.token('base', next);
+            }
+            lights(next) {
+                return this.token('lights', next);
+            }
+            token(key, next) {
+                const store = this.store();
+                if (next !== undefined)
+                    store.theme(key, next);
+                return store.theme_value(key);
+            }
+        }
+        $$.$bog_figmol_app_theme = $bog_figmol_app_theme;
+    })($$ = $.$$ || ($.$$ = {}));
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    /** Caption over the control instead of beside it. */
+    const figmol_theme_stacked = {
+        flex: {
+            direction: 'column',
+        },
+        align: {
+            items: 'stretch',
+        },
+        gap: '0.25rem',
+    };
+    $mol_style_define($bog_figmol_app_theme, {
+        flex: {
+            direction: 'column',
+            shrink: 0,
+        },
+        gap: $mol_gap.text,
+        padding: $mol_gap.text,
+        border: {
+            bottom: {
+                width: '1px',
+                style: 'solid',
+                color: $mol_theme.line,
+            },
+        },
+        Head: {
+            flex: {
+                shrink: 0,
+            },
+            color: $mol_theme.shade,
+            font: {
+                size: '0.6875rem',
+                weight: 'bold',
+            },
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+        },
+        /**
+         * Four options do not fit beside a caption in a rail this narrow — they
+         * wrap into three ragged lines. A switch gets the line to itself, while
+         * the colours stay beside their captions where they read best.
+         */
+        Field_font: figmol_theme_stacked,
+        Field_base: figmol_theme_stacked,
+        Field_lights: figmol_theme_stacked,
+    });
+})($ || ($ = {}));
+
+;
 	($.$bog_figmol_app_layers) = class $bog_figmol_app_layers extends ($.$mol_view) {
 		title(){
 			return (this.$.$mol_locale.text("$bog_figmol_app_layers_title"));
@@ -35746,7 +37660,14 @@ var $;
             /** Kind of the element, plus the beginning of its caption when it has one. */
             row_title(id) {
                 const store = this.store();
-                const name = $bog_figmol_blocks.title(store.kind(id));
+                const kind = store.kind(id);
+                // An instance is named after the component it draws: every one of them
+                // is of the same kind, and the name is what tells them apart. Asked of
+                // the kind first, so nothing else on the page pays for the link.
+                if (kind === 'inst') {
+                    return store.comp_title(store.master(id)) || $bog_figmol_blocks.title('inst');
+                }
+                const name = $bog_figmol_blocks.title(kind);
                 const text = store.text(id).replace(/\s+/g, ' ').trim();
                 if (!text)
                     return name;
@@ -35867,6 +37788,18 @@ var $;
 			(obj.selected) = (next) => ((this.selected(next)));
 			return obj;
 		}
+		Comps(){
+			const obj = new this.$.$bog_figmol_app_comps();
+			(obj.store) = () => ((this.store()));
+			(obj.spot) = () => ((this.spot()));
+			(obj.selected) = (next) => ((this.selected(next)));
+			return obj;
+		}
+		Theme(){
+			const obj = new this.$.$bog_figmol_app_theme();
+			(obj.store) = () => ((this.store()));
+			return obj;
+		}
 		Layers(){
 			const obj = new this.$.$bog_figmol_app_layers();
 			(obj.store) = () => ((this.store()));
@@ -35879,6 +37812,8 @@ var $;
 	($mol_mem(($.$bog_figmol_app_side.prototype), "store"));
 	($mol_mem(($.$bog_figmol_app_side.prototype), "Pages"));
 	($mol_mem(($.$bog_figmol_app_side.prototype), "Blocks"));
+	($mol_mem(($.$bog_figmol_app_side.prototype), "Comps"));
+	($mol_mem(($.$bog_figmol_app_side.prototype), "Theme"));
 	($mol_mem(($.$bog_figmol_app_side.prototype), "Layers"));
 
 
@@ -35903,7 +37838,7 @@ var $;
             panels() {
                 if (!this.editable())
                     return [this.Pages(), this.Layers()];
-                return [this.Pages(), this.Blocks(), this.Layers()];
+                return [this.Pages(), this.Blocks(), this.Comps(), this.Theme(), this.Layers()];
             }
         }
         __decorate([
@@ -35924,7 +37859,15 @@ var $;
         },
         width: '15rem',
         minHeight: 0,
-        overflow: 'hidden',
+        /**
+         * The rail scrolls as a whole. Five sections one under another do not fit
+         * a short window, and squeezing the layer tree to nothing to keep them all
+         * on screen would hide the one list that grows without limit.
+         */
+        overflow: {
+            x: 'hidden',
+            y: 'auto',
+        },
         background: {
             color: $mol_theme.card,
         },
@@ -37936,7 +39879,16 @@ var $;
     class $bog_figmol_schema_site extends $giper_baza_entity.with({
         /** Pages in navigation order. The first one is the entry point. */
         Pages: $giper_baza_list_link.to(() => $bog_figmol_schema_page),
-        /** Theme tokens by name: `accent`, `back`, `font`… Plain strings for now. */
+        /** Components of the site, reusable across every page of it. */
+        Comps: $giper_baza_list_link.to(() => $bog_figmol_schema_comp),
+        /**
+         * Theme tokens by name, all of them plain strings:
+         *
+         * - `back`, `text`, `accent` — css colors, empty means the default
+         * - `font` — one of the families the component library ships with
+         * - `base` — neutral palette of that library: `slate`, `stone`…
+         * - `lights` — `light` or `dark`
+         */
         Theme: $giper_baza_dict_to($giper_baza_atom_text),
     }) {
     }
@@ -38188,6 +40140,31 @@ var $;
             if (figmol_gen_reserved.includes(name))
                 name += 'site';
             const root = figmol_gen_sign(name);
+            const theme = site.theme ?? {};
+            const accent = $bog_figmol_theme.value(theme, 'accent');
+            // Components are named before anything is walked: a page may place one,
+            // and so may another component, so every reference needs an answer
+            // before the first subtree is turned into units.
+            const comps = site.comps ?? [];
+            const names = {};
+            const claimed = new Set();
+            const slugs = comps.map((comp, index) => {
+                const raw = figmol_gen_line(comp.title ?? '').trim();
+                let slug = figmol_gen_ident(raw, 'comp' + (index + 1));
+                if (claimed.has(slug))
+                    slug = slug + (index + 1);
+                claimed.add(slug);
+                if (comp.id)
+                    names[comp.id] = root + '_c_' + slug;
+                return slug;
+            });
+            const parts = comps.map((comp, index) => this.part(comp, {
+                id: comp.id ?? '',
+                title: figmol_gen_line(comp.title ?? '').trim() || 'Component ' + (index + 1),
+                comp: root + '_c_' + slugs[index],
+                accent,
+                comps: names,
+            }));
             const pages = site.pages?.length ? site.pages : [{}];
             const taken = new Set();
             const screens = pages.map((page, index) => {
@@ -38196,21 +40173,39 @@ var $;
                 if (taken.has(id))
                     id = id + (index + 1);
                 taken.add(id);
-                return this.screen(page, { id, title: page_title, root });
+                return this.screen(page, { id, title: page_title, root, accent, comps: names });
             });
             return {
                 name,
                 title,
                 root,
+                attrs: this.attrs(site),
+                parts,
                 screens,
                 style: this.style_root(site, screens),
+            };
+        }
+        /**
+         * Attributes of the root: the palette the library blocks paint themselves
+         * with, and the family everything is set in. The very ones the editor put
+         * on its sheet — a canvas and a site that disagree here would be a canvas
+         * nobody could trust.
+         */
+        static attrs(site) {
+            const theme = site.theme ?? {};
+            const font = $bog_figmol_theme.font_attr($bog_figmol_theme.value(theme, 'font'));
+            return {
+                bog_builderui_base: $bog_figmol_theme.value(theme, 'base'),
+                bog_builderui_lights: $bog_figmol_theme.value(theme, 'lights'),
+                bog_builderui_font_body: font,
+                bog_builderui_font_head: font,
             };
         }
         static screen(page, about) {
             const frame = page.root ?? null;
             const flow = this.flow(frame);
-            const counter = { count: 0 };
-            const units = (frame?.kids ?? []).map(kid => this.unit(kid, flow, counter, frame ?? undefined));
+            const ctx = { count: 0, accent: about.accent, comps: about.comps };
+            const units = (frame?.kids ?? []).map(kid => this.unit(kid, flow, ctx, frame ?? undefined));
             const style = {};
             if (flow) {
                 figmol_gen_assign(style, this.style_flow(frame));
@@ -38224,13 +40219,7 @@ var $;
             /** The page fills the shell, so it grows whatever its own flow is. */
             const flex = (style.flex ?? {});
             style.flex = { grow: 1, direction: flex.direction ?? 'column' };
-            const spread = (list) => {
-                for (const unit of list) {
-                    style[unit.name] = unit.style;
-                    spread(unit.kids);
-                }
-            };
-            spread(units);
+            this.spread(style, units);
             return {
                 id: about.id,
                 title: about.title,
@@ -38241,6 +40230,60 @@ var $;
                 style,
             };
         }
+        /**
+         * A component becomes a class like a page does, and for the same reason:
+         * whatever is placed several times is declared once and referred to by
+         * name. Instances of it carry only where they sit.
+         *
+         * The frame of the master gives the class its layout and nothing else —
+         * the size belongs to each instance, which is what makes one component
+         * usable in a narrow column and in a wide row.
+         */
+        static part(comp, about) {
+            const frame = comp.root ?? { kind: 'frame' };
+            // The master is turned into a unit like any other node — that is how a
+            // component made out of a card stays a card, and one made out of a text
+            // keeps its caption. Its own name is never emitted, so the counter
+            // starts below one and the children come out as Node1 upwards.
+            const ctx = { count: -1, accent: about.accent, comps: about.comps };
+            const head = this.unit(frame, false, ctx, undefined);
+            const style = this.style_loose(head.style, this.flow(frame));
+            this.spread(style, head.kids);
+            return {
+                id: about.id,
+                title: about.title,
+                comp: about.comp,
+                base: head.comp,
+                head,
+                units: head.kids,
+                style,
+            };
+        }
+        /**
+         * A style with the placement taken out of it.
+         *
+         * Where a component sits and how big it is belongs to every instance of it
+         * separately — that is what lets one component fit a narrow column and a
+         * wide row. What stays is the layout, the look and the padding.
+         *
+         * A master that places its children by hand still needs to be something
+         * they can be placed against, hence the `relative` put back.
+         */
+        static style_loose(style, flow) {
+            const res = { ...style };
+            for (const key of ['position', 'left', 'top', 'width', 'height', 'minHeight'])
+                delete res[key];
+            if (!flow)
+                res.position = 'relative';
+            return res;
+        }
+        /** Every node of a subtree as a rule of the style sheet of its component. */
+        static spread(style, units) {
+            for (const unit of units) {
+                style[unit.name] = unit.style;
+                this.spread(style, unit.kids);
+            }
+        }
         /** A container lays its children out in a flex flow only when it has a direction. */
         static flow(node) {
             if (!node)
@@ -38249,27 +40292,32 @@ var $;
                 return false;
             return node.direction === 'row' || node.direction === 'column';
         }
-        static unit(node, flowed, counter, parent) {
+        static unit(node, flowed, ctx, parent) {
             const kind = String(node.kind ?? 'rect');
-            const name = 'Node' + (++counter.count);
+            const name = 'Node' + (++ctx.count);
             const props = node.props ?? {};
             const flow = this.flow(node);
             const holds = $bog_figmol_blocks.container(kind);
+            // An instance is a placement and a class name. What it draws is
+            // declared once, in the component, so nothing of it is repeated here —
+            // and a component the site no longer has leaves an empty box behind
+            // rather than half a page.
+            const master = kind === 'inst' ? (ctx.comps[String(node.master ?? '')] ?? '') : '';
             const style = {};
             figmol_gen_assign(style, this.style_place(node, flowed, parent));
-            figmol_gen_assign(style, this.style_kind(node));
+            figmol_gen_assign(style, this.style_kind(node, ctx.accent));
             if (flow)
                 figmol_gen_assign(style, this.style_flow(node));
             else if (holds)
                 style.position = style.position ?? 'relative';
             figmol_gen_assign(style, this.style_props(props));
             const kids = holds
-                ? (node.kids ?? []).map(kid => this.unit(kid, flow, counter, node))
+                ? (node.kids ?? []).map(kid => this.unit(kid, flow, ctx, node))
                 : [];
             return {
                 name,
                 kind,
-                comp: this.comp(kind),
+                comp: master || this.comp(kind),
                 title: figmol_gen_line(props.text ?? props.title ?? ''),
                 note: figmol_gen_line(props.note ?? ''),
                 variant: figmol_gen_variant(props.variant),
@@ -38315,7 +40363,7 @@ var $;
             const text = figmol_gen_color(theme.text ?? theme.color);
             if (text)
                 style.color = text;
-            const family = figmol_gen_family(theme.font ?? theme.family);
+            const family = this.family(theme);
             if (family)
                 style.font = { family };
             if (screens.length < 2)
@@ -38329,7 +40377,7 @@ var $;
             style.Body = {
                 flex: { grow: 1, direction: 'column' },
             };
-            const accent = figmol_gen_color(theme.accent) ?? '#2563eb';
+            const accent = $bog_figmol_theme.value(theme, 'accent');
             for (const screen of screens) {
                 style[screen.nav] = {
                     '[mol_link_current]': {
@@ -38338,6 +40386,21 @@ var $;
                 };
             }
             return style;
+        }
+        /**
+         * Css family the site is set in.
+         *
+         * A token of the theme names one of the families the component library
+         * carries, and that is what the panel writes. A stack spelled out by hand
+         * is still taken as it is: sites themed before the panel existed have one,
+         * and dropping it would silently restyle them.
+         */
+        static family(theme) {
+            const raw = String(theme.font ?? theme.family ?? '').trim();
+            const known = $bog_figmol_theme.font_family($bog_figmol_theme.value(theme, 'font'));
+            if (!raw || $bog_figmol_theme.fonts.includes(raw))
+                return known;
+            return figmol_gen_family(raw) ?? known;
         }
         /** Placement of a node inside its parent. */
         static style_place(node, flowed, parent) {
@@ -38384,7 +40447,7 @@ var $;
             };
             return style;
         }
-        static style_kind(node) {
+        static style_kind(node, accent = '#2563eb') {
             const kind = String(node.kind ?? 'rect');
             const style = {};
             if (kind === 'text') {
@@ -38398,7 +40461,10 @@ var $;
                 style.justify = { content: 'center' };
                 style.padding = { top: '0.5rem', bottom: '0.5rem', left: '1rem', right: '1rem' };
                 style.borderRadius = '0.5rem';
-                style.background = { color: '#2563eb' };
+                // The accent of the theme is what a plain button is painted with,
+                // which is the one place a colour picked in the panel shows up
+                // without anybody putting it on an element by hand.
+                style.background = { color: accent };
                 style.color = '#ffffff';
                 style.textAlign = 'center';
             }
@@ -38448,10 +40514,13 @@ var $;
         }
         /* ------------------------------------------------------------- view.tree */
         static view_tree(plan) {
-            const parts = [this.view_tree_root(plan)];
+            const rows = [this.view_tree_root(plan)];
+            const view = figmol_gen_sign('mol_view');
             for (const screen of plan.screens)
-                parts.push(this.view_tree_screen(screen));
-            return parts.join('\n');
+                rows.push(this.view_tree_block(screen.comp, view, null, screen.units));
+            for (const part of plan.parts)
+                rows.push(this.view_tree_block(part.comp, part.base, part.head, part.units));
+            return rows.join('\n');
         }
         static view_tree_root(plan) {
             const view = figmol_gen_sign('mol_view');
@@ -38460,13 +40529,13 @@ var $;
             // Name of the browser tab: $mol takes `document.title` from the root
             // component and would otherwise name the site after its own class.
             rows.push('\ttitle \\' + figmol_gen_line(plan.title));
-            // Palette the library blocks paint themselves with. Their own default
-            // is the dark one, and the editor drew them on a light sheet — these
-            // are the attributes it had on it.
+            // The theme of the site, in the form the component library reads it:
+            // the very attributes the editor had on its sheet.
             rows.push('\tattr *');
             rows.push('\t\t^');
-            rows.push('\t\tbog_builderui_base \\slate');
-            rows.push('\t\tbog_builderui_lights \\light');
+            for (const [key, val] of Object.entries(plan.attrs)) {
+                rows.push('\t\t' + key + ' \\' + figmol_gen_line(val));
+            }
             if (plan.screens.length < 2) {
                 const only = plan.screens[0];
                 rows.push('\tsub /');
@@ -38489,55 +40558,70 @@ var $;
             }
             return rows.join('\n') + '\n';
         }
-        static view_tree_screen(screen) {
-            const rows = [screen.comp + ' ' + figmol_gen_sign('mol_view')];
-            if (!screen.units.length)
-                return rows.join('\n') + '\n';
-            rows.push('\tsub /');
-            for (const unit of screen.units)
-                rows.push(...this.view_tree_unit(unit, 2));
+        /**
+         * One declared component: a page, or a component of the site.
+         *
+         * A page is always a plain view holding what was drawn on it. A component
+         * is whatever its master was — a card master declares a card — and carries
+         * the properties of that master itself.
+         */
+        static view_tree_block(comp, base, head, units) {
+            const rows = [comp + ' ' + base];
+            if (head)
+                rows.push(...this.view_tree_props(head, '\t'));
+            if (units.length) {
+                rows.push('\tsub /');
+                for (const unit of units)
+                    rows.push(...this.view_tree_unit(unit, 2));
+            }
             return rows.join('\n') + '\n';
         }
         static view_tree_unit(unit, deep) {
             const pad = '\t'.repeat(deep);
             const rows = [pad + '<= ' + unit.name + ' ' + unit.comp];
-            switch (unit.kind) {
-                case 'image':
-                case 'button':
-                case 'bui_avatar':
-                    rows.push(pad + '\turi \\' + unit.uri);
-                    rows.push(pad + '\ttitle \\' + unit.title);
-                    break;
-                case 'text':
-                    rows.push(pad + '\ttitle \\' + unit.title);
-                    break;
-                case 'bui_button':
-                case 'bui_badge':
-                    rows.push(pad + '\ttitle \\' + unit.title);
-                    rows.push(pad + '\tvariant \\' + unit.variant);
-                    break;
-                case 'bui_alert':
-                    rows.push(pad + '\ttitle \\' + unit.title);
-                    rows.push(pad + '\ttext \\' + unit.note);
-                    break;
-                case 'bui_field':
-                    rows.push(pad + '\thint \\' + unit.title);
-                    break;
-                case 'bui_progress':
-                    rows.push(pad + '\tvalue ' + unit.value);
-                    rows.push(pad + '\tmax ' + unit.max);
-                    break;
-                case 'bui_tabs':
-                    rows.push(pad + '\toptions *');
-                    for (const [key, title] of unit.options) {
-                        rows.push(pad + '\t\t' + key + ' \\' + title);
-                    }
-                    break;
-            }
+            rows.push(...this.view_tree_props(unit, pad + '\t'));
             if (unit.kids.length) {
                 rows.push(pad + '\tsub /');
                 for (const kid of unit.kids)
                     rows.push(...this.view_tree_unit(kid, deep + 2));
+            }
+            return rows;
+        }
+        /** What a node declares beyond where it sits — captions, links, readings. */
+        static view_tree_props(unit, pad) {
+            const rows = [];
+            switch (unit.kind) {
+                case 'image':
+                case 'button':
+                case 'bui_avatar':
+                    rows.push(pad + 'uri \\' + unit.uri);
+                    rows.push(pad + 'title \\' + unit.title);
+                    break;
+                case 'text':
+                    rows.push(pad + 'title \\' + unit.title);
+                    break;
+                case 'bui_button':
+                case 'bui_badge':
+                    rows.push(pad + 'title \\' + unit.title);
+                    rows.push(pad + 'variant \\' + unit.variant);
+                    break;
+                case 'bui_alert':
+                    rows.push(pad + 'title \\' + unit.title);
+                    rows.push(pad + 'text \\' + unit.note);
+                    break;
+                case 'bui_field':
+                    rows.push(pad + 'hint \\' + unit.title);
+                    break;
+                case 'bui_progress':
+                    rows.push(pad + 'value ' + unit.value);
+                    rows.push(pad + 'max ' + unit.max);
+                    break;
+                case 'bui_tabs':
+                    rows.push(pad + 'options *');
+                    for (const [key, title] of unit.options) {
+                        rows.push(pad + '\t' + key + ' \\' + title);
+                    }
+                    break;
             }
             return rows;
         }
@@ -38586,6 +40670,10 @@ var $;
             for (const screen of plan.screens) {
                 rows.push('');
                 rows.push('\t' + define + '( ' + screen.comp + ', ' + this.code(screen.style, 1) + ' )');
+            }
+            for (const part of plan.parts) {
+                rows.push('');
+                rows.push('\t' + define + '( ' + part.comp + ', ' + this.code(part.style, 1) + ' )');
             }
             rows.push('');
             rows.push('}');
@@ -38924,6 +41012,10 @@ var $;
 			if(next !== undefined) return next;
 			return [];
 		}
+		arrange(next){
+			if(next !== undefined) return next;
+			return "";
+		}
 		publish_files(){
 			return {};
 		}
@@ -39014,6 +41106,7 @@ var $;
 			(obj.store) = () => ((this.store()));
 			(obj.selected) = (next) => ((this.selected(next)));
 			(obj.selection) = () => ((this.selection()));
+			(obj.arrange) = (next) => ((this.arrange(next)));
 			return obj;
 		}
 		Publish(){
@@ -39035,6 +41128,7 @@ var $;
 	($mol_mem(($.$bog_figmol_app.prototype), "tool"));
 	($mol_mem(($.$bog_figmol_app.prototype), "selected"));
 	($mol_mem(($.$bog_figmol_app.prototype), "selection"));
+	($mol_mem(($.$bog_figmol_app.prototype), "arrange"));
 	($mol_mem(($.$bog_figmol_app.prototype), "publish_name"));
 	($mol_mem(($.$bog_figmol_app.prototype), "store"));
 	($mol_mem(($.$bog_figmol_app.prototype), "publishing"));
@@ -39074,7 +41168,19 @@ var $;
             return {
                 title: site.Title()?.val() ?? '',
                 theme: this.dict(site.Theme()),
+                comps: (site.Comps()?.remote_list() ?? []).map(comp => this.comp(comp)),
                 pages: (site.Pages()?.remote_list() ?? []).map(page => this.page(page)),
+            };
+        }
+        /**
+         * A component, keyed by its own link — that is what the instances of it
+         * carry, so nothing else can be used to tie the two together.
+         */
+        static comp(comp) {
+            return {
+                id: comp.link().str,
+                title: comp.Title()?.val() ?? '',
+                root: this.node(comp.Root()?.remote() ?? null, 0),
             };
         }
         static page(page) {
@@ -39095,6 +41201,7 @@ var $;
             return {
                 kind: node.Kind()?.val() ?? 'rect',
                 props: this.dict(node.Props()),
+                master: node.Master()?.val()?.str ?? '',
                 x: node.X()?.val() ?? 0,
                 y: node.Y()?.val() ?? 0,
                 w: node.W()?.val() ?? 0,
@@ -39122,6 +41229,96 @@ var $;
         }
     }
     $.$bog_figmol_gen_snap = $bog_figmol_gen_snap;
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    /**
+     * Where a row of elements goes when it is lined up or spread out.
+     *
+     * Pure arithmetic over rectangles, with no idea what a node is: the panel
+     * measures the selection, this decides where every box should end up, and
+     * the store writes it. Which is what makes the awkward half — three boxes of
+     * different widths spread across the distance the outer two already span —
+     * something a test can pin down without a canvas.
+     *
+     * Boxes come in and go out in the same order. Every mode answers with a
+     * full list of new corners, including the ones that did not move: a caller
+     * that writes a coordinate it already had writes nothing.
+     */
+    class $bog_figmol_app_arrange {
+        /** Modes the editor offers, in the order the buttons sit. */
+        static modes = [
+            'left', 'hcenter', 'right', 'hspace',
+            'top', 'vcenter', 'bottom', 'vspace',
+        ];
+        static place(mode, boxes) {
+            if (boxes.length < 2)
+                return boxes.map(box => [box[0], box[1]]);
+            switch (mode) {
+                case 'left': return this.edge(boxes, 0, 'min');
+                case 'right': return this.edge(boxes, 0, 'max');
+                case 'hcenter': return this.edge(boxes, 0, 'mid');
+                case 'top': return this.edge(boxes, 1, 'min');
+                case 'bottom': return this.edge(boxes, 1, 'max');
+                case 'vcenter': return this.edge(boxes, 1, 'mid');
+                case 'hspace': return this.spread(boxes, 0);
+                case 'vspace': return this.spread(boxes, 1);
+            }
+            return boxes.map(box => [box[0], box[1]]);
+        }
+        /**
+         * Lines every box up on one axis: to the near edge of the whole lot, to
+         * the far one, or through the middle between them.
+         *
+         * The axis is `0` for horizontal and `1` for vertical, which is also the
+         * offset of its coordinate and — plus two — of its size.
+         */
+        static edge(boxes, axis, at) {
+            const size = axis + 2;
+            const near = Math.min(...boxes.map(box => box[axis]));
+            const far = Math.max(...boxes.map(box => box[axis] + box[size]));
+            const mid = (near + far) / 2;
+            return boxes.map(box => {
+                const spot = at === 'min' ? near
+                    : at === 'max' ? far - box[size]
+                        : mid - box[size] / 2;
+                const res = [box[0], box[1]];
+                res[axis] = Math.round(spot);
+                return res;
+            });
+        }
+        /**
+         * Spreads the boxes so the gaps between them come out equal, keeping the
+         * two outermost where they are — the span was chosen by dragging those
+         * two, and moving them would answer a question nobody asked.
+         *
+         * Fewer than three boxes have no gap to even out, and boxes that overlap
+         * are spread just the same, with a negative gap: they were told to sit at
+         * equal distances, and equal is what they get.
+         */
+        static spread(boxes, axis) {
+            const size = axis + 2;
+            if (boxes.length < 3)
+                return boxes.map(box => [box[0], box[1]]);
+            const order = boxes.map((box, at) => at).sort((a, b) => (boxes[a][axis] - boxes[b][axis]) || (a - b));
+            const near = boxes[order[0]][axis];
+            const last = boxes[order[order.length - 1]];
+            const far = last[axis] + last[size];
+            const span = boxes.reduce((sum, box) => sum + box[size], 0);
+            const gap = (far - near - span) / (boxes.length - 1);
+            const res = boxes.map(box => [box[0], box[1]]);
+            let cursor = near;
+            for (const at of order) {
+                res[at][axis] = Math.round(cursor);
+                cursor += boxes[at][size] + gap;
+            }
+            return res;
+        }
+    }
+    $.$bog_figmol_app_arrange = $bog_figmol_app_arrange;
 })($ || ($ = {}));
 
 ;
@@ -39674,6 +41871,44 @@ var $;
                     this.selection(made);
             }
             /**
+             * Lines the selection up, or spreads it out — whichever the inspector
+             * asked for.
+             *
+             * Where the elements are is measured off the screen and not read out of
+             * the document: two of them may sit in different frames, and one of those
+             * frames may lay its children out itself, in which case the coordinates
+             * stored on them say nothing. The canvas knows where a node ended up, so
+             * every rectangle is taken to the sheet through the origin of its own
+             * parent and written back through the same one.
+             *
+             * Elements placed by an auto layout are left out entirely: a coordinate
+             * written for them would be overruled by the frame that holds them.
+             *
+             * The whole strip is one gesture, so it costs one step back.
+             */
+            arrange(next) {
+                if (next === undefined)
+                    return '';
+                const store = this.store();
+                const canvas = this.Canvas();
+                const ids = this.selection().filter(id => !store.flow(id));
+                if (ids.length < 2)
+                    return '';
+                const origins = ids.map(id => canvas.node_origin(store.parent(id)));
+                const boxes = ids.map((id, at) => {
+                    const rect = store.rect(id);
+                    return [origins[at][0] + rect[0], origins[at][1] + rect[1], rect[2], rect[3]];
+                });
+                const spots = $bog_figmol_app_arrange.place(next, boxes);
+                store.group(() => {
+                    spots.forEach((spot, at) => {
+                        store.x(ids[at], spot[0] - origins[at][0]);
+                        store.y(ids[at], spot[1] - origins[at][1]);
+                    });
+                });
+                return '';
+            }
+            /**
              * Moves the selection by the arrow keys. An element inside an auto layout
              * is placed by its frame, so there is nothing here to move.
              */
@@ -39718,6 +41953,9 @@ var $;
         __decorate([
             $mol_action
         ], $bog_figmol_app.prototype, "duplicate", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app.prototype, "arrange", null);
         __decorate([
             $mol_action
         ], $bog_figmol_app.prototype, "nudge", null);
