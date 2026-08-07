@@ -28835,6 +28835,26 @@ var $;
             this.kid_cut(host, id);
             this.record('', () => this.kid_put(host, id, at), () => this.kid_cut(host, id));
         }
+        /**
+         * Moves a node to the top or to the bottom of the pile inside its own
+         * frame. Elements are drawn in the order they are listed, so this is the
+         * whole of what "bring to front" means here — there is no z-index to set
+         * and nothing for the generated page to carry over.
+         */
+        node_lift(id, top) {
+            const host = this.parent(id);
+            if (!host)
+                return;
+            const kids = this.kids(host);
+            const at = kids.indexOf(id);
+            if (at < 0)
+                return;
+            const seat = top ? kids.length - 1 : 0;
+            if (at === seat)
+                return;
+            this.kid_put(host, id, seat);
+            this.record('', () => this.kid_put(host, id, at), () => this.kid_put(host, id, seat));
+        }
     }
     __decorate([
         $mol_mem
@@ -28965,6 +28985,9 @@ var $;
     __decorate([
         $mol_action
     ], $bog_figmol_store.prototype, "node_drop", null);
+    __decorate([
+        $mol_action
+    ], $bog_figmol_store.prototype, "node_lift", null);
     $.$bog_figmol_store = $bog_figmol_store;
 })($ || ($ = {}));
 
@@ -31618,6 +31641,14 @@ var $;
 			(obj.sub) = () => ([(this.Sheet())]);
 			return obj;
 		}
+		overlay(){
+			return [];
+		}
+		Overlay(){
+			const obj = new this.$.$mol_view();
+			(obj.sub) = () => ((this.overlay()));
+			return obj;
+		}
 		editable(){
 			return true;
 		}
@@ -31653,6 +31684,147 @@ var $;
 		}
 		marquee_height(){
 			return "";
+		}
+		guide_x_left(){
+			return "";
+		}
+		guide_x_top(){
+			return "";
+		}
+		guide_x_height(){
+			return "";
+		}
+		guide_y_top(){
+			return "";
+		}
+		guide_y_left(){
+			return "";
+		}
+		guide_y_width(){
+			return "";
+		}
+		measure_left(id){
+			return "";
+		}
+		measure_top(id){
+			return "";
+		}
+		measure_width(id){
+			return "";
+		}
+		measure_height(id){
+			return "";
+		}
+		measure_text(id){
+			return "";
+		}
+		Measure_label(id){
+			const obj = new this.$.$mol_view();
+			(obj.sub) = () => ([(this.measure_text(id))]);
+			return obj;
+		}
+		group_left(){
+			return "";
+		}
+		group_top(){
+			return "";
+		}
+		group_width(){
+			return "";
+		}
+		group_height(){
+			return "";
+		}
+		Group_nw(){
+			const obj = new this.$.$mol_view();
+			(obj.attr) = () => ({...(this.$.$mol_view.prototype.attr.call(obj)), "figmol_handle": "nw"});
+			return obj;
+		}
+		Group_ne(){
+			const obj = new this.$.$mol_view();
+			(obj.attr) = () => ({...(this.$.$mol_view.prototype.attr.call(obj)), "figmol_handle": "ne"});
+			return obj;
+		}
+		Group_sw(){
+			const obj = new this.$.$mol_view();
+			(obj.attr) = () => ({...(this.$.$mol_view.prototype.attr.call(obj)), "figmol_handle": "sw"});
+			return obj;
+		}
+		Group_se(){
+			const obj = new this.$.$mol_view();
+			(obj.attr) = () => ({...(this.$.$mol_view.prototype.attr.call(obj)), "figmol_handle": "se"});
+			return obj;
+		}
+		menu_left(){
+			return "";
+		}
+		menu_top(){
+			return "";
+		}
+		menu_copy(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		menu_copy_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_canvas_menu_copy_label"));
+		}
+		Menu_copy(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.menu_copy(next)));
+			(obj.title) = () => ((this.menu_copy_label()));
+			return obj;
+		}
+		menu_front(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		menu_front_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_canvas_menu_front_label"));
+		}
+		Menu_front(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.menu_front(next)));
+			(obj.title) = () => ((this.menu_front_label()));
+			return obj;
+		}
+		menu_back(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		menu_back_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_canvas_menu_back_label"));
+		}
+		Menu_back(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.menu_back(next)));
+			(obj.title) = () => ((this.menu_back_label()));
+			return obj;
+		}
+		menu_wrap(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		menu_wrap_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_canvas_menu_wrap_label"));
+		}
+		Menu_wrap(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.menu_wrap(next)));
+			(obj.title) = () => ((this.menu_wrap_label()));
+			return obj;
+		}
+		menu_drop(next){
+			if(next !== undefined) return next;
+			return null;
+		}
+		menu_drop_label(){
+			return (this.$.$mol_locale.text("$bog_figmol_app_canvas_menu_drop_label"));
+		}
+		Menu_drop(){
+			const obj = new this.$.$mol_button_minor();
+			(obj.click) = (next) => ((this.menu_drop(next)));
+			(obj.title) = () => ((this.menu_drop_label()));
+			return obj;
 		}
 		store(){
 			const obj = new this.$.$bog_figmol_store();
@@ -31721,7 +31893,7 @@ var $;
 			return [(this.Keys())];
 		}
 		sub(){
-			return [(this.World())];
+			return [(this.World()), (this.Overlay())];
 		}
 		Shape(id){
 			const obj = new this.$.$bog_figmol_app_canvas_shape();
@@ -31746,6 +31918,65 @@ var $;
 			});
 			return obj;
 		}
+		Guide_x(){
+			const obj = new this.$.$mol_view();
+			(obj.style) = () => ({
+				"left": (this.guide_x_left()), 
+				"top": (this.guide_x_top()), 
+				"height": (this.guide_x_height())
+			});
+			return obj;
+		}
+		Guide_y(){
+			const obj = new this.$.$mol_view();
+			(obj.style) = () => ({
+				"top": (this.guide_y_top()), 
+				"left": (this.guide_y_left()), 
+				"width": (this.guide_y_width())
+			});
+			return obj;
+		}
+		Measure(id){
+			const obj = new this.$.$mol_view();
+			(obj.style) = () => ({
+				"left": (this.measure_left(id)), 
+				"top": (this.measure_top(id)), 
+				"width": (this.measure_width(id)), 
+				"height": (this.measure_height(id))
+			});
+			(obj.sub) = () => ([(this.Measure_label(id))]);
+			return obj;
+		}
+		Group(){
+			const obj = new this.$.$mol_view();
+			(obj.attr) = () => ({...(this.$.$mol_view.prototype.attr.call(obj)), "figmol_group": "true"});
+			(obj.style) = () => ({
+				"left": (this.group_left()), 
+				"top": (this.group_top()), 
+				"width": (this.group_width()), 
+				"height": (this.group_height())
+			});
+			(obj.sub) = () => ([
+				(this.Group_nw()), 
+				(this.Group_ne()), 
+				(this.Group_sw()), 
+				(this.Group_se())
+			]);
+			return obj;
+		}
+		Menu(){
+			const obj = new this.$.$mol_view();
+			(obj.attr) = () => ({...(this.$.$mol_view.prototype.attr.call(obj)), "figmol_menu": "true"});
+			(obj.style) = () => ({"left": (this.menu_left()), "top": (this.menu_top())});
+			(obj.sub) = () => ([
+				(this.Menu_copy()), 
+				(this.Menu_front()), 
+				(this.Menu_back()), 
+				(this.Menu_wrap()), 
+				(this.Menu_drop())
+			]);
+			return obj;
+		}
 	};
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "pointer_down"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "pointer_move"));
@@ -31758,6 +31989,22 @@ var $;
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Keys"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Sheet"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "World"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Overlay"));
+	($mol_mem_key(($.$bog_figmol_app_canvas.prototype), "Measure_label"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Group_nw"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Group_ne"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Group_sw"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Group_se"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "menu_copy"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Menu_copy"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "menu_front"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Menu_front"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "menu_back"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Menu_back"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "menu_wrap"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Menu_wrap"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "menu_drop"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Menu_drop"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "store"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "tool"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "selection"));
@@ -31767,7 +32014,152 @@ var $;
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "pan_y"));
 	($mol_mem_key(($.$bog_figmol_app_canvas.prototype), "Shape"));
 	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Marquee"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Guide_x"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Guide_y"));
+	($mol_mem_key(($.$bog_figmol_app_canvas.prototype), "Measure"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Group"));
+	($mol_mem(($.$bog_figmol_app_canvas.prototype), "Menu"));
 
+
+;
+"use strict";
+var $;
+(function ($) {
+    /**
+     * Geometry of sticking one box to the others around it, and of the distances
+     * between them.
+     *
+     * Nothing here knows about the DOM, the store or the viewport. Boxes come in
+     * as `[ x, y, width, height ]` in one coordinate system — sheet pixels, as it
+     * happens — and every answer comes back in the same one. That is what makes
+     * the whole of the snapping testable without a browser: the canvas measures,
+     * this decides.
+     */
+    class $bog_figmol_magnet {
+        /**
+         * The three places along one axis a box can stick by: its two edges and
+         * its middle.
+         *
+         * Edges come first on purpose. `snap` below keeps the first of two equally
+         * close answers, and sitting flush with a neighbour is the more likely
+         * intention than sharing a centre line with it by accident.
+         */
+        static probes(min, size) {
+            return [min, min + size, min + size / 2];
+        }
+        /** Edges and middles of every candidate, along one axis, as one flat list. */
+        static lines(boxes, axis) {
+            const res = [];
+            for (const box of boxes) {
+                const min = box[axis];
+                const size = box[axis + 2];
+                res.push(min, min + size, min + size / 2);
+            }
+            return res;
+        }
+        /**
+         * Nearest line any of the probes can reach without moving further than
+         * `limit`, `null` when nothing is that close.
+         */
+        static snap(probes, lines, limit) {
+            let res = null;
+            let near = limit;
+            for (const probe of probes) {
+                for (const line of lines) {
+                    const shift = line - probe;
+                    const away = Math.abs(shift);
+                    if (away > near)
+                        continue;
+                    if (res && away >= near)
+                        continue;
+                    near = away;
+                    res = { shift, line };
+                }
+            }
+            return res;
+        }
+        /** One box around the lot of them. */
+        static bbox(boxes) {
+            if (!boxes.length)
+                return [0, 0, 0, 0];
+            let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
+            for (const box of boxes) {
+                left = Math.min(left, box[0]);
+                top = Math.min(top, box[1]);
+                right = Math.max(right, box[0] + box[2]);
+                bottom = Math.max(bottom, box[1] + box[3]);
+            }
+            return [left, top, right - left, bottom - top];
+        }
+        /**
+         * Distance from `box` to the nearest neighbour on each of its four sides.
+         *
+         * A neighbour counts when it stands across from the box — the two overlap
+         * along the other axis — because that is the gap somebody laying out a
+         * page means by "how far apart are these". `loose` drops that condition,
+         * for the times when the question was asked about one particular element
+         * instead of about the whole neighbourhood.
+         */
+        static gaps(box, boxes, loose) {
+            return [
+                ...this.gaps_axis(box, boxes, 0, loose),
+                ...this.gaps_axis(box, boxes, 1, loose),
+            ];
+        }
+        /** The nearest neighbour before the box and the nearest one after it. */
+        static gaps_axis(box, boxes, axis, loose) {
+            const cross = 1 - axis;
+            let before = null;
+            let after = null;
+            let before_gap = Infinity;
+            let after_gap = Infinity;
+            for (const near of boxes) {
+                const overlap = Math.min(box[cross] + box[cross + 2], near[cross] + near[cross + 2])
+                    - Math.max(box[cross], near[cross]);
+                if (overlap <= 0 && !loose)
+                    continue;
+                const ahead = near[axis] - box[axis] - box[axis + 2];
+                const behind = box[axis] - near[axis] - near[axis + 2];
+                if (ahead > 0 && ahead < after_gap) {
+                    after_gap = ahead;
+                    after = near;
+                }
+                if (behind > 0 && behind < before_gap) {
+                    before_gap = behind;
+                    before = near;
+                }
+            }
+            const res = [];
+            if (before)
+                res.push(this.ruler(box, before, axis, before_gap));
+            if (after)
+                res.push(this.ruler(box, after, axis, after_gap));
+            return res;
+        }
+        /**
+         * Where the ruler between a box and one of its neighbours is drawn: along
+         * the middle of what the two have in common, and through the middle of the
+         * box itself when they have nothing in common at all.
+         */
+        static ruler(box, near, axis, size) {
+            const cross = 1 - axis;
+            const ahead = near[axis] > box[axis];
+            const from = ahead
+                ? box[axis] + box[axis + 2]
+                : near[axis] + near[axis + 2];
+            const top = Math.max(box[cross], near[cross]);
+            const bottom = Math.min(box[cross] + box[cross + 2], near[cross] + near[cross + 2]);
+            const at = bottom > top ? (top + bottom) / 2 : box[cross] + box[cross + 2] / 2;
+            return {
+                x: axis === 0 ? from : at,
+                y: axis === 0 ? at : from,
+                size,
+                row: axis === 0,
+            };
+        }
+    }
+    $.$bog_figmol_magnet = $bog_figmol_magnet;
+})($ || ($ = {}));
 
 ;
 "use strict";
@@ -31788,6 +32180,14 @@ var $;
         const figmol_fit_gap = 48;
         /** Slack in screen pixels below which a press counts as a click, not a drag. */
         const figmol_slack = 3;
+        /**
+         * How close, in screen pixels, an edge has to come to a neighbour before it
+         * sticks to it. Screen rather than sheet pixels on purpose: this is about how
+         * precisely a hand can aim, which has nothing to do with the zoom.
+         */
+        const figmol_snap = 6;
+        /** Room the context menu needs, so it opens inwards near an edge. */
+        const figmol_menu = [210, 210];
         /** Kinds whose caption a double click opens for typing, right on the canvas. */
         const figmol_captioned = ['text', 'button', 'bui_button', 'bui_badge', 'bui_alert'];
         /** Where a field is being typed into, and the canvas keeps its hands off. */
@@ -31904,6 +32304,104 @@ var $;
             marquee_height() {
                 return this.marquee_box()[3] + 'px';
             }
+            /* --------------------------------------------------------------- overlay */
+            /**
+             * Everything drawn over the sheet instead of on it: the guides a drag has
+             * stuck to, the rulers between the box and its neighbours, the frame
+             * around several elements, and the context menu.
+             *
+             * All four are read here unconditionally even when nothing is shown. A
+             * `@$mol_mem` cell keeps its value only while somebody is subscribed to
+             * it, and this render is the one permanent subscriber they have — reading
+             * them behind an `if` would leave the ones that are off without a reader,
+             * and the handler writing such a cell would find it reset a moment later.
+             */
+            overlay() {
+                const guide_x = this.guide_x();
+                const guide_y = this.guide_y();
+                const measures = this.measure_ids();
+                const group = this.group_on();
+                const menu = this.menu_on();
+                const res = [];
+                if (guide_x !== null)
+                    res.push(this.Guide_x());
+                if (guide_y !== null)
+                    res.push(this.Guide_y());
+                for (const id of measures)
+                    res.push(this.Measure(id));
+                if (group)
+                    res.push(this.Group());
+                if (menu)
+                    res.push(this.Menu());
+                return res;
+            }
+            /** Sheet coordinate as a screen one, inside the canvas box. */
+            screen_x(sheet_x) {
+                return this.pan_x() + sheet_x * this.zoom();
+            }
+            screen_y(sheet_y) {
+                return this.pan_y() + sheet_y * this.zoom();
+            }
+            /** Where the drag has stuck, in sheet pixels. `null` means it has not. */
+            guide_x(next) {
+                return next ?? null;
+            }
+            guide_y(next) {
+                return next ?? null;
+            }
+            guide_x_left() {
+                return this.screen_x(this.guide_x() ?? 0) - 0.5 + 'px';
+            }
+            guide_x_top() {
+                return this.screen_y(0) + 'px';
+            }
+            guide_x_height() {
+                return this.sheet_height() * this.zoom() + 'px';
+            }
+            guide_y_top() {
+                return this.screen_y(this.guide_y() ?? 0) - 0.5 + 'px';
+            }
+            guide_y_left() {
+                return this.screen_x(0) + 'px';
+            }
+            guide_y_width() {
+                return this.sheet_width() * this.zoom() + 'px';
+            }
+            /** Distances worth showing right now, in sheet pixels. */
+            measures(next) {
+                return next ?? null;
+            }
+            measure_ids() {
+                return (this.measures() ?? []).map((gap, at) => String(at));
+            }
+            measure(id) {
+                return this.measures()?.[Number(id)] ?? null;
+            }
+            /**
+             * A ruler is a hairline: it is as long as the gap along its own axis and a
+             * single pixel across, and that pixel is centred on the line it marks.
+             */
+            measure_left(id) {
+                const gap = this.measure(id);
+                const at = this.screen_x(gap?.x ?? 0);
+                return (gap?.row ? at : at - 0.5) + 'px';
+            }
+            measure_top(id) {
+                const gap = this.measure(id);
+                const at = this.screen_y(gap?.y ?? 0);
+                return (gap?.row ? at - 0.5 : at) + 'px';
+            }
+            measure_width(id) {
+                const gap = this.measure(id);
+                return gap?.row ? gap.size * this.zoom() + 'px' : '1px';
+            }
+            measure_height(id) {
+                const gap = this.measure(id);
+                return gap && !gap.row ? gap.size * this.zoom() + 'px' : '1px';
+            }
+            measure_text(id) {
+                return String(Math.round(this.measure(id)?.size ?? 0));
+            }
             /* ------------------------------------------------------------ measuring */
             armed() {
                 return this.editable() && this.tool() !== 'select';
@@ -31994,6 +32492,33 @@ var $;
                 const sheet = this.Sheet().dom_node().getBoundingClientRect();
                 const zoom = this.zoom_live();
                 return [(rect.left - sheet.left) / zoom, (rect.top - sheet.top) / zoom];
+            }
+            /**
+             * The same top-left, worked out from the frame around the node and the
+             * node's own coordinates wherever that is possible.
+             *
+             * Measuring is only the right answer inside an auto layout, where the
+             * coordinates say nothing. Everywhere else it is the worse one: a copy
+             * made a moment ago by an Alt drag has no element on screen yet, and
+             * measuring one that is not there gives the corner of the sheet.
+             */
+            node_place(id) {
+                const store = this.store();
+                if (store.flow(id))
+                    return this.node_origin(id);
+                const rect = this.shape_rect(id);
+                const origin = this.node_origin(store.parent(id));
+                return [origin[0] + rect[0], origin[1] + rect[1]];
+            }
+            /**
+             * Rectangle of a node in sheet pixels, counted from the sheet rather than
+             * from the frame it sits in — the one coordinate system snapping, rulers
+             * and the group frame all speak, since a selection may span frames.
+             */
+            node_rect(id) {
+                const rect = this.shape_rect(id);
+                const place = this.node_place(id);
+                return [place[0], place[1], rect[2], rect[3]];
             }
             /**
              * Deepest container under the pointer, empty for the sheet itself. Everything
@@ -32135,6 +32660,44 @@ var $;
                         && rect.bottom >= top && rect.top <= bottom;
                 });
             }
+            /* --------------------------------------------------------- group frame */
+            /**
+             * Box around everything picked, in sheet pixels — what the frame with the
+             * group grips is drawn as, and what a group resize scales.
+             *
+             * While a gesture is running, the box that gesture is drawing is the
+             * answer. Measuring the elements again would describe the layout as it
+             * was before this move: the shapes and this frame are two independent
+             * atoms, and nothing says the shapes are repainted first.
+             */
+            group_box() {
+                const live = this.drag_box();
+                if (live)
+                    return live;
+                const ids = this.selection();
+                if (ids.length < 2)
+                    return [];
+                return $bog_figmol_magnet.bbox(ids.map(id => this.node_rect(id)));
+            }
+            /** Box the gesture is drawing right now, `null` between gestures. */
+            drag_box(next) {
+                return next ?? null;
+            }
+            group_on() {
+                return this.group_box().length > 0;
+            }
+            group_left() {
+                return this.screen_x(this.group_box()[0] ?? 0) + 'px';
+            }
+            group_top() {
+                return this.screen_y(this.group_box()[1] ?? 0) + 'px';
+            }
+            group_width() {
+                return (this.group_box()[2] ?? 0) * this.zoom() + 'px';
+            }
+            group_height() {
+                return (this.group_box()[3] ?? 0) * this.zoom() + 'px';
+            }
             /* ----------------------------------------------------- pointer gesture */
             /**
              * Gesture state is kept in plain fields on purpose. A `@$mol_mem` cell
@@ -32154,6 +32717,15 @@ var $;
             grab_flows = {};
             grab_sheets = {};
             grab_pan = [0, 0];
+            /** What the gesture can stick to, measured once at the press — see `snap_arm`. */
+            grab_box = [0, 0, 0, 0];
+            grab_origin = [0, 0];
+            grab_boxes = [];
+            grab_lines_x = [];
+            grab_lines_y = [];
+            grab_limit = 0;
+            /** Move the drag has drawn so far, in sheet pixels, snapping included. */
+            grab_shift = [0, 0];
             /** Node the press resolved to, and whether it was one of several picked. */
             grab_pick = '';
             grab_group = false;
@@ -32177,6 +32749,11 @@ var $;
                 // no default prevented, so the caret lands where it was clicked.
                 if (target.closest('[figmol_edit]'))
                     return null;
+                // The same goes for the context menu. Capturing the pointer here would
+                // retarget the click onto the canvas, and the item pressed would never
+                // hear about it.
+                if (target.closest('[figmol_menu]'))
+                    return null;
                 this.grab_x = event.clientX;
                 this.grab_y = event.clientY;
                 this.last_x = event.clientX;
@@ -32186,12 +32763,21 @@ var $;
                 this.grab_ids = [];
                 this.grab_group = false;
                 const tool = this.tool();
-                if (this.editable() && tool !== 'select') {
+                if (event.button === 0 && this.editable() && tool !== 'select') {
                     event.preventDefault();
                     this.node_add(tool, event);
                     this.tool('select');
                     return null;
                 }
+                const handle = target.closest('[figmol_handle]');
+                const shape = target.closest('[figmol_node]');
+                const deep = shape?.getAttribute('figmol_node') ?? '';
+                this.press_deep = deep;
+                // The right button opens the menu, and the event that does so comes
+                // after this one. Nothing is captured and nothing is prevented: this
+                // press has to leave the page exactly as the menu will find it.
+                if (event.button === 2)
+                    return null;
                 event.preventDefault();
                 // Capture keeps the moves coming when the pointer leaves the canvas.
                 // It refuses a pointer that is no longer down, which is a race rather
@@ -32205,14 +32791,16 @@ var $;
                 host.focus();
                 if (this.editing())
                     this.editing('');
-                const handle = target.closest('[figmol_handle]');
-                const shape = target.closest('[figmol_node]');
-                const deep = shape?.getAttribute('figmol_node') ?? '';
-                this.press_deep = deep;
                 // Panning is a gesture of its own — the middle button, or space held
                 // down, as everywhere else. The plain drag belongs to the selection.
                 if (event.button !== 0 || this.space()) {
                     this.pan_start();
+                    return null;
+                }
+                // A grip with no shape around it hangs off the frame drawn around
+                // several elements, which lives beside the sheet rather than on it.
+                if (handle && !deep) {
+                    this.press_scale(handle.getAttribute('figmol_handle') ?? '');
                     return null;
                 }
                 // A grip belongs to the shape it hangs off, whatever the click rules
@@ -32272,6 +32860,27 @@ var $;
                 this.mode = 'move';
                 this.grab_take(event.altKey ? this.clone(this.selection()) : this.selection());
             }
+            /**
+             * A press on a grip of the frame drawn around several elements: everything
+             * inside it is about to be scaled together.
+             *
+             * Elements an auto layout places are left out. Their frame decides where
+             * they go and how wide they are, and a scale that wrote coordinates there
+             * would be overruled the moment it finished.
+             */
+            press_scale(corner) {
+                if (!this.editable())
+                    return;
+                if (!corner)
+                    return;
+                const store = this.store();
+                const ids = this.selection().filter(id => !store.flow(id));
+                if (ids.length < 2)
+                    return;
+                this.mode = 'scale';
+                this.grab_corner = corner;
+                this.grab_take(ids);
+            }
             /** Remembers where everything about to be dragged started out. */
             grab_take(ids) {
                 const store = this.store();
@@ -32280,11 +32889,147 @@ var $;
                 this.grab_rects = {};
                 this.grab_flows = {};
                 this.grab_sheets = {};
+                this.grab_shift = [0, 0];
                 for (const id of ids) {
                     this.grab_rects[id] = this.shape_rect(id);
                     this.grab_flows[id] = store.flow(id);
-                    this.grab_sheets[id] = this.node_origin(id);
+                    this.grab_sheets[id] = this.node_place(id);
                 }
+                this.snap_arm(ids);
+            }
+            /**
+             * Remembers what the gesture about to start can stick to: the neighbours
+             * at the level being dragged on, and the frame around them — the sheet
+             * itself, when that level is the page.
+             *
+             * Measured once, here, rather than on every move. Nothing but the dragged
+             * nodes moves during a gesture, so the answer cannot change; measuring it
+             * again on each pointer move would cost a forced layout per neighbour per
+             * frame, and that is the one thing a drag cannot afford.
+             *
+             * An auto layout places its children itself: a drag inside one is about
+             * their order and not their coordinates, so there is nothing there worth
+             * sticking to and the lists are left empty.
+             */
+            snap_arm(ids) {
+                const store = this.store();
+                const magnet = $bog_figmol_magnet;
+                this.grab_lines_x = [];
+                this.grab_lines_y = [];
+                this.grab_boxes = [];
+                this.grab_limit = figmol_snap / (this.zoom_live() || 1);
+                this.grab_box = magnet.bbox(ids.map(id => {
+                    const place = this.grab_sheets[id] ?? [0, 0];
+                    const rect = this.grab_rects[id] ?? [0, 0, 0, 0];
+                    return [place[0], place[1], rect[2], rect[3]];
+                }));
+                // Where the frame of the first grabbed node has its own corner, so a
+                // rectangle worked out against the sheet can be written back into the
+                // coordinates the node is actually stored in.
+                const local = this.grab_rects[ids[0]] ?? [0, 0, 0, 0];
+                const place = this.grab_sheets[ids[0]] ?? [0, 0];
+                this.grab_origin = [place[0] - local[0], place[1] - local[1]];
+                const root = store.root_id();
+                const host = store.parent(ids[0]) || root;
+                if (store.auto_layout(host))
+                    return;
+                const boxes = [];
+                for (const id of store.kids(host)) {
+                    if (ids.includes(id))
+                        continue;
+                    const rect = this.node_rect(id);
+                    boxes.push(rect);
+                }
+                this.grab_boxes = boxes;
+                const frame = host && host !== root
+                    ? this.node_rect(host)
+                    : [0, 0, this.sheet_width(), this.sheet_height()];
+                this.grab_lines_x = magnet.lines([...boxes, frame], 0);
+                this.grab_lines_y = magnet.lines([...boxes, frame], 1);
+            }
+            /**
+             * The move the pointer asked for, corrected so an edge or the middle of
+             * the box being dragged lands exactly on a neighbour. Puts up the guides
+             * that show what it landed on, and the rulers to whatever it now stands
+             * next to.
+             */
+            snap_move(move_x, move_y) {
+                const magnet = $bog_figmol_magnet;
+                const box = this.grab_box;
+                const hit_x = magnet.snap(magnet.probes(box[0] + move_x, box[2]), this.grab_lines_x, this.grab_limit);
+                const hit_y = magnet.snap(magnet.probes(box[1] + move_y, box[3]), this.grab_lines_y, this.grab_limit);
+                this.guide_x(hit_x?.line ?? null);
+                this.guide_y(hit_y?.line ?? null);
+                const res = [move_x + (hit_x?.shift ?? 0), move_y + (hit_y?.shift ?? 0)];
+                this.measure_show([box[0] + res[0], box[1] + res[1], box[2], box[3]]);
+                return res;
+            }
+            /**
+             * The box a resize is drawing, corrected the same way — but only by the
+             * edges the grip actually moves. A snap that would squeeze the box past
+             * its floor is dropped: sticking to a neighbour is worth less than the
+             * size the user is left with.
+             */
+            snap_edges(box, corner) {
+                const magnet = $bog_figmol_magnet;
+                let [x, y, w, h] = box;
+                const west = corner.includes('w');
+                const east = corner.includes('e');
+                const north = corner.includes('n');
+                const south = corner.includes('s');
+                const hit_x = west || east
+                    ? magnet.snap([west ? x : x + w], this.grab_lines_x, this.grab_limit)
+                    : null;
+                const hit_y = north || south
+                    ? magnet.snap([north ? y : y + h], this.grab_lines_y, this.grab_limit)
+                    : null;
+                const wide = hit_x ? w + (west ? -hit_x.shift : hit_x.shift) : w;
+                const tall = hit_y ? h + (north ? -hit_y.shift : hit_y.shift) : h;
+                const took_x = !!hit_x && wide >= figmol_size_min;
+                const took_y = !!hit_y && tall >= figmol_size_min;
+                if (took_x) {
+                    if (west)
+                        x += hit_x.shift;
+                    w = wide;
+                }
+                if (took_y) {
+                    if (north)
+                        y += hit_y.shift;
+                    h = tall;
+                }
+                this.guide_x(took_x ? hit_x.line : null);
+                this.guide_y(took_y ? hit_y.line : null);
+                this.measure_show([x, y, w, h]);
+                return [x, y, w, h];
+            }
+            /** Distances from the box a gesture is drawing to what stands around it. */
+            measure_show(box) {
+                const gaps = $bog_figmol_magnet.gaps(box, this.grab_boxes, false);
+                this.measures(gaps.length ? gaps : null);
+            }
+            /**
+             * Alt held over another element, with nothing being dragged: the distances
+             * between what is picked and what the pointer is over. The one way to ask
+             * how far apart two things are without moving either of them.
+             */
+            measure_hover(event) {
+                const shown = this.measures();
+                if (!event.altKey) {
+                    if (shown)
+                        this.measures(null);
+                    return;
+                }
+                const ids = this.selection();
+                const target = event.target;
+                const over = target.closest('[figmol_node]')?.getAttribute('figmol_node') ?? '';
+                if (!ids.length || !over || ids.includes(over)) {
+                    if (shown)
+                        this.measures(null);
+                    return;
+                }
+                const box = $bog_figmol_magnet.bbox(ids.map(id => this.node_rect(id)));
+                const gaps = $bog_figmol_magnet.gaps(box, [this.node_rect(over)], true);
+                this.measures(gaps.length ? gaps : null);
             }
             /**
              * Copies for an Alt drag: the originals stay put and the copies are what
@@ -32318,8 +33063,10 @@ var $;
             pointer_move(event) {
                 if (!event)
                     return null;
-                if (!this.mode)
+                if (!this.mode) {
+                    this.measure_hover(event);
                     return null;
+                }
                 this.last_x = event.clientX;
                 this.last_y = event.clientY;
                 const shift_x = event.clientX - this.grab_x;
@@ -32343,6 +33090,8 @@ var $;
                     // sheet: several nodes, each with a parent of its own, would need a
                     // rule for what "into this frame" means for the lot of them.
                     this.drop_target(this.grab_ids.length === 1 ? this.frame_at(event, this.grab_id) : '');
+                    const [snap_x, snap_y] = this.snap_move(move_x, move_y);
+                    this.grab_shift = [snap_x, snap_y];
                     const rects = {};
                     for (const id of this.grab_ids) {
                         // A node inside an auto layout has nowhere to go on its own: the
@@ -32350,9 +33099,17 @@ var $;
                         if (this.grab_flows[id])
                             continue;
                         const [x, y, w, h] = this.grab_rects[id] ?? [0, 0, 0, 0];
-                        rects[id] = [Math.round(x + move_x), Math.round(y + move_y), w, h];
+                        rects[id] = [Math.round(x + snap_x), Math.round(y + snap_y), w, h];
                     }
                     this.draft(Object.keys(rects).length ? rects : null);
+                    if (this.grab_ids.length > 1) {
+                        const box = this.grab_box;
+                        this.drag_box([box[0] + snap_x, box[1] + snap_y, box[2], box[3]]);
+                    }
+                    return null;
+                }
+                if (this.mode === 'scale') {
+                    this.scale_move(move_x, move_y);
                     return null;
                 }
                 const id = this.grab_id;
@@ -32371,10 +33128,59 @@ var $;
                     h2 = Math.max(figmol_size_min, h - move_y);
                     y2 = y + h - h2;
                 }
+                // Snapping speaks sheet coordinates, the rectangle is stored against
+                // the frame around it, and the two differ by the corner of that frame.
+                const origin = this.grab_origin;
+                const snapped = this.snap_edges([x2 + origin[0], y2 + origin[1], w2, h2], corner);
                 this.draft({
-                    [id]: [Math.round(x2), Math.round(y2), Math.round(w2), Math.round(h2)],
+                    [id]: [
+                        Math.round(snapped[0] - origin[0]),
+                        Math.round(snapped[1] - origin[1]),
+                        Math.round(snapped[2]),
+                        Math.round(snapped[3]),
+                    ],
                 });
                 return null;
+            }
+            /**
+             * A group being scaled by one of the grips of its frame.
+             *
+             * The frame is the thing the pointer drags; every element inside keeps its
+             * place and its size as a share of that frame, so the whole arrangement is
+             * stretched rather than each element being resized on its own. The corner
+             * opposite the grip stays where it is, as it does for a single element.
+             */
+            scale_move(move_x, move_y) {
+                const box = this.grab_box;
+                const corner = this.grab_corner;
+                const west = corner.includes('w');
+                const north = corner.includes('n');
+                const wide = Math.max(figmol_size_min, box[2] + (west ? -move_x : move_x));
+                const tall = Math.max(figmol_size_min, box[3] + (north ? -move_y : move_y));
+                const drawn = this.snap_edges([
+                    west ? box[0] + box[2] - wide : box[0],
+                    north ? box[1] + box[3] - tall : box[1],
+                    wide,
+                    tall,
+                ], corner);
+                const scale_x = drawn[2] / (box[2] || 1);
+                const scale_y = drawn[3] / (box[3] || 1);
+                const rects = {};
+                for (const id of this.grab_ids) {
+                    const place = this.grab_sheets[id] ?? [0, 0];
+                    const rect = this.grab_rects[id] ?? [0, 0, 0, 0];
+                    // Back from the sheet into the coordinates of whatever frame this
+                    // particular element lives in — a selection may span several.
+                    const origin = [place[0] - rect[0], place[1] - rect[1]];
+                    rects[id] = [
+                        Math.round(drawn[0] + (place[0] - box[0]) * scale_x - origin[0]),
+                        Math.round(drawn[1] + (place[1] - box[1]) * scale_y - origin[1]),
+                        Math.max(figmol_size_min, Math.round(rect[2] * scale_x)),
+                        Math.max(figmol_size_min, Math.round(rect[3] * scale_y)),
+                    ];
+                }
+                this.draft(rects);
+                this.drag_box(drawn);
             }
             /**
              * Everything is written before any of the gesture state is cleared:
@@ -32417,6 +33223,10 @@ var $;
                 this.draft(null);
                 this.drop_target('');
                 this.marquee(null);
+                this.guide_x(null);
+                this.guide_y(null);
+                this.measures(null);
+                this.drag_box(null);
                 return null;
             }
             /** Adds whatever the rubber band caught to whatever it started with. */
@@ -32456,10 +33266,13 @@ var $;
                             store.rect_set(key, draft[key]);
                     return;
                 }
-                const zoom = this.zoom();
+                // The move the drag actually drew, snapping included — not the raw
+                // travel of the pointer. Dropping into another frame would otherwise
+                // undo the sticking that was on screen a moment ago.
                 const grab = this.grab_sheets[id] ?? [0, 0];
-                const sheet_x = grab[0] + (this.last_x - this.grab_x) / zoom;
-                const sheet_y = grab[1] + (this.last_y - this.grab_y) / zoom;
+                const shift = this.grab_shift;
+                const sheet_x = grab[0] + shift[0];
+                const sheet_y = grab[1] + shift[1];
                 const origin = this.node_origin(target);
                 store.node_reparent(id, target, index, sheet_x - origin[0], sheet_y - origin[1]);
             }
@@ -32622,6 +33435,16 @@ var $;
                     if (this.space())
                         $mol_wire_async(this).space(false);
                 });
+                // A press anywhere but on the menu closes it, including a press into
+                // the panels beside the canvas — which the canvas never hears about.
+                win.addEventListener('pointerdown', (event) => {
+                    const node = event.target;
+                    if (node?.closest?.('[figmol_menu]'))
+                        return;
+                    if (!this.menu())
+                        return;
+                    $mol_wire_async(this).menu(null);
+                });
                 return null;
             }
             space(next) {
@@ -32641,11 +33464,154 @@ var $;
                     event.preventDefault();
                 $mol_wire_async(this).space(down);
             }
+            /* ------------------------------------------------------------ menu */
+            /** Where the menu stands, in screen pixels of the canvas. Closed is `null`. */
+            menu(next) {
+                return next ?? null;
+            }
+            menu_on() {
+                return !!this.menu();
+            }
+            menu_left() {
+                return (this.menu()?.[0] ?? 0) + 'px';
+            }
+            menu_top() {
+                return (this.menu()?.[1] ?? 0) + 'px';
+            }
+            /**
+             * The right button opens the menu over whatever it was pressed on, picking
+             * that element first when it was not picked already — the same rule every
+             * editor follows, and the reason the menu can talk about "the selection"
+             * without ever meaning something the user cannot see.
+             *
+             * A press on empty space has nothing to offer, so it only clears the menu.
+             */
             context_menu(event) {
-                event?.preventDefault();
+                if (!event)
+                    return null;
+                event.preventDefault();
+                if (!this.editable())
+                    return null;
+                const target = event.target;
+                const shape = target.closest('[figmol_node]');
+                const deep = shape?.getAttribute('figmol_node') || this.press_deep;
+                const id = this.pick(deep, event);
+                if (id && !this.selection().includes(id))
+                    this.selection([id]);
+                if (!id || !this.selection().length) {
+                    this.menu(null);
+                    return null;
+                }
+                const view = this.viewport();
+                this.menu([
+                    Math.max(0, Math.min(event.clientX - view.left, view.width - figmol_menu[0])),
+                    Math.max(0, Math.min(event.clientY - view.top, view.height - figmol_menu[1])),
+                ]);
+                return null;
+            }
+            menu_copy(next) {
+                if (next === undefined)
+                    return null;
+                this.menu(null);
+                const store = this.store();
+                const made = [];
+                store.group(() => {
+                    for (const id of this.selection()) {
+                        const copy = store.node_copy(id);
+                        if (copy)
+                            made.push(copy);
+                    }
+                });
+                if (made.length)
+                    this.selection(made);
+                return null;
+            }
+            menu_front(next) {
+                if (next === undefined)
+                    return null;
+                this.lift(true);
+                return null;
+            }
+            menu_back(next) {
+                if (next === undefined)
+                    return null;
+                this.lift(false);
+                return null;
+            }
+            menu_drop(next) {
+                if (next === undefined)
+                    return null;
+                this.menu(null);
+                this.drop(true);
+                return null;
+            }
+            /**
+             * Moves everything picked to the top or to the bottom of the pile inside
+             * its own frame, keeping the order the elements had among themselves: they
+             * are lifted starting from the one that was lowest, so the one that was on
+             * top ends up on top.
+             */
+            lift(top) {
+                this.menu(null);
+                const store = this.store();
+                const order = store.node_ids();
+                const ids = [...this.selection()]
+                    .sort((left, right) => order.indexOf(left) - order.indexOf(right));
+                if (!top)
+                    ids.reverse();
+                store.group(() => {
+                    for (const id of ids)
+                        store.node_lift(id, top);
+                });
+            }
+            /**
+             * Puts a frame around everything picked and moves it inside, keeping every
+             * element exactly where it was on the page.
+             *
+             * The frame places its children freely rather than by an auto layout. A
+             * layout would be the more useful frame to end up with, and it would also
+             * reflow a hand-made arrangement the moment it appeared — which is not
+             * what "wrap this" means to anybody watching it happen. Turning the layout
+             * on afterwards is one click in the inspector.
+             *
+             * Only elements sharing one frame can be wrapped: the box is measured in
+             * the coordinates of that frame, and elements placed by an auto layout
+             * have no coordinates of their own to move.
+             */
+            menu_wrap(next) {
+                if (next === undefined)
+                    return null;
+                this.menu(null);
+                const store = this.store();
+                const ids = this.selection().filter(id => !store.flow(id));
+                if (!ids.length)
+                    return null;
+                const host = store.parent(ids[0]);
+                if (!host)
+                    return null;
+                if (ids.some(id => store.parent(id) !== host))
+                    return null;
+                const box = $bog_figmol_magnet.bbox(ids.map(id => store.rect(id)));
+                let made = '';
+                store.group(() => {
+                    made = store.node_add('frame', host, box[0], box[1], '');
+                    if (!made)
+                        return;
+                    store.rect_set(made, box);
+                    // A fresh frame comes out of the palette laying its children out in
+                    // a column. That is the right default for an empty one and the
+                    // wrong one here, where the children are already placed.
+                    store.direction(made, '');
+                    ids.forEach((id, at) => {
+                        store.node_reparent(id, made, at, store.x(id) - box[0], store.y(id) - box[1]);
+                    });
+                });
+                if (made)
+                    this.selection([made]);
                 return null;
             }
             deselect(next) {
+                this.menu(null);
                 this.editing('');
                 this.scope('');
                 this.selection([]);
@@ -32702,6 +33668,21 @@ var $;
         ], $bog_figmol_app_canvas.prototype, "marquee", null);
         __decorate([
             $mol_mem
+        ], $bog_figmol_app_canvas.prototype, "overlay", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_app_canvas.prototype, "guide_x", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_app_canvas.prototype, "guide_y", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_app_canvas.prototype, "measures", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_app_canvas.prototype, "measure_ids", null);
+        __decorate([
+            $mol_mem
         ], $bog_figmol_app_canvas.prototype, "armed", null);
         __decorate([
             $mol_mem
@@ -32719,6 +33700,12 @@ var $;
             $mol_action
         ], $bog_figmol_app_canvas.prototype, "toggle", null);
         __decorate([
+            $mol_mem
+        ], $bog_figmol_app_canvas.prototype, "group_box", null);
+        __decorate([
+            $mol_mem
+        ], $bog_figmol_app_canvas.prototype, "drag_box", null);
+        __decorate([
             $mol_action
         ], $bog_figmol_app_canvas.prototype, "pointer_down", null);
         __decorate([
@@ -32729,10 +33716,16 @@ var $;
         ], $bog_figmol_app_canvas.prototype, "press_pick", null);
         __decorate([
             $mol_action
+        ], $bog_figmol_app_canvas.prototype, "press_scale", null);
+        __decorate([
+            $mol_action
         ], $bog_figmol_app_canvas.prototype, "clone", null);
         __decorate([
             $mol_action
         ], $bog_figmol_app_canvas.prototype, "pointer_move", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_canvas.prototype, "scale_move", null);
         __decorate([
             $mol_action
         ], $bog_figmol_app_canvas.prototype, "pointer_up", null);
@@ -32770,6 +33763,30 @@ var $;
             $mol_mem
         ], $bog_figmol_app_canvas.prototype, "space", null);
         __decorate([
+            $mol_mem
+        ], $bog_figmol_app_canvas.prototype, "menu", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_canvas.prototype, "context_menu", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_canvas.prototype, "menu_copy", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_canvas.prototype, "menu_front", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_canvas.prototype, "menu_back", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_canvas.prototype, "menu_drop", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_canvas.prototype, "lift", null);
+        __decorate([
+            $mol_action
+        ], $bog_figmol_app_canvas.prototype, "menu_wrap", null);
+        __decorate([
             $mol_action
         ], $bog_figmol_app_canvas.prototype, "deselect", null);
         __decorate([
@@ -32783,6 +33800,38 @@ var $;
 "use strict";
 var $;
 (function ($) {
+    /** Grip of the frame drawn around several elements. */
+    const figmol_canvas_grip = {
+        position: 'absolute',
+        width: '0.5rem',
+        height: '0.5rem',
+        minWidth: '0.5rem',
+        minHeight: '0.5rem',
+        boxSizing: 'border-box',
+        background: {
+            color: '#ffffff',
+        },
+        border: {
+            width: '1px',
+            style: 'solid',
+            color: '#2f7ff7',
+        },
+        borderRadius: '2px',
+        pointerEvents: 'auto',
+    };
+    const figmol_canvas_item = {
+        justify: {
+            content: 'flex-start',
+        },
+        padding: {
+            top: '0.25rem',
+            bottom: '0.25rem',
+            left: '0.75rem',
+            right: '0.75rem',
+        },
+        borderRadius: '0',
+        whiteSpace: 'nowrap',
+    };
     $mol_style_define($bog_figmol_app_canvas, {
         flex: {
             grow: 1,
@@ -32802,14 +33851,6 @@ var $;
             left: 0,
             transformOrigin: '0 0',
         },
-        Sheet: {
-            display: 'block',
-            position: 'relative',
-            background: {
-                color: '#ffffff',
-            },
-            boxShadow: '0 0.5rem 2rem #00000040',
-        },
         /**
          * Drawn on the sheet, so the viewport transform scales it along with
          * everything else and the band stays glued to the page under it.
@@ -32828,6 +33869,128 @@ var $;
             pointerEvents: 'none',
             zIndex: 5,
         },
+        /**
+         * Everything drawn over the sheet instead of on it, in screen pixels: a
+         * guide has to stay a hairline and a label has to stay readable however
+         * far the page is zoomed out. Presses go through it to the canvas, except
+         * on the grips and the menu, which take their own.
+         */
+        Overlay: {
+            display: 'block',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            pointerEvents: 'none',
+        },
+        Guide_x: {
+            position: 'absolute',
+            width: '1px',
+            background: {
+                color: '#f24822',
+            },
+        },
+        Guide_y: {
+            position: 'absolute',
+            height: '1px',
+            background: {
+                color: '#f24822',
+            },
+        },
+        /** The rule itself is the line: one of its two sizes is a single pixel. */
+        Measure: {
+            display: 'block',
+            position: 'absolute',
+            background: {
+                color: '#ec4899',
+            },
+        },
+        Measure_label: {
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            transform: 'translate(-50%, -50%)',
+            padding: {
+                top: '1px',
+                bottom: '1px',
+                left: '4px',
+                right: '4px',
+            },
+            background: {
+                color: '#ec4899',
+            },
+            color: '#ffffff',
+            font: {
+                size: '0.625rem',
+                family: 'sans-serif',
+            },
+            borderRadius: '2px',
+            whiteSpace: 'nowrap',
+        },
+        Group: {
+            position: 'absolute',
+            boxSizing: 'border-box',
+            border: {
+                width: '1px',
+                style: 'solid',
+                color: '#2f7ff7',
+            },
+        },
+        Group_nw: {
+            ...figmol_canvas_grip,
+            top: '-0.25rem',
+            left: '-0.25rem',
+            cursor: 'nwse-resize',
+        },
+        Group_ne: {
+            ...figmol_canvas_grip,
+            top: '-0.25rem',
+            right: '-0.25rem',
+            cursor: 'nesw-resize',
+        },
+        Group_sw: {
+            ...figmol_canvas_grip,
+            bottom: '-0.25rem',
+            left: '-0.25rem',
+            cursor: 'nesw-resize',
+        },
+        Group_se: {
+            ...figmol_canvas_grip,
+            bottom: '-0.25rem',
+            right: '-0.25rem',
+            cursor: 'nwse-resize',
+        },
+        Menu: {
+            position: 'absolute',
+            flex: {
+                direction: 'column',
+            },
+            minWidth: '11rem',
+            padding: {
+                top: '0.25rem',
+                bottom: '0.25rem',
+                left: 0,
+                right: 0,
+            },
+            background: {
+                color: $mol_theme.card,
+            },
+            border: {
+                width: '1px',
+                style: 'solid',
+                color: $mol_theme.line,
+                radius: $mol_gap.round,
+            },
+            boxShadow: '0 0.5rem 1.5rem #00000040',
+            pointerEvents: 'auto',
+            cursor: 'default',
+        },
+        Menu_copy: { ...figmol_canvas_item },
+        Menu_front: { ...figmol_canvas_item },
+        Menu_back: { ...figmol_canvas_item },
+        Menu_wrap: { ...figmol_canvas_item },
+        Menu_drop: { ...figmol_canvas_item },
         '@': {
             /** Space is down: the next drag pans. An armed tool still wins below. */
             figmol_grab: {

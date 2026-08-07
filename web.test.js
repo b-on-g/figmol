@@ -109,139 +109,6 @@ var $;
 
 ;
 "use strict";
-var $;
-(function ($) {
-    /**
-     * Argument must be Truthy
-     * @deprecated use $mol_assert_equal instead
-     */
-    function $mol_assert_ok(value) {
-        if (value)
-            return;
-        $mol_fail(new Error(`${value} ≠ true`));
-    }
-    $.$mol_assert_ok = $mol_assert_ok;
-    /**
-     * Argument must be Falsy
-     * @deprecated use $mol_assert_equal instead
-     */
-    function $mol_assert_not(value) {
-        if (!value)
-            return;
-        $mol_fail(new Error(`${value} ≠ false`));
-    }
-    $.$mol_assert_not = $mol_assert_not;
-    /**
-     * Handler must throw an error.
-     * @example
-     * $mol_assert_fail( ()=>{ throw new Error( 'Parse error' ) } ) // Passes because throws error
-     * $mol_assert_fail( ()=>{ throw new Error( 'Parse error' ) } , 'Parse error' ) // Passes because throws right message
-     * $mol_assert_fail( ()=>{ throw new Error( 'Parse error' ) } , Error ) // Passes because throws right class
-     * @see https://mol.hyoo.ru/#!section=docs/=9q9dv3_fgxjsf
-     */
-    function $mol_assert_fail(handler, ErrorRight) {
-        const fail = $.$mol_fail;
-        try {
-            $.$mol_fail = $.$mol_fail_hidden;
-            handler();
-        }
-        catch (error) {
-            $.$mol_fail = fail;
-            if (typeof ErrorRight === 'string') {
-                $mol_assert_equal(error.message ?? error, ErrorRight);
-            }
-            else {
-                $mol_assert_equal(error instanceof ErrorRight, true);
-            }
-            return error;
-        }
-        finally {
-            $.$mol_fail = fail;
-        }
-        $mol_fail(new Error('Not failed', { cause: { expect: ErrorRight } }));
-    }
-    $.$mol_assert_fail = $mol_assert_fail;
-    /** @deprecated Use $mol_assert_equal */
-    function $mol_assert_like(...args) {
-        $mol_assert_equal(...args);
-    }
-    $.$mol_assert_like = $mol_assert_like;
-    /**
-     * All arguments must not be structural equal to each other.
-     * @example
-     * $mol_assert_unique( 1 , 2 , 3 ) // Passes
-     * $mol_assert_unique( 1 , 1 , 2 ) // Fails because 1 === 1
-     * @see https://mol.hyoo.ru/#!section=docs/=9q9dv3_fgxjsf
-     */
-    function $mol_assert_unique(...args) {
-        for (let i = 0; i < args.length; ++i) {
-            for (let j = 0; j < args.length; ++j) {
-                if (i === j)
-                    continue;
-                if (!$mol_compare_deep(args[i], args[j]))
-                    continue;
-                return $mol_fail(new Error(`Uniquesess assertion failure`, { cause: { [i]: args[i], [i]: args[i] } }));
-            }
-        }
-    }
-    $.$mol_assert_unique = $mol_assert_unique;
-    /**
-     * All arguments must be structural equal each other.
-     * @example
-     * $mol_assert_like( [1] , [1] , [1] ) // Passes
-     * $mol_assert_like( [1] , [1] , [2] ) // Fails because 1 !== 2
-     * @see https://mol.hyoo.ru/#!section=docs/=9q9dv3_fgxjsf
-     */
-    function $mol_assert_equal(...args) {
-        for (let i = 1; i < args.length; ++i) {
-            if ($mol_compare_deep(args[0], args[i]))
-                continue;
-            return $mol_fail(new Error(`Equality assertion failure`, { cause: { 0: args[0], [i]: args[i] } }));
-        }
-    }
-    $.$mol_assert_equal = $mol_assert_equal;
-})($ || ($ = {}));
-
-;
-"use strict";
-var $;
-(function ($) {
-    $mol_test({
-        'must be false'() {
-            $mol_assert_not(0);
-        },
-        'must be true'() {
-            $mol_assert_ok(1);
-        },
-        'two must be equal'() {
-            $mol_assert_equal(2, 2);
-        },
-        'three must be equal'() {
-            $mol_assert_equal(2, 2, 2);
-        },
-        'two must be unique'() {
-            $mol_assert_unique([2], [3]);
-        },
-        'three must be unique'() {
-            $mol_assert_unique([1], [2], [3]);
-        },
-        'two must be alike'() {
-            $mol_assert_equal([3], [3]);
-        },
-        'three must be alike'() {
-            $mol_assert_equal([3], [3], [3]);
-        },
-        'two object must be alike'() {
-            $mol_assert_equal({ a: 1 }, { a: 1 });
-        },
-        'three object must be alike'() {
-            $mol_assert_equal({ a: 1 }, { a: 1 }, { a: 1 });
-        },
-    });
-})($ || ($ = {}));
-
-;
-"use strict";
 /** @jsx $mol_jsx */
 /** @jsxFrag $mol_jsx_frag */
 var $;
@@ -344,303 +211,6 @@ var $;
         },
     });
 })($ || ($ = {}));
-
-;
-"use strict";
-var $;
-(function ($) {
-    $mol_test({
-        'get'() {
-            const proxy = $mol_delegate({}, () => ({ foo: 777 }));
-            $mol_assert_equal(proxy.foo, 777);
-        },
-        'has'() {
-            const proxy = $mol_delegate({}, () => ({ foo: 777 }));
-            $mol_assert_equal('foo' in proxy, true);
-        },
-        'set'() {
-            const target = { foo: 777 };
-            const proxy = $mol_delegate({}, () => target);
-            proxy.foo = 123;
-            $mol_assert_equal(target.foo, 123);
-        },
-        'getOwnPropertyDescriptor'() {
-            const proxy = $mol_delegate({}, () => ({ foo: 777 }));
-            $mol_assert_like(Object.getOwnPropertyDescriptor(proxy, 'foo'), {
-                value: 777,
-                writable: true,
-                enumerable: true,
-                configurable: true,
-            });
-        },
-        'ownKeys'() {
-            const proxy = $mol_delegate({}, () => ({ foo: 777, [Symbol.toStringTag]: 'bar' }));
-            $mol_assert_like(Reflect.ownKeys(proxy), ['foo', Symbol.toStringTag]);
-        },
-        'getPrototypeOf'() {
-            class Foo {
-            }
-            const proxy = $mol_delegate({}, () => new Foo);
-            $mol_assert_equal(Object.getPrototypeOf(proxy), Foo.prototype);
-        },
-        'setPrototypeOf'() {
-            class Foo {
-            }
-            const target = {};
-            const proxy = $mol_delegate({}, () => target);
-            Object.setPrototypeOf(proxy, Foo.prototype);
-            $mol_assert_equal(Object.getPrototypeOf(target), Foo.prototype);
-        },
-        'instanceof'() {
-            class Foo {
-            }
-            const proxy = $mol_delegate({}, () => new Foo);
-            $mol_assert_ok(proxy instanceof Foo);
-            $mol_assert_ok(proxy instanceof $mol_delegate);
-        },
-        'autobind'() {
-            class Foo {
-            }
-            const proxy = $mol_delegate({}, () => new Foo);
-            $mol_assert_ok(proxy instanceof Foo);
-            $mol_assert_ok(proxy instanceof $mol_delegate);
-        },
-    });
-})($ || ($ = {}));
-
-;
-"use strict";
-
-;
-"use strict";
-var $;
-(function ($_1) {
-    $mol_test({
-        'FQN of anon function'($) {
-            const $$ = Object.assign($, { $mol_func_name_test: (() => () => { })() });
-            $mol_assert_equal($$.$mol_func_name_test.name, '');
-            $mol_assert_equal($$.$mol_func_name($$.$mol_func_name_test), '$mol_func_name_test');
-            $mol_assert_equal($$.$mol_func_name_test.name, '$mol_func_name_test');
-        },
-    });
-})($ || ($ = {}));
-
-;
-"use strict";
-var $;
-(function ($_1) {
-    $mol_test({
-        'init with overload'() {
-            class X extends $mol_object {
-                foo() {
-                    return 1;
-                }
-            }
-            var x = X.make({
-                foo: () => 2,
-            });
-            $mol_assert_equal(x.foo(), 2);
-        },
-        'Context in instance inherits from class'($) {
-            const custom = $.$mol_ambient({});
-            class X extends $.$mol_object {
-                static $ = custom;
-            }
-            $mol_assert_equal(new X().$, custom);
-        },
-    });
-})($ || ($ = {}));
-
-;
-"use strict";
-var $;
-(function ($_1) {
-    $mol_test({
-        'Collect deps'() {
-            const pub1 = new $mol_wire_pub;
-            const pub2 = new $mol_wire_pub;
-            const sub = new $mol_wire_pub_sub;
-            const bu1 = sub.track_on();
-            try {
-                pub1.promote();
-                pub2.promote();
-                pub2.promote();
-            }
-            finally {
-                sub.track_cut();
-                sub.track_off(bu1);
-            }
-            pub1.emit();
-            pub2.emit();
-            $mol_assert_like(sub.pub_list, [pub1, pub2, pub2]);
-            const bu2 = sub.track_on();
-            try {
-                pub1.promote();
-                pub1.promote();
-                pub2.promote();
-            }
-            finally {
-                sub.track_cut();
-                sub.track_off(bu2);
-            }
-            pub1.emit();
-            pub2.emit();
-            $mol_assert_like(sub.pub_list, [pub1, pub1, pub2]);
-        },
-        'cyclic detection'($) {
-            const sub1 = new $mol_wire_pub_sub;
-            const sub2 = new $mol_wire_pub_sub;
-            const bu1 = sub1.track_on();
-            try {
-                const bu2 = sub2.track_on();
-                try {
-                    $mol_assert_fail(() => sub1.promote(), 'Circular subscription');
-                }
-                finally {
-                    sub2.track_cut();
-                    sub2.track_off(bu2);
-                }
-            }
-            finally {
-                sub1.track_cut();
-                sub1.track_off(bu1);
-            }
-        },
-    });
-})($ || ($ = {}));
-
-;
-"use strict";
-var $;
-(function ($) {
-    /// @todo right orderinng
-    $.$mol_after_mock_queue = [];
-    function $mol_after_mock_warp() {
-        const queue = $.$mol_after_mock_queue.splice(0);
-        for (const task of queue)
-            task();
-    }
-    $.$mol_after_mock_warp = $mol_after_mock_warp;
-    class $mol_after_mock_commmon extends $mol_object2 {
-        task;
-        promise = Promise.resolve();
-        cancelled = false;
-        id;
-        constructor(task) {
-            super();
-            this.task = task;
-            $.$mol_after_mock_queue.push(task);
-        }
-        destructor() {
-            const index = $.$mol_after_mock_queue.indexOf(this.task);
-            if (index >= 0)
-                $.$mol_after_mock_queue.splice(index, 1);
-        }
-    }
-    $.$mol_after_mock_commmon = $mol_after_mock_commmon;
-    class $mol_after_mock_timeout extends $mol_after_mock_commmon {
-        delay;
-        constructor(delay, task) {
-            super(task);
-            this.delay = delay;
-        }
-    }
-    $.$mol_after_mock_timeout = $mol_after_mock_timeout;
-})($ || ($ = {}));
-
-;
-"use strict";
-var $;
-(function ($_1) {
-    $mol_test_mocks.push($ => {
-        $.$mol_after_tick = $mol_after_mock_commmon;
-    });
-})($ || ($ = {}));
-
-;
-"use strict";
-var $;
-(function ($) {
-    $mol_test({
-        'Sync execution'() {
-            class Sync extends $mol_object2 {
-                static calc(a, b) {
-                    return a + b;
-                }
-            }
-            __decorate([
-                $mol_wire_method
-            ], Sync, "calc", null);
-            $mol_assert_equal(Sync.calc(1, 2), 3);
-        },
-        async 'async <=> sync'() {
-            class SyncAsync extends $mol_object2 {
-                static async val(a) {
-                    return a;
-                }
-                static sum(a, b) {
-                    const syn = $mol_wire_sync(this);
-                    return syn.val(a) + syn.val(b);
-                }
-                static async calc(a, b) {
-                    return 5 + await $mol_wire_async(this).sum(a, b);
-                }
-            }
-            $mol_assert_equal(await SyncAsync.calc(1, 2), 8);
-        },
-        async 'Idempotence control'() {
-            class Idempotence extends $mol_object2 {
-                static logs_idemp = 0;
-                static logs_unidemp = 0;
-                static log_idemp() {
-                    this.logs_idemp += 1;
-                }
-                static log_unidemp() {
-                    this.logs_unidemp += 1;
-                }
-                static async val(a) {
-                    return a;
-                }
-                static sum(a, b) {
-                    this.log_idemp();
-                    this.log_unidemp();
-                    const syn = $mol_wire_sync(this);
-                    return syn.val(a) + syn.val(b);
-                }
-                static async calc(a, b) {
-                    return 5 + await $mol_wire_async(this).sum(a, b);
-                }
-            }
-            __decorate([
-                $mol_wire_method
-            ], Idempotence, "log_idemp", null);
-            $mol_assert_equal(await Idempotence.calc(1, 2), 8);
-            $mol_assert_equal(Idempotence.logs_idemp, 1);
-            $mol_assert_equal(Idempotence.logs_unidemp, 3);
-        },
-        async 'Error handling'() {
-            class Handle extends $mol_object2 {
-                static async sum(a, b) {
-                    $mol_fail(new Error('test error ' + (a + b)));
-                }
-                static check() {
-                    try {
-                        return $mol_wire_sync(Handle).sum(1, 2);
-                    }
-                    catch (error) {
-                        if ($mol_promise_like(error))
-                            $mol_fail_hidden(error);
-                        $mol_assert_equal(error.message, 'test error 3');
-                    }
-                }
-            }
-            await $mol_wire_async(Handle).check();
-        },
-    });
-})($ || ($ = {}));
-
-;
-"use strict";
 
 ;
 "use strict";
@@ -1068,6 +638,436 @@ var $;
         },
     });
 })($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    /**
+     * Argument must be Truthy
+     * @deprecated use $mol_assert_equal instead
+     */
+    function $mol_assert_ok(value) {
+        if (value)
+            return;
+        $mol_fail(new Error(`${value} ≠ true`));
+    }
+    $.$mol_assert_ok = $mol_assert_ok;
+    /**
+     * Argument must be Falsy
+     * @deprecated use $mol_assert_equal instead
+     */
+    function $mol_assert_not(value) {
+        if (!value)
+            return;
+        $mol_fail(new Error(`${value} ≠ false`));
+    }
+    $.$mol_assert_not = $mol_assert_not;
+    /**
+     * Handler must throw an error.
+     * @example
+     * $mol_assert_fail( ()=>{ throw new Error( 'Parse error' ) } ) // Passes because throws error
+     * $mol_assert_fail( ()=>{ throw new Error( 'Parse error' ) } , 'Parse error' ) // Passes because throws right message
+     * $mol_assert_fail( ()=>{ throw new Error( 'Parse error' ) } , Error ) // Passes because throws right class
+     * @see https://mol.hyoo.ru/#!section=docs/=9q9dv3_fgxjsf
+     */
+    function $mol_assert_fail(handler, ErrorRight) {
+        const fail = $.$mol_fail;
+        try {
+            $.$mol_fail = $.$mol_fail_hidden;
+            handler();
+        }
+        catch (error) {
+            $.$mol_fail = fail;
+            if (typeof ErrorRight === 'string') {
+                $mol_assert_equal(error.message ?? error, ErrorRight);
+            }
+            else {
+                $mol_assert_equal(error instanceof ErrorRight, true);
+            }
+            return error;
+        }
+        finally {
+            $.$mol_fail = fail;
+        }
+        $mol_fail(new Error('Not failed', { cause: { expect: ErrorRight } }));
+    }
+    $.$mol_assert_fail = $mol_assert_fail;
+    /** @deprecated Use $mol_assert_equal */
+    function $mol_assert_like(...args) {
+        $mol_assert_equal(...args);
+    }
+    $.$mol_assert_like = $mol_assert_like;
+    /**
+     * All arguments must not be structural equal to each other.
+     * @example
+     * $mol_assert_unique( 1 , 2 , 3 ) // Passes
+     * $mol_assert_unique( 1 , 1 , 2 ) // Fails because 1 === 1
+     * @see https://mol.hyoo.ru/#!section=docs/=9q9dv3_fgxjsf
+     */
+    function $mol_assert_unique(...args) {
+        for (let i = 0; i < args.length; ++i) {
+            for (let j = 0; j < args.length; ++j) {
+                if (i === j)
+                    continue;
+                if (!$mol_compare_deep(args[i], args[j]))
+                    continue;
+                return $mol_fail(new Error(`Uniquesess assertion failure`, { cause: { [i]: args[i], [i]: args[i] } }));
+            }
+        }
+    }
+    $.$mol_assert_unique = $mol_assert_unique;
+    /**
+     * All arguments must be structural equal each other.
+     * @example
+     * $mol_assert_like( [1] , [1] , [1] ) // Passes
+     * $mol_assert_like( [1] , [1] , [2] ) // Fails because 1 !== 2
+     * @see https://mol.hyoo.ru/#!section=docs/=9q9dv3_fgxjsf
+     */
+    function $mol_assert_equal(...args) {
+        for (let i = 1; i < args.length; ++i) {
+            if ($mol_compare_deep(args[0], args[i]))
+                continue;
+            return $mol_fail(new Error(`Equality assertion failure`, { cause: { 0: args[0], [i]: args[i] } }));
+        }
+    }
+    $.$mol_assert_equal = $mol_assert_equal;
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    $mol_test({
+        'must be false'() {
+            $mol_assert_not(0);
+        },
+        'must be true'() {
+            $mol_assert_ok(1);
+        },
+        'two must be equal'() {
+            $mol_assert_equal(2, 2);
+        },
+        'three must be equal'() {
+            $mol_assert_equal(2, 2, 2);
+        },
+        'two must be unique'() {
+            $mol_assert_unique([2], [3]);
+        },
+        'three must be unique'() {
+            $mol_assert_unique([1], [2], [3]);
+        },
+        'two must be alike'() {
+            $mol_assert_equal([3], [3]);
+        },
+        'three must be alike'() {
+            $mol_assert_equal([3], [3], [3]);
+        },
+        'two object must be alike'() {
+            $mol_assert_equal({ a: 1 }, { a: 1 });
+        },
+        'three object must be alike'() {
+            $mol_assert_equal({ a: 1 }, { a: 1 }, { a: 1 });
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    $mol_test({
+        'get'() {
+            const proxy = $mol_delegate({}, () => ({ foo: 777 }));
+            $mol_assert_equal(proxy.foo, 777);
+        },
+        'has'() {
+            const proxy = $mol_delegate({}, () => ({ foo: 777 }));
+            $mol_assert_equal('foo' in proxy, true);
+        },
+        'set'() {
+            const target = { foo: 777 };
+            const proxy = $mol_delegate({}, () => target);
+            proxy.foo = 123;
+            $mol_assert_equal(target.foo, 123);
+        },
+        'getOwnPropertyDescriptor'() {
+            const proxy = $mol_delegate({}, () => ({ foo: 777 }));
+            $mol_assert_like(Object.getOwnPropertyDescriptor(proxy, 'foo'), {
+                value: 777,
+                writable: true,
+                enumerable: true,
+                configurable: true,
+            });
+        },
+        'ownKeys'() {
+            const proxy = $mol_delegate({}, () => ({ foo: 777, [Symbol.toStringTag]: 'bar' }));
+            $mol_assert_like(Reflect.ownKeys(proxy), ['foo', Symbol.toStringTag]);
+        },
+        'getPrototypeOf'() {
+            class Foo {
+            }
+            const proxy = $mol_delegate({}, () => new Foo);
+            $mol_assert_equal(Object.getPrototypeOf(proxy), Foo.prototype);
+        },
+        'setPrototypeOf'() {
+            class Foo {
+            }
+            const target = {};
+            const proxy = $mol_delegate({}, () => target);
+            Object.setPrototypeOf(proxy, Foo.prototype);
+            $mol_assert_equal(Object.getPrototypeOf(target), Foo.prototype);
+        },
+        'instanceof'() {
+            class Foo {
+            }
+            const proxy = $mol_delegate({}, () => new Foo);
+            $mol_assert_ok(proxy instanceof Foo);
+            $mol_assert_ok(proxy instanceof $mol_delegate);
+        },
+        'autobind'() {
+            class Foo {
+            }
+            const proxy = $mol_delegate({}, () => new Foo);
+            $mol_assert_ok(proxy instanceof Foo);
+            $mol_assert_ok(proxy instanceof $mol_delegate);
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+
+;
+"use strict";
+var $;
+(function ($_1) {
+    $mol_test({
+        'FQN of anon function'($) {
+            const $$ = Object.assign($, { $mol_func_name_test: (() => () => { })() });
+            $mol_assert_equal($$.$mol_func_name_test.name, '');
+            $mol_assert_equal($$.$mol_func_name($$.$mol_func_name_test), '$mol_func_name_test');
+            $mol_assert_equal($$.$mol_func_name_test.name, '$mol_func_name_test');
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($_1) {
+    $mol_test({
+        'init with overload'() {
+            class X extends $mol_object {
+                foo() {
+                    return 1;
+                }
+            }
+            var x = X.make({
+                foo: () => 2,
+            });
+            $mol_assert_equal(x.foo(), 2);
+        },
+        'Context in instance inherits from class'($) {
+            const custom = $.$mol_ambient({});
+            class X extends $.$mol_object {
+                static $ = custom;
+            }
+            $mol_assert_equal(new X().$, custom);
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($_1) {
+    $mol_test({
+        'Collect deps'() {
+            const pub1 = new $mol_wire_pub;
+            const pub2 = new $mol_wire_pub;
+            const sub = new $mol_wire_pub_sub;
+            const bu1 = sub.track_on();
+            try {
+                pub1.promote();
+                pub2.promote();
+                pub2.promote();
+            }
+            finally {
+                sub.track_cut();
+                sub.track_off(bu1);
+            }
+            pub1.emit();
+            pub2.emit();
+            $mol_assert_like(sub.pub_list, [pub1, pub2, pub2]);
+            const bu2 = sub.track_on();
+            try {
+                pub1.promote();
+                pub1.promote();
+                pub2.promote();
+            }
+            finally {
+                sub.track_cut();
+                sub.track_off(bu2);
+            }
+            pub1.emit();
+            pub2.emit();
+            $mol_assert_like(sub.pub_list, [pub1, pub1, pub2]);
+        },
+        'cyclic detection'($) {
+            const sub1 = new $mol_wire_pub_sub;
+            const sub2 = new $mol_wire_pub_sub;
+            const bu1 = sub1.track_on();
+            try {
+                const bu2 = sub2.track_on();
+                try {
+                    $mol_assert_fail(() => sub1.promote(), 'Circular subscription');
+                }
+                finally {
+                    sub2.track_cut();
+                    sub2.track_off(bu2);
+                }
+            }
+            finally {
+                sub1.track_cut();
+                sub1.track_off(bu1);
+            }
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    /// @todo right orderinng
+    $.$mol_after_mock_queue = [];
+    function $mol_after_mock_warp() {
+        const queue = $.$mol_after_mock_queue.splice(0);
+        for (const task of queue)
+            task();
+    }
+    $.$mol_after_mock_warp = $mol_after_mock_warp;
+    class $mol_after_mock_commmon extends $mol_object2 {
+        task;
+        promise = Promise.resolve();
+        cancelled = false;
+        id;
+        constructor(task) {
+            super();
+            this.task = task;
+            $.$mol_after_mock_queue.push(task);
+        }
+        destructor() {
+            const index = $.$mol_after_mock_queue.indexOf(this.task);
+            if (index >= 0)
+                $.$mol_after_mock_queue.splice(index, 1);
+        }
+    }
+    $.$mol_after_mock_commmon = $mol_after_mock_commmon;
+    class $mol_after_mock_timeout extends $mol_after_mock_commmon {
+        delay;
+        constructor(delay, task) {
+            super(task);
+            this.delay = delay;
+        }
+    }
+    $.$mol_after_mock_timeout = $mol_after_mock_timeout;
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($_1) {
+    $mol_test_mocks.push($ => {
+        $.$mol_after_tick = $mol_after_mock_commmon;
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    $mol_test({
+        'Sync execution'() {
+            class Sync extends $mol_object2 {
+                static calc(a, b) {
+                    return a + b;
+                }
+            }
+            __decorate([
+                $mol_wire_method
+            ], Sync, "calc", null);
+            $mol_assert_equal(Sync.calc(1, 2), 3);
+        },
+        async 'async <=> sync'() {
+            class SyncAsync extends $mol_object2 {
+                static async val(a) {
+                    return a;
+                }
+                static sum(a, b) {
+                    const syn = $mol_wire_sync(this);
+                    return syn.val(a) + syn.val(b);
+                }
+                static async calc(a, b) {
+                    return 5 + await $mol_wire_async(this).sum(a, b);
+                }
+            }
+            $mol_assert_equal(await SyncAsync.calc(1, 2), 8);
+        },
+        async 'Idempotence control'() {
+            class Idempotence extends $mol_object2 {
+                static logs_idemp = 0;
+                static logs_unidemp = 0;
+                static log_idemp() {
+                    this.logs_idemp += 1;
+                }
+                static log_unidemp() {
+                    this.logs_unidemp += 1;
+                }
+                static async val(a) {
+                    return a;
+                }
+                static sum(a, b) {
+                    this.log_idemp();
+                    this.log_unidemp();
+                    const syn = $mol_wire_sync(this);
+                    return syn.val(a) + syn.val(b);
+                }
+                static async calc(a, b) {
+                    return 5 + await $mol_wire_async(this).sum(a, b);
+                }
+            }
+            __decorate([
+                $mol_wire_method
+            ], Idempotence, "log_idemp", null);
+            $mol_assert_equal(await Idempotence.calc(1, 2), 8);
+            $mol_assert_equal(Idempotence.logs_idemp, 1);
+            $mol_assert_equal(Idempotence.logs_unidemp, 3);
+        },
+        async 'Error handling'() {
+            class Handle extends $mol_object2 {
+                static async sum(a, b) {
+                    $mol_fail(new Error('test error ' + (a + b)));
+                }
+                static check() {
+                    try {
+                        return $mol_wire_sync(Handle).sum(1, 2);
+                    }
+                    catch (error) {
+                        if ($mol_promise_like(error))
+                            $mol_fail_hidden(error);
+                        $mol_assert_equal(error.message, 'test error 3');
+                    }
+                }
+            }
+            await $mol_wire_async(Handle).check();
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
 
 ;
 "use strict";
@@ -6829,6 +6829,311 @@ var $;
             const store = new $bog_figmol_store;
             store.share_id = () => 'not a link at all';
             $mol_assert_equal(store.share_link(), null);
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    $mol_test({
+        'a box offers its edges and its middle to stick by'() {
+            $mol_assert_like($bog_figmol_magnet.probes(100, 40), [100, 140, 120]);
+        },
+        'every candidate contributes both edges and a middle'() {
+            $mol_assert_like($bog_figmol_magnet.lines([[10, 200, 40, 80]], 0), [10, 50, 30]);
+            $mol_assert_like($bog_figmol_magnet.lines([[10, 200, 40, 80]], 1), [200, 280, 240]);
+        },
+        'a near miss sticks and says how far it had to move'() {
+            const hit = $bog_figmol_magnet.snap([104], [100, 300], 6);
+            $mol_assert_equal(hit?.shift, -4);
+            $mol_assert_equal(hit?.line, 100);
+        },
+        'nothing within reach sticks to nothing'() {
+            $mol_assert_equal($bog_figmol_magnet.snap([120], [100, 300], 6), null);
+        },
+        /** The whole point of a threshold is that it is measured, not eyeballed. */
+        'exactly at the threshold still sticks'() {
+            $mol_assert_equal($bog_figmol_magnet.snap([106], [100], 6)?.line, 100);
+            $mol_assert_equal($bog_figmol_magnet.snap([107], [100], 6), null);
+        },
+        'the nearest of several lines wins'() {
+            const hit = $bog_figmol_magnet.snap([100], [96, 103, 105], 6);
+            $mol_assert_equal(hit?.line, 103);
+            $mol_assert_equal(hit?.shift, 3);
+        },
+        /**
+         * Probes are tried edge first, so a neighbour flush against the box beats
+         * a centre line exactly as close.
+         */
+        'an edge wins a tie against a middle'() {
+            const probes = $bog_figmol_magnet.probes(100, 40);
+            const hit = $bog_figmol_magnet.snap(probes, [98, 118], 6);
+            $mol_assert_equal(hit?.line, 98);
+        },
+        'a box around several boxes covers all of them'() {
+            $mol_assert_like($bog_figmol_magnet.bbox([[10, 20, 30, 40], [100, 0, 50, 10]]), [10, 0, 140, 60]);
+        },
+        'nothing picked is an empty box rather than an infinite one'() {
+            $mol_assert_like($bog_figmol_magnet.bbox([]), [0, 0, 0, 0]);
+        },
+        /**
+         * A neighbour standing across from the box is what a distance is asked
+         * about; one far above it is measured against something else.
+         */
+        'a distance is measured to whatever stands across from the box'() {
+            const gaps = $bog_figmol_magnet.gaps([100, 100, 50, 50], [
+                [200, 120, 50, 50],
+                [200, 900, 50, 50],
+            ], false);
+            $mol_assert_equal(gaps.length, 1);
+            $mol_assert_equal(gaps[0].size, 50);
+            $mol_assert_equal(gaps[0].row, true);
+            $mol_assert_equal(gaps[0].x, 150);
+            // Through the middle of what the two have in common: 120 … 150.
+            $mol_assert_equal(gaps[0].y, 135);
+        },
+        'both sides of both axes are measured at once'() {
+            const gaps = $bog_figmol_magnet.gaps([100, 100, 50, 50], [
+                [0, 100, 60, 50],
+                [200, 100, 50, 50],
+                [100, 0, 50, 60],
+                [100, 200, 50, 50],
+            ], false);
+            $mol_assert_like(gaps.map(gap => gap.size), [40, 50, 40, 50]);
+            $mol_assert_like(gaps.map(gap => gap.row), [true, true, false, false]);
+        },
+        'the nearer of two neighbours on the same side is the one measured'() {
+            const gaps = $bog_figmol_magnet.gaps([100, 100, 50, 50], [
+                [300, 100, 50, 50],
+                [200, 100, 50, 50],
+            ], false);
+            $mol_assert_equal(gaps.length, 1);
+            $mol_assert_equal(gaps[0].size, 50);
+        },
+        /**
+         * Asked about one particular element, the answer is the distance to it
+         * even when the two do not stand across from each other at all.
+         */
+        'an element asked about by name is measured wherever it is'() {
+            const box = [100, 100, 50, 50];
+            const far = [[300, 900, 50, 50]];
+            $mol_assert_equal($bog_figmol_magnet.gaps(box, far, false).length, 0);
+            const gaps = $bog_figmol_magnet.gaps(box, far, true);
+            $mol_assert_like(gaps.map(gap => gap.size), [150, 750]);
+            // Nothing in common, so the ruler goes through the middle of the box.
+            $mol_assert_equal(gaps[0].y, 125);
+            $mol_assert_equal(gaps[1].x, 125);
+        },
+        'boxes that touch have no distance worth drawing'() {
+            $mol_assert_like($bog_figmol_magnet.gaps([100, 100, 50, 50], [[150, 100, 50, 50]], false), []);
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    /**
+     * What the canvas does with the geometry `$bog_figmol_magnet` works out: which
+     * gesture asks about which edges, what it does with the answer, and what the
+     * guides end up saying. The arithmetic itself is checked over there.
+     *
+     * Everything a press would have measured off the screen is set here by hand —
+     * that is exactly the split the plain gesture fields were introduced for.
+     */
+    $mol_test({
+        'a drag sticks to a neighbour and puts up a guide'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.grab_box = [100, 100, 50, 50];
+            canvas.grab_lines_x = [200];
+            canvas.grab_lines_y = [];
+            canvas.grab_limit = 6;
+            // Asked for 96, which leaves the left edge four pixels short of 200.
+            $mol_assert_like(canvas.snap_move(96, 0), [100, 0]);
+            $mol_assert_equal(canvas.guide_x(), 200);
+            $mol_assert_equal(canvas.guide_y(), null);
+        },
+        'a drag that lands nowhere near anything keeps the guides down'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.grab_box = [100, 100, 50, 50];
+            canvas.grab_lines_x = [200];
+            canvas.grab_lines_y = [];
+            canvas.grab_limit = 6;
+            $mol_assert_like(canvas.snap_move(40, 0), [40, 0]);
+            $mol_assert_equal(canvas.guide_x(), null);
+        },
+        /** Inside an auto layout there is nothing to stick to, and the lists say so. */
+        'a drag with nothing armed to stick to moves exactly as asked'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.grab_box = [100, 100, 50, 50];
+            canvas.grab_limit = 6;
+            $mol_assert_like(canvas.snap_move(3, 3), [3, 3]);
+        },
+        'a resize sticks by the edge it is dragging and leaves the other one'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.grab_lines_x = [300, 100];
+            canvas.grab_lines_y = [];
+            canvas.grab_limit = 6;
+            $mol_assert_like(canvas.snap_edges([104, 100, 193, 50], 'e'), [104, 100, 196, 50]);
+            $mol_assert_equal(canvas.guide_x(), 300);
+            $mol_assert_equal(canvas.guide_y(), null);
+        },
+        'a west grip moves the left edge and the width together'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.grab_lines_x = [100];
+            canvas.grab_lines_y = [];
+            canvas.grab_limit = 6;
+            $mol_assert_like(canvas.snap_edges([104, 100, 96, 50], 'w'), [100, 100, 100, 50]);
+        },
+        /** Sticking to a neighbour is worth less than the size it would eat. */
+        'a snap that would squeeze the box past its floor is dropped'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.grab_lines_x = [104];
+            canvas.grab_lines_y = [];
+            canvas.grab_limit = 6;
+            $mol_assert_like(canvas.snap_edges([100, 100, 10, 50], 'w'), [100, 100, 10, 50]);
+            $mol_assert_equal(canvas.guide_x(), null);
+        },
+        /**
+         * A group is stretched rather than resized element by element: everything
+         * inside keeps its place and its size as a share of the frame around it.
+         */
+        'a group scales about the corner opposite the grip'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.grab_ids = ['a', 'b'];
+            canvas.grab_box = [0, 0, 200, 100];
+            canvas.grab_corner = 'se';
+            canvas.grab_rects = { a: [0, 0, 100, 100], b: [100, 0, 100, 100] };
+            canvas.grab_sheets = { a: [0, 0], b: [100, 0] };
+            canvas.grab_limit = 6;
+            canvas.scale_move(200, 0);
+            $mol_assert_like(canvas.draft(), {
+                a: [0, 0, 200, 100],
+                b: [200, 0, 200, 100],
+            });
+            // The frame follows the gesture instead of being measured again.
+            $mol_assert_like(canvas.group_box(), [0, 0, 400, 100]);
+        },
+        'a north-west grip keeps the far corner of the group where it is'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.grab_ids = ['a'];
+            canvas.grab_box = [100, 100, 200, 100];
+            canvas.grab_corner = 'nw';
+            canvas.grab_rects = { a: [100, 100, 200, 100] };
+            canvas.grab_sheets = { a: [100, 100] };
+            canvas.grab_limit = 6;
+            canvas.scale_move(100, 50);
+            $mol_assert_like(canvas.draft(), { a: [200, 150, 100, 50] });
+        },
+        /**
+         * The drop is written from the move the drag drew, not from the travel of
+         * the pointer: an element that stuck to a neighbour must not jump those
+         * few pixels back the moment it lands in another frame.
+         */
+        'a drop into another frame lands where the snapping put it'() {
+            const canvas = new $bog_figmol_app_canvas;
+            const moved = [];
+            const store = canvas.store();
+            store.root_id = () => 'root';
+            store.parent = () => 'root';
+            store.auto_layout = () => false;
+            store.node_reparent = (id, parent, index, x, y) => {
+                moved.push(id, parent, index, x, y);
+            };
+            canvas.frame_at = () => 'frame';
+            canvas.drop_index = () => 0;
+            canvas.node_origin = (id) => id === 'frame' ? [100, 100] : [0, 0];
+            canvas.grab_sheets = { a: [300, 200] };
+            canvas.grab_shift = [24, -8];
+            // The pointer went further than the snapping let the element go.
+            canvas.grab_x = 0;
+            canvas.last_x = 999;
+            canvas.node_settle('a');
+            $mol_assert_like(moved, ['a', 'frame', 0, 224, 92]);
+        },
+        'bringing several elements forward keeps their order among themselves'() {
+            const canvas = new $bog_figmol_app_canvas;
+            const lifted = [];
+            const store = canvas.store();
+            store.node_ids = () => ['a', 'b', 'c'];
+            store.node_lift = (id) => { lifted.push(id); };
+            canvas.selection(['c', 'a']);
+            canvas.lift(true);
+            $mol_assert_like(lifted, ['a', 'c']);
+            lifted.length = 0;
+            canvas.lift(false);
+            $mol_assert_like(lifted, ['c', 'a']);
+        },
+        /**
+         * The box is measured in the coordinates of one frame, so elements living
+         * in different ones have no box in common to wrap.
+         */
+        'wrapping refuses a selection spread across frames'() {
+            const canvas = new $bog_figmol_app_canvas;
+            const store = canvas.store();
+            store.flow = () => false;
+            store.parent = (id) => id === 'a' ? 'one' : 'two';
+            store.node_add = () => { $mol_fail(new Error('Nothing may be written')); };
+            canvas.selection(['a', 'b']);
+            canvas.menu_wrap(true);
+            $mol_assert_like(canvas.selection(), ['a', 'b']);
+        },
+        'the right button picks what it was pressed on and opens the menu there'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.viewport = () => ({ left: 0, top: 0, width: 800, height: 600 });
+            const store = canvas.store();
+            store.root_id = () => 'root';
+            store.parent = (id) => id === 'card' ? 'root' : '';
+            store.node_ids = () => ['card'];
+            // The press before it captured the pointer, so the event that follows
+            // is retargeted onto the canvas and only that press knows what was hit.
+            canvas.press_deep = 'card';
+            canvas.context_menu({
+                target: { closest: () => null },
+                clientX: 120,
+                clientY: 80,
+                metaKey: false,
+                ctrlKey: false,
+                preventDefault: () => { },
+            });
+            $mol_assert_like(canvas.selection(), ['card']);
+            $mol_assert_like(canvas.menu(), [120, 80]);
+        },
+        /** A menu near the edge of the canvas opens inwards instead of off it. */
+        'the menu stays inside the canvas'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.viewport = () => ({ left: 0, top: 0, width: 800, height: 600 });
+            const store = canvas.store();
+            store.root_id = () => 'root';
+            store.parent = (id) => id === 'card' ? 'root' : '';
+            canvas.press_deep = 'card';
+            canvas.context_menu({
+                target: { closest: () => null },
+                clientX: 790,
+                clientY: 590,
+                metaKey: false,
+                ctrlKey: false,
+                preventDefault: () => { },
+            });
+            $mol_assert_like(canvas.menu(), [590, 390]);
+        },
+        'a press on empty space has nothing to offer and closes the menu'() {
+            const canvas = new $bog_figmol_app_canvas;
+            canvas.viewport = () => ({ left: 0, top: 0, width: 800, height: 600 });
+            canvas.menu([10, 10]);
+            canvas.press_deep = '';
+            canvas.context_menu({
+                target: { closest: () => null },
+                clientX: 120,
+                clientY: 80,
+                metaKey: false,
+                ctrlKey: false,
+                preventDefault: () => { },
+            });
+            $mol_assert_equal(canvas.menu(), null);
         },
     });
 })($ || ($ = {}));

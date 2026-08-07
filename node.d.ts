@@ -37169,6 +37169,13 @@ declare namespace $ {
          * makes undo cheap: the subtree is intact, only unreachable.
          */
         node_drop(id: string): void;
+        /**
+         * Moves a node to the top or to the bottom of the pile inside its own
+         * frame. Elements are drawn in the order they are listed, so this is the
+         * whole of what "bring to front" means here — there is no z-index to set
+         * and nothing for the generated page to carry over.
+         */
+        node_lift(id: string, top: boolean): void;
     }
 }
 
@@ -40519,6 +40526,70 @@ declare namespace $ {
 }
 
 declare namespace $ {
+    /** A line a drag has landed on, and how far it had to move to get there. */
+    type $bog_figmol_magnet_hit = {
+        readonly shift: number;
+        readonly line: number;
+    };
+    /** A distance between two boxes: where the ruler starts, and how long it is. */
+    type $bog_figmol_magnet_gap = {
+        readonly x: number;
+        readonly y: number;
+        readonly size: number;
+        /** Measured along x. A vertical ruler says `false`. */
+        readonly row: boolean;
+    };
+    /**
+     * Geometry of sticking one box to the others around it, and of the distances
+     * between them.
+     *
+     * Nothing here knows about the DOM, the store or the viewport. Boxes come in
+     * as `[ x, y, width, height ]` in one coordinate system — sheet pixels, as it
+     * happens — and every answer comes back in the same one. That is what makes
+     * the whole of the snapping testable without a browser: the canvas measures,
+     * this decides.
+     */
+    class $bog_figmol_magnet {
+        /**
+         * The three places along one axis a box can stick by: its two edges and
+         * its middle.
+         *
+         * Edges come first on purpose. `snap` below keeps the first of two equally
+         * close answers, and sitting flush with a neighbour is the more likely
+         * intention than sharing a centre line with it by accident.
+         */
+        static probes(min: number, size: number): readonly number[];
+        /** Edges and middles of every candidate, along one axis, as one flat list. */
+        static lines(boxes: readonly (readonly number[])[], axis: number): readonly number[];
+        /**
+         * Nearest line any of the probes can reach without moving further than
+         * `limit`, `null` when nothing is that close.
+         */
+        static snap(probes: readonly number[], lines: readonly number[], limit: number): $bog_figmol_magnet_hit | null;
+        /** One box around the lot of them. */
+        static bbox(boxes: readonly (readonly number[])[]): readonly number[];
+        /**
+         * Distance from `box` to the nearest neighbour on each of its four sides.
+         *
+         * A neighbour counts when it stands across from the box — the two overlap
+         * along the other axis — because that is the gap somebody laying out a
+         * page means by "how far apart are these". `loose` drops that condition,
+         * for the times when the question was asked about one particular element
+         * instead of about the whole neighbourhood.
+         */
+        static gaps(box: readonly number[], boxes: readonly (readonly number[])[], loose: boolean): readonly $bog_figmol_magnet_gap[];
+        /** The nearest neighbour before the box and the nearest one after it. */
+        static gaps_axis(box: readonly number[], boxes: readonly (readonly number[])[], axis: number, loose: boolean): readonly $bog_figmol_magnet_gap[];
+        /**
+         * Where the ruler between a box and one of its neighbours is drawn: along
+         * the middle of what the two have in common, and through the middle of the
+         * box itself when they have nothing in common at all.
+         */
+        static ruler(box: readonly number[], near: readonly number[], axis: number, size: number): $bog_figmol_magnet_gap;
+    }
+}
+
+declare namespace $ {
 
 	type $mol_hotkey__key_bog_figmol_app_canvas_1 = $mol_type_enforce<
 		({ 
@@ -40562,52 +40633,140 @@ declare namespace $ {
 		,
 		ReturnType< $mol_view['sub'] >
 	>
-	type $bog_figmol_app_canvas_shape__store_bog_figmol_app_canvas_7 = $mol_type_enforce<
+	type $mol_view__sub_bog_figmol_app_canvas_7 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_canvas['overlay'] >
+		,
+		ReturnType< $mol_view['sub'] >
+	>
+	type $mol_view__sub_bog_figmol_app_canvas_8 = $mol_type_enforce<
+		readonly(any)[]
+		,
+		ReturnType< $mol_view['sub'] >
+	>
+	type $mol_view__attr_bog_figmol_app_canvas_9 = $mol_type_enforce<
+		({ 
+			'figmol_handle': string,
+		})  & ReturnType< $mol_view['attr'] >
+		,
+		ReturnType< $mol_view['attr'] >
+	>
+	type $mol_view__attr_bog_figmol_app_canvas_10 = $mol_type_enforce<
+		({ 
+			'figmol_handle': string,
+		})  & ReturnType< $mol_view['attr'] >
+		,
+		ReturnType< $mol_view['attr'] >
+	>
+	type $mol_view__attr_bog_figmol_app_canvas_11 = $mol_type_enforce<
+		({ 
+			'figmol_handle': string,
+		})  & ReturnType< $mol_view['attr'] >
+		,
+		ReturnType< $mol_view['attr'] >
+	>
+	type $mol_view__attr_bog_figmol_app_canvas_12 = $mol_type_enforce<
+		({ 
+			'figmol_handle': string,
+		})  & ReturnType< $mol_view['attr'] >
+		,
+		ReturnType< $mol_view['attr'] >
+	>
+	type $mol_button_minor__click_bog_figmol_app_canvas_13 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_canvas['menu_copy'] >
+		,
+		ReturnType< $mol_button_minor['click'] >
+	>
+	type $mol_button_minor__title_bog_figmol_app_canvas_14 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_canvas['menu_copy_label'] >
+		,
+		ReturnType< $mol_button_minor['title'] >
+	>
+	type $mol_button_minor__click_bog_figmol_app_canvas_15 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_canvas['menu_front'] >
+		,
+		ReturnType< $mol_button_minor['click'] >
+	>
+	type $mol_button_minor__title_bog_figmol_app_canvas_16 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_canvas['menu_front_label'] >
+		,
+		ReturnType< $mol_button_minor['title'] >
+	>
+	type $mol_button_minor__click_bog_figmol_app_canvas_17 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_canvas['menu_back'] >
+		,
+		ReturnType< $mol_button_minor['click'] >
+	>
+	type $mol_button_minor__title_bog_figmol_app_canvas_18 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_canvas['menu_back_label'] >
+		,
+		ReturnType< $mol_button_minor['title'] >
+	>
+	type $mol_button_minor__click_bog_figmol_app_canvas_19 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_canvas['menu_wrap'] >
+		,
+		ReturnType< $mol_button_minor['click'] >
+	>
+	type $mol_button_minor__title_bog_figmol_app_canvas_20 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_canvas['menu_wrap_label'] >
+		,
+		ReturnType< $mol_button_minor['title'] >
+	>
+	type $mol_button_minor__click_bog_figmol_app_canvas_21 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_canvas['menu_drop'] >
+		,
+		ReturnType< $mol_button_minor['click'] >
+	>
+	type $mol_button_minor__title_bog_figmol_app_canvas_22 = $mol_type_enforce<
+		ReturnType< $bog_figmol_app_canvas['menu_drop_label'] >
+		,
+		ReturnType< $mol_button_minor['title'] >
+	>
+	type $bog_figmol_app_canvas_shape__store_bog_figmol_app_canvas_23 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['store'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['store'] >
 	>
-	type $bog_figmol_app_canvas_shape__editable_bog_figmol_app_canvas_8 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_shape__editable_bog_figmol_app_canvas_24 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['editable'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['editable'] >
 	>
-	type $bog_figmol_app_canvas_shape__id_bog_figmol_app_canvas_9 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_shape__id_bog_figmol_app_canvas_25 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['shape_id'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['id'] >
 	>
-	type $bog_figmol_app_canvas_shape__selected_bog_figmol_app_canvas_10 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_shape__selected_bog_figmol_app_canvas_26 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['shape_selected'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['selected'] >
 	>
-	type $bog_figmol_app_canvas_shape__grips_bog_figmol_app_canvas_11 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_shape__grips_bog_figmol_app_canvas_27 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['shape_grips'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['grips'] >
 	>
-	type $bog_figmol_app_canvas_shape__editing_bog_figmol_app_canvas_12 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_shape__editing_bog_figmol_app_canvas_28 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['shape_editing'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['editing'] >
 	>
-	type $bog_figmol_app_canvas_shape__dropping_bog_figmol_app_canvas_13 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_shape__dropping_bog_figmol_app_canvas_29 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['shape_dropping'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['dropping'] >
 	>
-	type $bog_figmol_app_canvas_shape__kids_bog_figmol_app_canvas_14 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_shape__kids_bog_figmol_app_canvas_30 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['shape_kids'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['kids'] >
 	>
-	type $bog_figmol_app_canvas_shape__rect_bog_figmol_app_canvas_15 = $mol_type_enforce<
+	type $bog_figmol_app_canvas_shape__rect_bog_figmol_app_canvas_31 = $mol_type_enforce<
 		ReturnType< $bog_figmol_app_canvas['shape_rect'] >
 		,
 		ReturnType< $bog_figmol_app_canvas_shape['rect'] >
 	>
-	type $mol_view__style_bog_figmol_app_canvas_16 = $mol_type_enforce<
+	type $mol_view__style_bog_figmol_app_canvas_32 = $mol_type_enforce<
 		({ 
 			'left': ReturnType< $bog_figmol_app_canvas['marquee_left'] >,
 			'top': ReturnType< $bog_figmol_app_canvas['marquee_top'] >,
@@ -40616,6 +40775,81 @@ declare namespace $ {
 		}) 
 		,
 		ReturnType< $mol_view['style'] >
+	>
+	type $mol_view__style_bog_figmol_app_canvas_33 = $mol_type_enforce<
+		({ 
+			'left': ReturnType< $bog_figmol_app_canvas['guide_x_left'] >,
+			'top': ReturnType< $bog_figmol_app_canvas['guide_x_top'] >,
+			'height': ReturnType< $bog_figmol_app_canvas['guide_x_height'] >,
+		}) 
+		,
+		ReturnType< $mol_view['style'] >
+	>
+	type $mol_view__style_bog_figmol_app_canvas_34 = $mol_type_enforce<
+		({ 
+			'top': ReturnType< $bog_figmol_app_canvas['guide_y_top'] >,
+			'left': ReturnType< $bog_figmol_app_canvas['guide_y_left'] >,
+			'width': ReturnType< $bog_figmol_app_canvas['guide_y_width'] >,
+		}) 
+		,
+		ReturnType< $mol_view['style'] >
+	>
+	type $mol_view__style_bog_figmol_app_canvas_35 = $mol_type_enforce<
+		({ 
+			'left': ReturnType< $bog_figmol_app_canvas['measure_left'] >,
+			'top': ReturnType< $bog_figmol_app_canvas['measure_top'] >,
+			'width': ReturnType< $bog_figmol_app_canvas['measure_width'] >,
+			'height': ReturnType< $bog_figmol_app_canvas['measure_height'] >,
+		}) 
+		,
+		ReturnType< $mol_view['style'] >
+	>
+	type $mol_view__sub_bog_figmol_app_canvas_36 = $mol_type_enforce<
+		readonly(any)[]
+		,
+		ReturnType< $mol_view['sub'] >
+	>
+	type $mol_view__attr_bog_figmol_app_canvas_37 = $mol_type_enforce<
+		({ 
+			'figmol_group': string,
+		})  & ReturnType< $mol_view['attr'] >
+		,
+		ReturnType< $mol_view['attr'] >
+	>
+	type $mol_view__style_bog_figmol_app_canvas_38 = $mol_type_enforce<
+		({ 
+			'left': ReturnType< $bog_figmol_app_canvas['group_left'] >,
+			'top': ReturnType< $bog_figmol_app_canvas['group_top'] >,
+			'width': ReturnType< $bog_figmol_app_canvas['group_width'] >,
+			'height': ReturnType< $bog_figmol_app_canvas['group_height'] >,
+		}) 
+		,
+		ReturnType< $mol_view['style'] >
+	>
+	type $mol_view__sub_bog_figmol_app_canvas_39 = $mol_type_enforce<
+		readonly(any)[]
+		,
+		ReturnType< $mol_view['sub'] >
+	>
+	type $mol_view__attr_bog_figmol_app_canvas_40 = $mol_type_enforce<
+		({ 
+			'figmol_menu': string,
+		})  & ReturnType< $mol_view['attr'] >
+		,
+		ReturnType< $mol_view['attr'] >
+	>
+	type $mol_view__style_bog_figmol_app_canvas_41 = $mol_type_enforce<
+		({ 
+			'left': ReturnType< $bog_figmol_app_canvas['menu_left'] >,
+			'top': ReturnType< $bog_figmol_app_canvas['menu_top'] >,
+		}) 
+		,
+		ReturnType< $mol_view['style'] >
+	>
+	type $mol_view__sub_bog_figmol_app_canvas_42 = $mol_type_enforce<
+		readonly(any)[]
+		,
+		ReturnType< $mol_view['sub'] >
 	>
 	export class $bog_figmol_app_canvas extends $mol_view {
 		armed( ): boolean
@@ -40635,6 +40869,8 @@ declare namespace $ {
 		shapes( ): readonly(any)[]
 		Sheet( ): $mol_view
 		World( ): $mol_view
+		overlay( ): readonly(any)[]
+		Overlay( ): $mol_view
 		editable( ): boolean
 		shape_id( id: any): string
 		shape_selected( id: any): boolean
@@ -40647,6 +40883,43 @@ declare namespace $ {
 		marquee_top( ): string
 		marquee_width( ): string
 		marquee_height( ): string
+		guide_x_left( ): string
+		guide_x_top( ): string
+		guide_x_height( ): string
+		guide_y_top( ): string
+		guide_y_left( ): string
+		guide_y_width( ): string
+		measure_left( id: any): string
+		measure_top( id: any): string
+		measure_width( id: any): string
+		measure_height( id: any): string
+		measure_text( id: any): string
+		Measure_label( id: any): $mol_view
+		group_left( ): string
+		group_top( ): string
+		group_width( ): string
+		group_height( ): string
+		Group_nw( ): $mol_view
+		Group_ne( ): $mol_view
+		Group_sw( ): $mol_view
+		Group_se( ): $mol_view
+		menu_left( ): string
+		menu_top( ): string
+		menu_copy( next?: any ): any
+		menu_copy_label( ): string
+		Menu_copy( ): $mol_button_minor
+		menu_front( next?: any ): any
+		menu_front_label( ): string
+		Menu_front( ): $mol_button_minor
+		menu_back( next?: any ): any
+		menu_back_label( ): string
+		Menu_back( ): $mol_button_minor
+		menu_wrap( next?: any ): any
+		menu_wrap_label( ): string
+		Menu_wrap( ): $mol_button_minor
+		menu_drop( next?: any ): any
+		menu_drop_label( ): string
+		Menu_drop( ): $mol_button_minor
 		store( ): $bog_figmol_store
 		tool( next?: string ): string
 		selection( next?: readonly(string)[] ): readonly(string)[]
@@ -40681,6 +40954,11 @@ declare namespace $ {
 		sub( ): readonly(any)[]
 		Shape( id: any): $bog_figmol_app_canvas_shape
 		Marquee( ): $mol_view
+		Guide_x( ): $mol_view
+		Guide_y( ): $mol_view
+		Measure( id: any): $mol_view
+		Group( ): $mol_view
+		Menu( ): $mol_view
 	}
 	
 }
@@ -40756,6 +41034,43 @@ declare namespace $.$$ {
         marquee_top(): string;
         marquee_width(): string;
         marquee_height(): string;
+        /**
+         * Everything drawn over the sheet instead of on it: the guides a drag has
+         * stuck to, the rulers between the box and its neighbours, the frame
+         * around several elements, and the context menu.
+         *
+         * All four are read here unconditionally even when nothing is shown. A
+         * `@$mol_mem` cell keeps its value only while somebody is subscribed to
+         * it, and this render is the one permanent subscriber they have — reading
+         * them behind an `if` would leave the ones that are off without a reader,
+         * and the handler writing such a cell would find it reset a moment later.
+         */
+        overlay(): readonly $mol_view[];
+        /** Sheet coordinate as a screen one, inside the canvas box. */
+        screen_x(sheet_x: number): number;
+        screen_y(sheet_y: number): number;
+        /** Where the drag has stuck, in sheet pixels. `null` means it has not. */
+        guide_x(next?: number | null): number | null;
+        guide_y(next?: number | null): number | null;
+        guide_x_left(): string;
+        guide_x_top(): string;
+        guide_x_height(): string;
+        guide_y_top(): string;
+        guide_y_left(): string;
+        guide_y_width(): string;
+        /** Distances worth showing right now, in sheet pixels. */
+        measures(next?: readonly $bog_figmol_magnet_gap[] | null): readonly $bog_figmol_magnet_gap[] | null;
+        measure_ids(): readonly string[];
+        measure(id: string): $bog_figmol_magnet_gap | null;
+        /**
+         * A ruler is a hairline: it is as long as the gap along its own axis and a
+         * single pixel across, and that pixel is centred on the line it marks.
+         */
+        measure_left(id: string): string;
+        measure_top(id: string): string;
+        measure_width(id: string): string;
+        measure_height(id: string): string;
+        measure_text(id: string): string;
         armed(): boolean;
         /** Space is held, so the next drag pans instead of selecting. */
         grabbing(): boolean;
@@ -40797,6 +41112,22 @@ declare namespace $.$$ {
          * where an element actually ended up.
          */
         node_origin(id: string): readonly number[];
+        /**
+         * The same top-left, worked out from the frame around the node and the
+         * node's own coordinates wherever that is possible.
+         *
+         * Measuring is only the right answer inside an auto layout, where the
+         * coordinates say nothing. Everywhere else it is the worse one: a copy
+         * made a moment ago by an Alt drag has no element on screen yet, and
+         * measuring one that is not there gives the corner of the sheet.
+         */
+        node_place(id: string): readonly number[];
+        /**
+         * Rectangle of a node in sheet pixels, counted from the sheet rather than
+         * from the frame it sits in — the one coordinate system snapping, rulers
+         * and the group frame all speak, since a selection may span frames.
+         */
+        node_rect(id: string): readonly number[];
         /**
          * Deepest container under the pointer, empty for the sheet itself. Everything
          * at or below `held` is skipped: a frame cannot be dropped into itself.
@@ -40844,12 +41175,29 @@ declare namespace $.$$ {
         /** Nodes the rubber band touches, among the children of the current level. */
         marquee_hits(band: readonly number[]): readonly string[];
         /**
+         * Box around everything picked, in sheet pixels — what the frame with the
+         * group grips is drawn as, and what a group resize scales.
+         *
+         * While a gesture is running, the box that gesture is drawing is the
+         * answer. Measuring the elements again would describe the layout as it
+         * was before this move: the shapes and this frame are two independent
+         * atoms, and nothing says the shapes are repainted first.
+         */
+        group_box(): readonly number[];
+        /** Box the gesture is drawing right now, `null` between gestures. */
+        drag_box(next?: readonly number[] | null): readonly number[] | null;
+        group_on(): boolean;
+        group_left(): string;
+        group_top(): string;
+        group_width(): string;
+        group_height(): string;
+        /**
          * Gesture state is kept in plain fields on purpose. A `@$mol_mem` cell
          * read by several handlers resets to its default between events: every
          * handler is a fresh fiber and killing the previous one drops the only
          * subscriber of the cell.
          */
-        mode: "" | "pan" | "move" | "resize" | "marquee";
+        mode: "" | "pan" | "move" | "resize" | "scale" | "marquee";
         grab_id: string;
         grab_ids: readonly string[];
         grab_corner: string;
@@ -40861,6 +41209,15 @@ declare namespace $.$$ {
         grab_flows: Record<string, boolean>;
         grab_sheets: Record<string, readonly number[]>;
         grab_pan: readonly number[];
+        /** What the gesture can stick to, measured once at the press — see `snap_arm`. */
+        grab_box: readonly number[];
+        grab_origin: readonly number[];
+        grab_boxes: readonly (readonly number[])[];
+        grab_lines_x: readonly number[];
+        grab_lines_y: readonly number[];
+        grab_limit: number;
+        /** Move the drag has drawn so far, in sheet pixels, snapping included. */
+        grab_shift: readonly number[];
         /** Node the press resolved to, and whether it was one of several picked. */
         grab_pick: string;
         grab_group: boolean;
@@ -40881,8 +41238,54 @@ declare namespace $.$$ {
          * drag narrows it down later, in `pointer_up`.
          */
         press_pick(id: string, corner: string, event: PointerEvent): void;
+        /**
+         * A press on a grip of the frame drawn around several elements: everything
+         * inside it is about to be scaled together.
+         *
+         * Elements an auto layout places are left out. Their frame decides where
+         * they go and how wide they are, and a scale that wrote coordinates there
+         * would be overruled the moment it finished.
+         */
+        press_scale(corner: string): void;
         /** Remembers where everything about to be dragged started out. */
         grab_take(ids: readonly string[]): void;
+        /**
+         * Remembers what the gesture about to start can stick to: the neighbours
+         * at the level being dragged on, and the frame around them — the sheet
+         * itself, when that level is the page.
+         *
+         * Measured once, here, rather than on every move. Nothing but the dragged
+         * nodes moves during a gesture, so the answer cannot change; measuring it
+         * again on each pointer move would cost a forced layout per neighbour per
+         * frame, and that is the one thing a drag cannot afford.
+         *
+         * An auto layout places its children itself: a drag inside one is about
+         * their order and not their coordinates, so there is nothing there worth
+         * sticking to and the lists are left empty.
+         */
+        snap_arm(ids: readonly string[]): void;
+        /**
+         * The move the pointer asked for, corrected so an edge or the middle of
+         * the box being dragged lands exactly on a neighbour. Puts up the guides
+         * that show what it landed on, and the rulers to whatever it now stands
+         * next to.
+         */
+        snap_move(move_x: number, move_y: number): readonly number[];
+        /**
+         * The box a resize is drawing, corrected the same way — but only by the
+         * edges the grip actually moves. A snap that would squeeze the box past
+         * its floor is dropped: sticking to a neighbour is worth less than the
+         * size the user is left with.
+         */
+        snap_edges(box: readonly number[], corner: string): readonly number[];
+        /** Distances from the box a gesture is drawing to what stands around it. */
+        measure_show(box: readonly number[]): void;
+        /**
+         * Alt held over another element, with nothing being dragged: the distances
+         * between what is picked and what the pointer is over. The one way to ask
+         * how far apart two things are without moving either of them.
+         */
+        measure_hover(event: PointerEvent): void;
         /**
          * Copies for an Alt drag: the originals stay put and the copies are what
          * the pointer takes away.
@@ -40894,6 +41297,15 @@ declare namespace $.$$ {
          */
         clone(ids: readonly string[]): readonly string[];
         pointer_move(event?: PointerEvent): null;
+        /**
+         * A group being scaled by one of the grips of its frame.
+         *
+         * The frame is the thing the pointer drags; every element inside keeps its
+         * place and its size as a share of that frame, so the whole arrangement is
+         * stretched rather than each element being resized on its own. The corner
+         * opposite the grip stays where it is, as it does for a single element.
+         */
+        scale_move(move_x: number, move_y: number): void;
         /**
          * Everything is written before any of the gesture state is cleared:
          * handlers are retried when something inside throws a promise, and a
@@ -40962,7 +41374,46 @@ declare namespace $.$$ {
         listen(): null;
         space(next?: boolean): boolean;
         space_key(event: KeyboardEvent, down: boolean): void;
+        /** Where the menu stands, in screen pixels of the canvas. Closed is `null`. */
+        menu(next?: readonly number[] | null): readonly number[] | null;
+        menu_on(): boolean;
+        menu_left(): string;
+        menu_top(): string;
+        /**
+         * The right button opens the menu over whatever it was pressed on, picking
+         * that element first when it was not picked already — the same rule every
+         * editor follows, and the reason the menu can talk about "the selection"
+         * without ever meaning something the user cannot see.
+         *
+         * A press on empty space has nothing to offer, so it only clears the menu.
+         */
         context_menu(event?: MouseEvent): null;
+        menu_copy(next?: any): null;
+        menu_front(next?: any): null;
+        menu_back(next?: any): null;
+        menu_drop(next?: any): null;
+        /**
+         * Moves everything picked to the top or to the bottom of the pile inside
+         * its own frame, keeping the order the elements had among themselves: they
+         * are lifted starting from the one that was lowest, so the one that was on
+         * top ends up on top.
+         */
+        lift(top: boolean): void;
+        /**
+         * Puts a frame around everything picked and moves it inside, keeping every
+         * element exactly where it was on the page.
+         *
+         * The frame places its children freely rather than by an auto layout. A
+         * layout would be the more useful frame to end up with, and it would also
+         * reflow a hand-made arrangement the moment it appeared — which is not
+         * what "wrap this" means to anybody watching it happen. Turning the layout
+         * on afterwards is one click in the inspector.
+         *
+         * Only elements sharing one frame can be wrapped: the box is measured in
+         * the coordinates of that frame, and elements placed by an auto layout
+         * have no coordinates of their own to move.
+         */
+        menu_wrap(next?: any): null;
         deselect(next?: any): null;
         /** Delete removes everything selected — unless a caption is being typed. */
         drop(next?: any): null;

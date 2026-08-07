@@ -402,6 +402,7 @@
     "$mol_switch",
     "$mol_check_list",
     "$bog_builderui_avatar",
+    "$bog_figmol_magnet",
     "$bog_figmol_app_side",
     "$bog_figmol_app_pages",
     "$mol_icon_plus",
