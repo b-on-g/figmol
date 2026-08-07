@@ -136,6 +136,46 @@ namespace $ {
 
 		},
 
+		/** Deleting five elements is one gesture, so it has to cost one step back. */
+		'writes of a single gesture fold into one step'() {
+
+			const store = new $bog_figmol_store
+			const kids = figmol_store_test_kids( store, [ 'a', 'b', 'c' ] )
+
+			store.group( ()=> {
+				store.node_drop( 'a' )
+				store.node_drop( 'b' )
+			} )
+
+			$mol_assert_like( kids, [ 'c' ] )
+
+			store.undo()
+			$mol_assert_like( kids, [ 'a', 'b', 'c' ] )
+			$mol_assert_equal( store.can_undo(), false )
+
+			store.redo()
+			$mol_assert_like( kids, [ 'c' ] )
+
+		},
+
+		/** One write is a step of its own, and folding it would only hide it. */
+		'a gesture that wrote once stays an ordinary step'() {
+
+			const store = new $bog_figmol_store
+			const values = figmol_store_test_props( store )
+
+			store.group( ()=> store.prop_edit( 'a', 'text', 'one' ) )
+			store.prop_edit( 'b', 'text', 'two' )
+
+			store.undo()
+			$mol_assert_equal( values[ 'b:text' ], '' )
+			$mol_assert_equal( values[ 'a:text' ], 'one' )
+
+			store.undo()
+			$mol_assert_equal( values[ 'a:text' ], '' )
+
+		},
+
 		/** Undoing a step must not be recorded as a step of its own. */
 		'walking the journal does not write into it'() {
 

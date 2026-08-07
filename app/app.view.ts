@@ -415,7 +415,14 @@ namespace $.$$ {
 		duplicate() {
 
 			const store = this.store()
-			const made = this.selection().map( id => store.node_copy( id ) ).filter( Boolean )
+			const made = [] as string[]
+
+			store.group( ()=> {
+				for( const id of this.selection() ) {
+					const copy = store.node_copy( id )
+					if( copy ) made.push( copy )
+				}
+			} )
 
 			if( made.length ) this.selection( made )
 		}
@@ -429,14 +436,18 @@ namespace $.$$ {
 
 			const store = this.store()
 
-			for( const id of this.selection() ) {
+			store.group( ()=> {
 
-				if( store.flow( id ) ) continue
+				for( const id of this.selection() ) {
 
-				if( shift_x ) store.x( id, store.x( id ) + shift_x )
-				if( shift_y ) store.y( id, store.y( id ) + shift_y )
+					if( store.flow( id ) ) continue
 
-			}
+					if( shift_x ) store.x( id, store.x( id ) + shift_x )
+					if( shift_y ) store.y( id, store.y( id ) + shift_y )
+
+				}
+
+			} )
 		}
 
 	}

@@ -319,6 +319,9 @@ namespace $ {
 		private undone = [] as figmol_store_change[]
 		private replaying = false
 
+		/** How many steps have ever been written, so `group` can count its own. */
+		private written = 0
+
 		/**
 		 * Remembers a change that has just been applied.
 		 *
@@ -339,10 +342,39 @@ namespace $ {
 				last.redo = redo
 			} else {
 				this.done.push({ tag, time: now, undo, redo })
+				++this.written
 				if( this.done.length > journal_depth ) this.done.shift()
 			}
 
 			this.undone.length = 0
+		}
+
+		/**
+		 * Folds everything a task writes into one step back.
+		 *
+		 * Deleting five elements is one gesture and has to cost one undo, not
+		 * five. Counted rather than sliced by index: a long enough session drops
+		 * the oldest steps off the front of the list while the task is running.
+		 */
+		group( task: ()=> void ) {
+
+			if( this.replaying ) return task()
+
+			const before = this.written
+
+			task()
+
+			const added = Math.min( this.written - before, this.done.length )
+			if( added < 2 ) return
+
+			const steps = this.done.splice( this.done.length - added )
+
+			this.done.push({
+				tag: '',
+				time: Date.now(),
+				undo: ()=> { for( let at = steps.length - 1; at >= 0; --at ) steps[ at ].undo() },
+				redo: ()=> { for( const step of steps ) step.redo() },
+			})
 		}
 
 		can_undo() {

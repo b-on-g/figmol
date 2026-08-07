@@ -197,7 +197,7 @@ namespace $.$$ {
 			if( !ids.length ) return null
 
 			const store = this.store()
-			for( const id of ids ) store.node_drop( id )
+			store.group( ()=> { for( const id of ids ) store.node_drop( id ) } )
 
 			this.selected( '' )
 
