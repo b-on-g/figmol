@@ -43,9 +43,15 @@ namespace $ {
 		},
 		padding: 0,
 		cursor: 'move',
-		color: '#111827',
+
+		/**
+		 * Colour and family come down from the sheet, which wears the theme of
+		 * the site. Spelling them out here would make every caption on the canvas
+		 * ignore the theme panel — and disagree with the published page.
+		 */
+		color: 'inherit',
 		font: {
-			family: 'sans-serif',
+			family: 'inherit',
 			size: '1rem',
 		},
 

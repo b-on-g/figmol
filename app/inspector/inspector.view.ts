@@ -37,6 +37,9 @@ namespace $.$$ {
 				case 'button': return this.title_button()
 				case 'frame': return this.title_frame()
 				case 'rect': return this.title_rect()
+				// An instance is named after what it draws — the kind of every one
+				// of them is the same word, and the component is the useful half.
+				case 'inst': return this.comp_title() || $bog_figmol_blocks.title( 'inst' )
 				default: return $bog_figmol_blocks.title( this.kind() )
 			}
 		}
@@ -51,7 +54,12 @@ namespace $.$$ {
 			const id = this.selected()
 			if( !id ) return []
 
-			if( this.many() ) return [ this.Head(), this.Drop() ]
+			if( this.many() ) {
+				const res = [ this.Head() ] as $mol_view[]
+				if( this.arrangeable() ) res.push( this.Arrange() )
+				res.push( this.Drop() )
+				return res
+			}
 
 			const kind = this.kind()
 			const res = [ this.Head() ] as $mol_view[]
@@ -70,9 +78,130 @@ namespace $.$$ {
 			)
 
 			res.push( ... this.kind_rows( kind ) )
+
+			if( this.makeable() ) res.push( this.Comp_make() )
+
 			res.push( this.Drop() )
 
 			return res
+		}
+
+		/* ----------------------------------------------------------- components */
+
+		/**
+		 * Whether this element can become a component. The root frame cannot: it
+		 * is the page, and a page that is an instance of something has nowhere to
+		 * put the instance. An instance cannot either — it is one already.
+		 */
+		makeable() {
+			const id = this.selected()
+			const store = this.store()
+			return !!id && !!store.parent( id ) && store.kind( id ) !== 'inst'
+		}
+
+		comp_title() {
+			const store = this.store()
+			return store.comp_title( store.master( this.selected() ) )
+		}
+
+		/**
+		 * Turns the selected element into a component and picks the instance that
+		 * took its place. One gesture, so one step back: the master moves, the
+		 * node is unlinked and an instance is written, and Ctrl+Z undoes the lot.
+		 */
+		@ $mol_action
+		comp_make( next?: any ) {
+
+			if( next === undefined ) return null
+
+			const store = this.store()
+			const id = this.selected()
+			if( !id ) return null
+
+			const title = store.text( id ).replace( /\s+/g, ' ' ).trim()
+				|| $bog_figmol_blocks.title( store.kind( id ) )
+
+			let made = ''
+			store.group( ()=> { made = store.comp_make( id, title ) } )
+
+			if( made ) this.selected( made )
+
+			return null
+		}
+
+		/**
+		 * Opens the master of this instance. The selection goes with it: the node
+		 * it names belongs to the page, which the canvas is about to leave.
+		 */
+		@ $mol_action
+		comp_edit( next?: any ) {
+
+			if( next === undefined ) return null
+
+			const store = this.store()
+			const comp = store.master( this.selected() )
+			if( !comp ) return null
+
+			store.comp_id( comp )
+			this.selected( '' )
+
+			return null
+		}
+
+		/* ------------------------------------------------------------ arranging */
+
+		/**
+		 * Whether there is anything to line up: two elements at least, and every
+		 * one of them placed by its own coordinates. Inside an auto layout the
+		 * frame decides where things go, and a button that fought it would only
+		 * write numbers nobody would see.
+		 */
+		arrangeable() {
+			const store = this.store()
+			return this.selection().filter( id => !store.flow( id ) ).length > 1
+		}
+
+		align_left( next?: any ) {
+			return this.align_ask( 'left', next )
+		}
+
+		align_hcenter( next?: any ) {
+			return this.align_ask( 'hcenter', next )
+		}
+
+		align_right( next?: any ) {
+			return this.align_ask( 'right', next )
+		}
+
+		align_hspace( next?: any ) {
+			return this.align_ask( 'hspace', next )
+		}
+
+		align_top( next?: any ) {
+			return this.align_ask( 'top', next )
+		}
+
+		align_vcenter( next?: any ) {
+			return this.align_ask( 'vcenter', next )
+		}
+
+		align_bottom( next?: any ) {
+			return this.align_ask( 'bottom', next )
+		}
+
+		align_vspace( next?: any ) {
+			return this.align_ask( 'vspace', next )
+		}
+
+		/**
+		 * Hands the mode over to the app, which is where the canvas is and hence
+		 * where the elements can be measured. The panel knows what was asked for
+		 * and nothing about where anything sits.
+		 */
+		align_ask( mode: string, next?: any ) {
+			if( next === undefined ) return null
+			this.arrange( mode )
+			return null
 		}
 
 		/** Rows that only one kind of element has any use for. */
@@ -96,6 +225,7 @@ namespace $.$$ {
 				case 'bui_progress': return [ this.Field_value(), this.Field_max() ]
 				case 'bui_tabs': return [ this.Field_options() ]
 				case 'bui_avatar': return [ this.Field_uri() ]
+				case 'inst': return [ this.Field_comp(), this.Comp_edit() ]
 			}
 			return []
 		}

@@ -1,0 +1,43 @@
+- \Look of the site: the colours, the family and the palette its blocks wear.
+$bog_figmol_app_theme $mol_view
+	store $bog_figmol_store
+	sub /
+		<= Head $mol_view
+			sub /
+				<= title @ \Theme
+		<= Field_back $bog_figmol_app_inspector_field
+			title @ \Background
+			content /
+				<= Back $mol_string
+					value? <=> back? \
+					hint \#ffffff
+		<= Field_text $bog_figmol_app_inspector_field
+			title @ \Text
+			content /
+				<= Text $mol_string
+					value? <=> text? \
+					hint \#111827
+		<= Field_accent $bog_figmol_app_inspector_field
+			title @ \Accent
+			content /
+				<= Accent $mol_string
+					value? <=> accent? \
+					hint \#2563eb
+		<= Field_font $bog_figmol_app_inspector_field
+			title @ \Font
+			content /
+				<= Font $mol_switch
+					value? <=> font? \
+					options <= font_options *
+		<= Field_base $bog_figmol_app_inspector_field
+			title @ \Palette
+			content /
+				<= Base $mol_switch
+					value? <=> base? \
+					options <= base_options *
+		<= Field_lights $bog_figmol_app_inspector_field
+			title @ \Lights
+			content /
+				<= Lights $mol_switch
+					value? <=> lights? \
+					options <= lights_options *

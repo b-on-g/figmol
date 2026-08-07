@@ -26,7 +26,16 @@ namespace $.$$ {
 		row_title( id: string ) {
 
 			const store = this.store()
-			const name = $bog_figmol_blocks.title( store.kind( id ) )
+			const kind = store.kind( id )
+
+			// An instance is named after the component it draws: every one of them
+			// is of the same kind, and the name is what tells them apart. Asked of
+			// the kind first, so nothing else on the page pays for the link.
+			if( kind === 'inst' ) {
+				return store.comp_title( store.master( id ) ) || $bog_figmol_blocks.title( 'inst' )
+			}
+
+			const name = $bog_figmol_blocks.title( kind )
 			const text = store.text( id ).replace( /\s+/g, ' ' ).trim()
 
 			if( !text ) return name

@@ -17,6 +17,12 @@ $bog_figmol_app_side $mol_view
 		store <= store
 		spot <= spot /number
 		selected? <=> selected? \
+	Comps $bog_figmol_app_comps
+		store <= store
+		spot <= spot /number
+		selected? <=> selected? \
+	Theme $bog_figmol_app_theme
+		store <= store
 	Layers $bog_figmol_app_layers
 		store <= store
 		selected? <=> selected? \

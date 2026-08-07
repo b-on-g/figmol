@@ -7,6 +7,9 @@ $bog_figmol_app $mol_view
 	- \shows a single element follows
 	selected? \
 	selection? /string
+	- \Alignment the inspector asks for, by name. Carried out here, where the
+	- \canvas is and the elements can be measured.
+	arrange? \
 	- \Publishing panel takes the right rail over from the inspector
 	publishing? false
 	- \Repository the site is pushed into, and the module name of the sources
@@ -64,6 +67,7 @@ $bog_figmol_app $mol_view
 		store <= store
 		selected? <=> selected? \
 		selection <= selection /string
+		arrange? <=> arrange? \
 	Publish $bog_figmol_deploy_publish
 		files <= publish_files *
 		name? <=> publish_name? \

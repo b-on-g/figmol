@@ -428,6 +428,52 @@ namespace $.$$ {
 		}
 
 		/**
+		 * Lines the selection up, or spreads it out — whichever the inspector
+		 * asked for.
+		 *
+		 * Where the elements are is measured off the screen and not read out of
+		 * the document: two of them may sit in different frames, and one of those
+		 * frames may lay its children out itself, in which case the coordinates
+		 * stored on them say nothing. The canvas knows where a node ended up, so
+		 * every rectangle is taken to the sheet through the origin of its own
+		 * parent and written back through the same one.
+		 *
+		 * Elements placed by an auto layout are left out entirely: a coordinate
+		 * written for them would be overruled by the frame that holds them.
+		 *
+		 * The whole strip is one gesture, so it costs one step back.
+		 */
+		@ $mol_action
+		override arrange( next?: string ) {
+
+			if( next === undefined ) return ''
+
+			const store = this.store()
+			const canvas = this.Canvas() as $.$$.$bog_figmol_app_canvas
+
+			const ids = this.selection().filter( id => !store.flow( id ) )
+			if( ids.length < 2 ) return ''
+
+			const origins = ids.map( id => canvas.node_origin( store.parent( id ) ) )
+
+			const boxes = ids.map( ( id, at )=> {
+				const rect = store.rect( id )
+				return [ origins[ at ][ 0 ] + rect[ 0 ], origins[ at ][ 1 ] + rect[ 1 ], rect[ 2 ], rect[ 3 ] ]
+			} )
+
+			const spots = $bog_figmol_app_arrange.place( next, boxes )
+
+			store.group( ()=> {
+				spots.forEach( ( spot, at )=> {
+					store.x( ids[ at ], spot[ 0 ] - origins[ at ][ 0 ] )
+					store.y( ids[ at ], spot[ 1 ] - origins[ at ][ 1 ] )
+				} )
+			} )
+
+			return ''
+		}
+
+		/**
 		 * Moves the selection by the arrow keys. An element inside an auto layout
 		 * is placed by its frame, so there is nothing here to move.
 		 */

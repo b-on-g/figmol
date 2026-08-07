@@ -44,15 +44,13 @@ $bog_figmol_app_canvas $mol_view
 			style *
 				transform <= world_transform \
 			sub /
-				- \The palette the library blocks paint themselves with. Their own
-				- \default is the dark one, and a sheet is a page of a site — the
-				- \generated project carries the very same attributes.
-				<= Sheet $mol_view
-					attr *
-						^
-						bog_builderui_base \slate
-						bog_builderui_lights \light
+				- \A page of the site rather than a part of the editor: the palette,
+				- \the colours and the family come from the theme of that site, and
+				- \the generated project carries the very same ones.
+				<= Sheet $bog_figmol_app_sheet
+					store <= store
 					style *
+						^
 						width <= sheet_width_style \
 						minHeight <= sheet_height_style \
 					sub <= shapes /

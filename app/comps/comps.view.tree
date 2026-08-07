@@ -1,0 +1,47 @@
+- \Components of the site: pick one to drop an instance, or open its master.
+$bog_figmol_app_comps $mol_view
+	store $bog_figmol_store
+	- \Middle of the viewport in sheet pixels, where a dropped instance lands
+	spot /number
+	- \Set to whatever was just dropped on the page
+	selected? \
+	sub <= panels /$mol_view
+	Head $mol_view
+		sub /
+			<= title @ \Components
+	List $mol_view
+		sub <= rows /
+	Empty $mol_view
+		sub /
+			<= empty_label @ \Pick an element and press Make component
+	Editing $mol_view
+		sub /
+			<= editing_label @ \Editing a component
+			<= Done $mol_button_minor
+				click? <=> comp_leave? null
+				sub /
+					<= Done_icon $mol_icon_check
+					<= done_label @ \Done
+	Field_title $bog_figmol_app_inspector_field
+		title @ \Name
+		content /
+			<= Title $mol_string
+				value? <=> current_title? \
+	Drop $mol_button_minor
+		click? <=> comp_drop? null
+		sub /
+			<= Drop_icon $mol_icon_delete_outline
+			<= drop_label @ \Delete component
+	Row* $mol_view
+		sub <= row_content* /
+	Pick* $bog_figmol_app_row
+		click? <=> row_click*? null
+		title <= row_title* \
+		active <= row_active* false
+		enabled <= row_enabled* true
+		hint <= pick_hint @ \Place an instance
+	Edit* $mol_button_minor
+		click? <=> row_edit*? null
+		hint <= edit_hint @ \Open the master
+		sub /
+			<= Edit_icon* $mol_icon_pencil

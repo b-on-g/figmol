@@ -1,0 +1,14 @@
+- \The page of the site under the shapes, wearing the theme of that site.
+$bog_figmol_app_sheet $mol_view
+	store $bog_figmol_store
+	attr *
+		^
+		bog_builderui_base <= theme_base \slate
+		bog_builderui_lights <= theme_lights \light
+		bog_builderui_font_body <= theme_font \inter
+		bog_builderui_font_head <= theme_font \inter
+	style *
+		^
+		background <= theme_back \
+		color <= theme_text \
+		fontFamily <= theme_family \

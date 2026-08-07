@@ -464,7 +464,8 @@ namespace $ {
 
 		/**
 		 * A width typed into a field would be the width of every element picked,
-		 * which is a decision of its own — so a group gets a count and a way out.
+		 * which is a decision of its own — so a group gets a count, the strip of
+		 * alignments and a way out.
 		 */
 		'the inspector counts a group instead of describing it'() {
 
@@ -472,6 +473,7 @@ namespace $ {
 
 			inspector.selection = ()=> [ 'a', 'b' ]
 			inspector.selected( 'b' )
+			inspector.store().flow = ()=> false
 
 			// The captions come out of the locale, which is not what is being
 			// checked here — only which of them the panel reaches for.
@@ -479,17 +481,229 @@ namespace $ {
 			inspector.drop_label = ()=> 'one'
 			inspector.drop_many_label = ()=> 'many'
 
-			$mol_assert_like( inspector.rows(), [ inspector.Head(), inspector.Drop() ] )
+			$mol_assert_like( inspector.rows(), [ inspector.Head(), inspector.Arrange(), inspector.Drop() ] )
 			$mol_assert_equal( inspector.kind_title(), 'Selected: 2' )
 			$mol_assert_equal( inspector.drop_caption(), 'many' )
 
 		},
 
-		/** Nothing on this panel writes but the palette, so the rest stays put. */
+		/**
+		 * Inside an auto layout the frame decides where its children sit, so a
+		 * button that wrote coordinates for them would write numbers nobody sees.
+		 */
+		'a group laid out by its frames is offered no alignments'() {
+
+			const inspector = new $bog_figmol_app_inspector as $.$$.$bog_figmol_app_inspector
+
+			inspector.selection = ()=> [ 'a', 'b' ]
+			inspector.selected( 'b' )
+			inspector.store().flow = ()=> true
+
+			$mol_assert_equal( inspector.arrangeable(), false )
+			$mol_assert_like( inspector.rows(), [ inspector.Head(), inspector.Drop() ] )
+
+		},
+
+		/** An instance is named after what it draws and leads to the master. */
+		'the inspector of an instance offers the way into its component'() {
+
+			const inspector = new $bog_figmol_app_inspector as $.$$.$bog_figmol_app_inspector
+
+			const store = inspector.store()
+			store.kind = ()=> 'inst'
+			store.flow = ()=> false
+			store.container = ()=> false
+			store.master = ()=> 'comp'
+			store.comp_title = ()=> 'Call to action'
+			store.parent = ()=> 'root'
+
+			inspector.selected( 'node' )
+
+			$mol_assert_equal( inspector.kind_title(), 'Call to action' )
+			$mol_assert_ok( inspector.rows().includes( inspector.Field_comp() ) )
+			$mol_assert_ok( inspector.rows().includes( inspector.Comp_edit() ) )
+
+			// An instance is a component already, so it is not offered to become one.
+			$mol_assert_equal( inspector.makeable(), false )
+			$mol_assert_equal( inspector.rows().includes( inspector.Comp_make() ), false )
+
+		},
+
+		/** The page itself has nowhere to put the instance that would replace it. */
+		'the root frame cannot become a component'() {
+
+			const inspector = new $bog_figmol_app_inspector as $.$$.$bog_figmol_app_inspector
+
+			const store = inspector.store()
+			store.kind = ()=> 'frame'
+			store.parent = ( id: string )=> id === 'root' ? '' : 'root'
+
+			inspector.selected( 'root' )
+			$mol_assert_equal( inspector.makeable(), false )
+
+			inspector.selected( 'other' )
+			$mol_assert_equal( inspector.makeable(), true )
+
+		},
+
+		/**
+		 * Two instances of one component are two sets of shapes over the same
+		 * nodes: one view cannot be in two places, and a component placed twice
+		 * has to be.
+		 */
+		'an instance draws the master out of the store'() {
+
+			const ghost = new $bog_figmol_app_ghost as $.$$.$bog_figmol_app_ghost
+
+			ghost.id = ()=> 'master'
+			ghost.rect = ()=> [ 0, 0, 400, 120 ]
+			ghost.store().kids = ( id: string )=> id === 'master' ? [ 'kid' ] : []
+			ghost.store().rect = ()=> [ 12, 34, 100, 40 ]
+
+			$mol_assert_like( ghost.shapes(), [ ghost.Shape( 'master' ) ] )
+			$mol_assert_like( ghost.shape_kids( 'master' ), [ ghost.Shape( 'kid' ) ] )
+
+			// The master frame is stretched into the box of the instance, and
+			// everything below it keeps the geometry it was drawn with.
+			$mol_assert_like( ghost.shape_rect( 'master' ), [ 0, 0, 400, 120 ] )
+			$mol_assert_like( ghost.shape_rect( 'kid' ), [ 12, 34, 100, 40 ] )
+
+			const twin = new $bog_figmol_app_ghost as $.$$.$bog_figmol_app_ghost
+			twin.id = ()=> 'master'
+			$mol_assert_equal( twin.Shape( 'master' ) === ghost.Shape( 'master' ), false )
+
+		},
+
+		/** A component that is gone leaves an empty box, not a broken shape. */
+		'an instance of nothing draws nothing'() {
+
+			const ghost = new $bog_figmol_app_ghost as $.$$.$bog_figmol_app_ghost
+			ghost.id = ()=> ''
+
+			$mol_assert_like( ghost.shapes(), [] )
+
+		},
+
+		/**
+		 * A component may hold anything but itself. The row is disabled rather
+		 * than refusing on click — a button that does nothing reads as a bug.
+		 */
+		'a component cannot be placed inside itself'() {
+
+			const comps = new $bog_figmol_app_comps as $.$$.$bog_figmol_app_comps
+
+			const roots = { a: 'ra', b: 'rb', c: 'rc' } as Record< string, string >
+
+			const store = comps.store()
+			store.comp_ids = ()=> [ 'a', 'b', 'c' ]
+			store.comp_root = ( id: string )=> roots[ id ] ?? ''
+			store.master = ( id: string )=> id === 'inst_a' ? 'a' : ''
+			store.kids = ( id: string )=> id === 'rb' ? [ 'inst_a' ] : []
+			store.comp_current = ()=> 'a'
+
+			// Itself outright, and anything that holds an instance of it.
+			$mol_assert_equal( comps.row_enabled( 'a' ), false )
+			$mol_assert_equal( comps.row_enabled( 'b' ), false )
+			$mol_assert_equal( comps.row_enabled( 'c' ), true )
+
+			// Outside a master there is no loop to make.
+			store.comp_current = ()=> ''
+			const free = new $bog_figmol_app_comps as $.$$.$bog_figmol_app_comps
+			free.store().comp_current = ()=> ''
+			free.store().comp_root = ( id: string )=> roots[ id ] ?? ''
+			$mol_assert_equal( free.row_enabled( 'a' ), true )
+
+		},
+
+		/** Editing a master grows the panel a name and a way back out. */
+		'the component panel says when a master is open'() {
+
+			const closed = new $bog_figmol_app_comps as $.$$.$bog_figmol_app_comps
+			closed.store().comp_ids = ()=> [ 'a' ]
+			closed.store().comp_current = ()=> ''
+
+			$mol_assert_like( closed.panels(), [ closed.Head(), closed.List() ] )
+
+			const open = new $bog_figmol_app_comps as $.$$.$bog_figmol_app_comps
+			open.store().comp_ids = ()=> [ 'a' ]
+			open.store().comp_current = ()=> 'a'
+
+			$mol_assert_like(
+				open.panels(),
+				[ open.Head(), open.List(), open.Editing(), open.Field_title(), open.Drop() ],
+			)
+
+			// A site with no components at all says where they come from.
+			const empty = new $bog_figmol_app_comps as $.$$.$bog_figmol_app_comps
+			empty.store().comp_ids = ()=> []
+			empty.store().comp_current = ()=> ''
+
+			$mol_assert_like( empty.panels(), [ empty.Head(), empty.Empty() ] )
+
+		},
+
+		/** Every token of the theme reaches the sheet the shapes are drawn on. */
+		'the sheet wears the theme of the site'() {
+
+			const sheet = new $bog_figmol_app_sheet as $.$$.$bog_figmol_app_sheet
+
+			const values = {
+				base: 'zinc',
+				lights: 'dark',
+				font: 'garamond',
+				back: '#0f172a',
+				text: '#f8fafc',
+			} as Record< string, string >
+
+			sheet.store().theme_value = ( key: string )=> values[ key ] ?? ''
+
+			$mol_assert_equal( sheet.theme_base(), 'zinc' )
+			$mol_assert_equal( sheet.theme_lights(), 'dark' )
+			$mol_assert_equal( sheet.theme_font(), 'eb-garamond' )
+			$mol_assert_equal( sheet.theme_back(), '#0f172a' )
+			$mol_assert_equal( sheet.theme_text(), '#f8fafc' )
+			$mol_assert_ok( sheet.theme_family().startsWith( "'EB Garamond'" ) )
+
+		},
+
+		/**
+		 * The switches show what is in force rather than what was written: a site
+		 * nobody has themed has an empty `font`, and a row of buttons with none of
+		 * them pressed would lie about what the canvas is drawing.
+		 */
+		'the theme panel shows the value in force'() {
+
+			const panel = new $bog_figmol_app_theme as $.$$.$bog_figmol_app_theme
+
+			const written = {} as Record< string, string >
+
+			panel.store().theme = ( key: string, next?: string )=> {
+				if( next !== undefined ) written[ key ] = next
+				return written[ key ] ?? ''
+			}
+			panel.store().theme_value = ( key: string )=> written[ key ] || $bog_figmol_theme.fallback[ key ]
+
+			$mol_assert_equal( panel.font(), 'inter' )
+			$mol_assert_equal( panel.base(), 'slate' )
+			$mol_assert_equal( panel.lights(), 'light' )
+			$mol_assert_equal( panel.back(), '' )
+
+			panel.font( 'manrope' )
+			$mol_assert_equal( written.font, 'manrope' )
+			$mol_assert_equal( panel.font(), 'manrope' )
+
+			panel.back( '#000000' )
+			$mol_assert_equal( written.back, '#000000' )
+
+		},
+
 		'a site opened by link keeps the lists and loses the palette'() {
 
 			const own = new $bog_figmol_app_side as $.$$.$bog_figmol_app_side
-			$mol_assert_like( own.panels(), [ own.Pages(), own.Blocks(), own.Layers() ] )
+			$mol_assert_like(
+				own.panels(),
+				[ own.Pages(), own.Blocks(), own.Comps(), own.Theme(), own.Layers() ],
+			)
 
 			const guest = new $bog_figmol_app_side as $.$$.$bog_figmol_app_side
 			guest.editable = ()=> false

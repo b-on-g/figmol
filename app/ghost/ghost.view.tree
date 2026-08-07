@@ -1,0 +1,14 @@
+- \Master of a component, drawn read only inside every instance of it.
+$bog_figmol_app_ghost $mol_view
+	store $bog_figmol_store
+	- \Frame of the master, empty when the component is gone
+	id \
+	- \Box of the instance in sheet pixels. The master is stretched into it.
+	rect /number
+	sub <= shapes /$mol_view
+	Shape* $bog_figmol_app_canvas_shape
+		store <= store
+		editable false
+		id <= shape_id* \
+		rect <= shape_rect* /number
+		kids <= shape_kids* /$mol_view

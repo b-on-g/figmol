@@ -33,14 +33,22 @@ namespace $.$$ {
 			return this.store().page_title( id ) || this.page_default()
 		}
 
+		/** A component being edited is not on any page, so no row is current. */
 		@ $mol_mem_key
 		page_active( id: string ) {
-			return this.store().page_current() === id
+			const store = this.store()
+			return !store.comp_current() && store.page_current() === id
 		}
 
+		/**
+		 * Picking a page also leaves whatever component was open — the canvas
+		 * shows one root at a time, and the list is where a user goes to get back
+		 * out of a master.
+		 */
 		@ $mol_action
 		page_click( id: string, next?: any ) {
 			if( next === undefined ) return null
+			this.store().comp_id( null )
 			this.store().page_id( id )
 			this.selected( '' )
 			return null
@@ -61,6 +69,7 @@ namespace $.$$ {
 			const id = store.page_add( this.page_default() + ' ' + count, 'page' + count )
 
 			if( id ) {
+				store.comp_id( null )
 				store.page_id( id )
 				this.selected( '' )
 			}

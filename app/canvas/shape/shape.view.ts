@@ -68,6 +68,16 @@ namespace $.$$ {
 		}
 
 		/**
+		 * Frame of the component this shape is an instance of, empty for anything
+		 * that is not one. The master is drawn by `Ghost`, which owns its own
+		 * shapes — two instances of one component would otherwise be one view
+		 * asked to be in two places.
+		 */
+		master_root() {
+			return this.kind() === 'inst' ? this.store().inst_root( this.id() ) : ''
+		}
+
+		/**
 		 * A block that hands its children to the library component instead of
 		 * drawing them itself. The layout then belongs to that component, and
 		 * this shape stays a plain box the drag code can measure.
@@ -199,6 +209,7 @@ namespace $.$$ {
 
 			if( this.editing() ) res.push( this.Editor() )
 			else if( kind === 'image' ) { if( this.uri() ) res.push( this.Picture() ) }
+			else if( kind === 'inst' ) res.push( this.Ghost() )
 			else if( bui ) res.push( bui )
 			else if( kind !== 'rect' && kind !== 'frame' ) res.push( this.Label() )
 

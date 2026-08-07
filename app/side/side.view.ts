@@ -12,7 +12,7 @@ namespace $.$$ {
 		@ $mol_mem
 		override panels(): readonly $mol_view[] {
 			if( !this.editable() ) return [ this.Pages(), this.Layers() ]
-			return [ this.Pages(), this.Blocks(), this.Layers() ]
+			return [ this.Pages(), this.Blocks(), this.Comps(), this.Theme(), this.Layers() ]
 		}
 
 	}

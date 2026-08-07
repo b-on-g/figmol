@@ -2,6 +2,9 @@ $bog_figmol_app_inspector $mol_view
 	store $bog_figmol_store
 	selected? \
 	selection /string
+	- \Written with the name of an alignment the app is asked to carry out. The
+	- \panel has the buttons, the app has the measurements.
+	arrange? \
 	sub <= rows /$mol_view
 	title_many @ \Selected
 	title_text @ \Text
@@ -158,6 +161,67 @@ $bog_figmol_app_inspector $mol_view
 			<= Options $mol_string
 				value? <=> options? \
 				hint \One | Two | Three
+	- \Name of the component an instance draws, and the way into its master
+	Field_comp $bog_figmol_app_inspector_field
+		title @ \Component
+		content /
+			<= Comp_name $mol_view
+				sub /
+					<= comp_title \
+	Comp_edit $mol_button_minor
+		click? <=> comp_edit? null
+		sub /
+			<= Comp_edit_icon $mol_icon_pencil
+			<= comp_edit_label @ \Edit component
+	Comp_make $mol_button_minor
+		click? <=> comp_make? null
+		sub /
+			<= Comp_make_icon $mol_icon_puzzle
+			<= comp_make_label @ \Make component
+	- \Lining several elements up. Drawn as a strip of icons, the way every
+	- \editor draws it, and only for a selection that has coordinates of its own.
+	Arrange $mol_view
+		sub /
+			<= Align_left $mol_button_minor
+				click? <=> align_left? null
+				hint @ \Align left
+				sub /
+					<= Align_left_icon $mol_icon_align_horizontal_left
+			<= Align_hcenter $mol_button_minor
+				click? <=> align_hcenter? null
+				hint @ \Align centres across
+				sub /
+					<= Align_hcenter_icon $mol_icon_align_horizontal_center
+			<= Align_right $mol_button_minor
+				click? <=> align_right? null
+				hint @ \Align right
+				sub /
+					<= Align_right_icon $mol_icon_align_horizontal_right
+			<= Align_hspace $mol_button_minor
+				click? <=> align_hspace? null
+				hint @ \Even out the gaps across
+				sub /
+					<= Align_hspace_icon $mol_icon_align_horizontal_distribute
+			<= Align_top $mol_button_minor
+				click? <=> align_top? null
+				hint @ \Align top
+				sub /
+					<= Align_top_icon $mol_icon_align_vertical_top
+			<= Align_vcenter $mol_button_minor
+				click? <=> align_vcenter? null
+				hint @ \Align centres down
+				sub /
+					<= Align_vcenter_icon $mol_icon_align_vertical_center
+			<= Align_bottom $mol_button_minor
+				click? <=> align_bottom? null
+				hint @ \Align bottom
+				sub /
+					<= Align_bottom_icon $mol_icon_align_vertical_bottom
+			<= Align_vspace $mol_button_minor
+				click? <=> align_vspace? null
+				hint @ \Even out the gaps down
+				sub /
+					<= Align_vspace_icon $mol_icon_align_vertical_distribute
 	Drop $mol_button_minor
 		click? <=> node_drop? null
 		sub /

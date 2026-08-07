@@ -41,6 +41,11 @@ $bog_figmol_app_canvas_shape $mol_view
 			<= label
 	Picture $mol_image
 		uri <= uri \
+	- \Master of a component, drawn read only inside its instance
+	Ghost $bog_figmol_app_ghost
+		store <= store
+		id <= master_root \
+		rect <= rect
 	Editor $mol_string
 		value? <=> label?
 		attr *
