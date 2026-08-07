@@ -27,6 +27,12 @@ namespace $ {
 	 * every write already goes through this class, so the cheapest description of
 	 * a step back is the value that was there and the call that puts it back.
 	 */
+	/** Both dictionaries the editor reads — the props of a node and the theme. */
+	type figmol_store_texts = {
+		keys(): readonly $giper_baza_vary_type[]
+		key( key: $giper_baza_vary_type ): { val(): unknown } | null | undefined
+	}
+
 	type figmol_store_change = {
 		/** The same tag twice in a row means the second write folds into the first. */
 		readonly tag: string
@@ -74,6 +80,21 @@ namespace $ {
 			}
 
 			return res.length === items.length ? items : res
+		}
+
+		/** A dictionary of strings as a plain record, empty when there is none. */
+		static entries( dict: figmol_store_texts | null | undefined ): Readonly< Record< string, string > > {
+
+			const res = {} as Record< string, string >
+			if( !dict ) return res
+
+			for( const key of dict.keys() ) {
+				const name = String( key ?? '' )
+				if( !name ) continue
+				res[ name ] = String( dict.key( key )?.val() ?? '' )
+			}
+
+			return res
 		}
 
 		// === Storage =============================================================
@@ -355,9 +376,18 @@ namespace $ {
 
 		// === Theme ===============================================================
 
+		/**
+		 * Every token of the theme, read in one go — see `props` below for why
+		 * nothing here reads a single key through an accessor that also writes.
+		 */
+		@ $mol_mem
+		theme_dict(): Readonly< Record< string, string > > {
+			return $bog_figmol_store.entries( this.site()?.Theme() ?? null )
+		}
+
 		/** Raw token as written, empty when nothing was. */
 		theme_read( key: string ) {
-			return this.site()?.Theme()?.key( key )?.val() ?? ''
+			return this.theme_dict()[ key ] ?? ''
 		}
 
 		theme_write( key: string, val: string ) {
@@ -639,9 +669,29 @@ namespace $ {
 		// below, which reads what is there, writes the new value and hands the
 		// journal a way back.
 
+		/**
+		 * Every property of a node, read in one go.
+		 *
+		 * Nothing ever writes into this one, and that is the whole point. An
+		 * accessor below both reads and writes, and a written `@$mol_mem` keeps
+		 * the value it was handed without renewing what it depends on — so an
+		 * accessor whose own setter creates the cell it reads goes on holding the
+		 * value it wrote and never hears of that cell again. Undo of the first
+		 * write to a property was exactly that: the document went back and the
+		 * canvas did not.
+		 *
+		 * It also costs nothing extra: finding one key in a dictionary walks it
+		 * anyway, and a node has a handful of properties at most.
+		 */
+		@ $mol_mem_key
+		props( id: string ): Readonly< Record< string, string > > {
+			if( !id ) return {}
+			return $bog_figmol_store.entries( this.node( id ).Props() )
+		}
+
 		/** One of the string properties of a node. */
 		prop_read( id: string, key: string ) {
-			return this.node( id ).Props()?.key( key )?.val() ?? ''
+			return this.props( id )[ key ] ?? ''
 		}
 
 		prop_write( id: string, key: string, val: string ) {
@@ -663,20 +713,24 @@ namespace $ {
 		}
 
 		/** Geometry and layout of a node, the fields stored as numbers of their own. */
-		num_read( id: string, field: string ) {
+		@ $mol_mem_key
+		nums( id: string ): Readonly< Record< string, number > > {
 
 			const node = this.node( id )
 
-			switch( field ) {
-				case 'x': return node.X()?.val() ?? 0
-				case 'y': return node.Y()?.val() ?? 0
-				case 'w': return node.W()?.val() ?? 120
-				case 'h': return node.H()?.val() ?? 48
-				case 'gap': return node.Gap()?.val() ?? 0
-				case 'padding': return node.Padding()?.val() ?? 0
+			return {
+				x: node.X()?.val() ?? 0,
+				y: node.Y()?.val() ?? 0,
+				w: node.W()?.val() ?? 120,
+				h: node.H()?.val() ?? 48,
+				gap: node.Gap()?.val() ?? 0,
+				padding: node.Padding()?.val() ?? 0,
 			}
+		}
 
-			return 0
+		/** Read through the record above, and never through an accessor that writes. */
+		num_read( id: string, field: string ) {
+			return this.nums( id )[ field ] ?? 0
 		}
 
 		num_write( id: string, field: string, val: number ) {
@@ -708,16 +762,19 @@ namespace $ {
 		}
 
 		/** Layout of a node, the fields stored as strings of their own. */
-		str_read( id: string, field: string ) {
+		@ $mol_mem_key
+		strs( id: string ): Readonly< Record< string, string > > {
 
 			const node = this.node( id )
 
-			switch( field ) {
-				case 'direction': return node.Direction()?.val() ?? ''
-				case 'align': return node.Align()?.val() ?? ''
+			return {
+				direction: node.Direction()?.val() ?? '',
+				align: node.Align()?.val() ?? '',
 			}
+		}
 
-			return ''
+		str_read( id: string, field: string ) {
+			return this.strs( id )[ field ] ?? ''
 		}
 
 		str_write( id: string, field: string, val: string ) {
@@ -754,14 +811,14 @@ namespace $ {
 		text( id: string, next?: string ) {
 			if( !id ) return ''
 			if( next !== undefined ) this.prop_edit( id, 'text', next )
-			return this.node( id ).Props()?.key( 'text' )?.val() ?? ''
+			return this.prop_read( id, 'text' )
 		}
 
 		@ $mol_mem_key
 		uri( id: string, next?: string ) {
 			if( !id ) return ''
 			if( next !== undefined ) this.prop_edit( id, 'uri', next )
-			return this.node( id ).Props()?.key( 'uri' )?.val() ?? ''
+			return this.prop_read( id, 'uri' )
 		}
 
 		/** Body of an alert block — its caption lives in `text` like everywhere else. */
@@ -769,7 +826,7 @@ namespace $ {
 		note( id: string, next?: string ) {
 			if( !id ) return ''
 			if( next !== undefined ) this.prop_edit( id, 'note', next )
-			return this.node( id ).Props()?.key( 'note' )?.val() ?? ''
+			return this.prop_read( id, 'note' )
 		}
 
 		/** Look of a block that has several: `default`, `secondary`, `outline`… */
@@ -777,7 +834,7 @@ namespace $ {
 		variant( id: string, next?: string ) {
 			if( !id ) return ''
 			if( next !== undefined ) this.prop_edit( id, 'variant', next )
-			return this.node( id ).Props()?.key( 'variant' )?.val() || 'default'
+			return this.prop_read( id, 'variant' ) || 'default'
 		}
 
 		/** Captions of the tabs block, separated by `|`. */
@@ -785,21 +842,21 @@ namespace $ {
 		options( id: string, next?: string ) {
 			if( !id ) return ''
 			if( next !== undefined ) this.prop_edit( id, 'options', next )
-			return this.node( id ).Props()?.key( 'options' )?.val() ?? ''
+			return this.prop_read( id, 'options' )
 		}
 
 		@ $mol_mem_key
 		color( id: string, next?: string ) {
 			if( !id ) return ''
 			if( next !== undefined ) this.prop_edit( id, 'color', next )
-			return this.node( id ).Props()?.key( 'color' )?.val() ?? ''
+			return this.prop_read( id, 'color' )
 		}
 
 		@ $mol_mem_key
 		back( id: string, next?: string ) {
 			if( !id ) return ''
 			if( next !== undefined ) this.prop_edit( id, 'back', next )
-			return this.node( id ).Props()?.key( 'back' )?.val() ?? ''
+			return this.prop_read( id, 'back' )
 		}
 
 		/** `normal` or `bold`. Stored empty for normal, so the css stays quiet. */
@@ -807,7 +864,7 @@ namespace $ {
 		weight( id: string, next?: string ) {
 			if( !id ) return 'normal'
 			if( next !== undefined ) this.prop_edit( id, 'weight', next === 'normal' ? '' : next )
-			return this.node( id ).Props()?.key( 'weight' )?.val() || 'normal'
+			return this.prop_read( id, 'weight' ) || 'normal'
 		}
 
 		/** `left` | `center` | `right`, of the text inside the element. */
@@ -815,7 +872,7 @@ namespace $ {
 		text_align( id: string, next?: string ) {
 			if( !id ) return 'left'
 			if( next !== undefined ) this.prop_edit( id, 'align', next === 'left' ? '' : next )
-			return this.node( id ).Props()?.key( 'align' )?.val() || 'left'
+			return this.prop_read( id, 'align' ) || 'left'
 		}
 
 		@ $mol_mem_key
@@ -824,7 +881,7 @@ namespace $ {
 			if( next !== undefined && Number.isFinite( next ) ) {
 				this.prop_edit( id, 'value', String( Math.round( next ) ) )
 			}
-			return Number( this.node( id ).Props()?.key( 'value' )?.val() ?? '' ) || 0
+			return Number( this.prop_read( id, 'value' ) ) || 0
 		}
 
 		@ $mol_mem_key
@@ -833,7 +890,7 @@ namespace $ {
 			if( next !== undefined && Number.isFinite( next ) ) {
 				this.prop_edit( id, 'max', String( Math.max( 1, Math.round( next ) ) ) )
 			}
-			return Number( this.node( id ).Props()?.key( 'max' )?.val() ?? '' ) || 100
+			return Number( this.prop_read( id, 'max' ) ) || 100
 		}
 
 		/** Font size in pixels. Zero means "whatever the frame around it says". */
@@ -843,34 +900,29 @@ namespace $ {
 			if( next !== undefined && Number.isFinite( next ) ) {
 				this.prop_edit( id, 'size', next > 0 ? String( Math.round( next ) ) : '' )
 			}
-			return Number( this.node( id ).Props()?.key( 'size' )?.val() ?? '' ) || 0
+			return Number( this.prop_read( id, 'size' ) ) || 0
 		}
 
 		/** x, y, w, h in sheet pixels, x and y relative to the parent frame. */
 		@ $mol_mem_key
 		rect( id: string ): readonly number[] {
 			if( !id ) return [ 0, 0, 0, 0 ]
-			const node = this.node( id )
-			return [
-				node.X()?.val() ?? 0,
-				node.Y()?.val() ?? 0,
-				node.W()?.val() ?? 120,
-				node.H()?.val() ?? 48,
-			]
+			const nums = this.nums( id )
+			return [ nums.x, nums.y, nums.w, nums.h ]
 		}
 
 		@ $mol_mem_key
 		x( id: string, next?: number ) {
 			if( !id ) return 0
 			if( next !== undefined && Number.isFinite( next ) ) this.num_edit( id, 'x', Math.round( next ) )
-			return this.node( id ).X()?.val() ?? 0
+			return this.num_read( id, 'x' )
 		}
 
 		@ $mol_mem_key
 		y( id: string, next?: number ) {
 			if( !id ) return 0
 			if( next !== undefined && Number.isFinite( next ) ) this.num_edit( id, 'y', Math.round( next ) )
-			return this.node( id ).Y()?.val() ?? 0
+			return this.num_read( id, 'y' )
 		}
 
 		@ $mol_mem_key
@@ -879,7 +931,7 @@ namespace $ {
 			if( next !== undefined && Number.isFinite( next ) ) {
 				this.num_edit( id, 'w', Math.max( size_min, Math.round( next ) ) )
 			}
-			return this.node( id ).W()?.val() ?? 120
+			return this.num_read( id, 'w' )
 		}
 
 		@ $mol_mem_key
@@ -888,7 +940,7 @@ namespace $ {
 			if( next !== undefined && Number.isFinite( next ) ) {
 				this.num_edit( id, 'h', Math.max( size_min, Math.round( next ) ) )
 			}
-			return this.node( id ).H()?.val() ?? 48
+			return this.num_read( id, 'h' )
 		}
 
 		// === Layout ==============================================================
@@ -898,7 +950,7 @@ namespace $ {
 		direction( id: string, next?: string ) {
 			if( !id ) return ''
 			if( next !== undefined ) this.str_edit( id, 'direction', next )
-			const res = this.node( id ).Direction()?.val() ?? ''
+			const res = this.str_read( id, 'direction' )
 			return res === 'row' || res === 'column' ? res : ''
 		}
 
@@ -908,7 +960,7 @@ namespace $ {
 			if( next !== undefined && Number.isFinite( next ) ) {
 				this.num_edit( id, 'gap', Math.max( 0, Math.round( next ) ) )
 			}
-			return this.node( id ).Gap()?.val() ?? 0
+			return this.num_read( id, 'gap' )
 		}
 
 		@ $mol_mem_key
@@ -917,7 +969,7 @@ namespace $ {
 			if( next !== undefined && Number.isFinite( next ) ) {
 				this.num_edit( id, 'padding', Math.max( 0, Math.round( next ) ) )
 			}
-			return this.node( id ).Padding()?.val() ?? 0
+			return this.num_read( id, 'padding' )
 		}
 
 		/** `start` | `center` | `end` | `stretch`, on the cross axis of the frame. */
@@ -925,7 +977,7 @@ namespace $ {
 		align( id: string, next?: string ) {
 			if( !id ) return 'stretch'
 			if( next !== undefined ) this.str_edit( id, 'align', next )
-			return this.node( id ).Align()?.val() || 'stretch'
+			return this.str_read( id, 'align' ) || 'stretch'
 		}
 
 		/** Whether this node draws other nodes inside itself — a frame or a card. */
@@ -980,6 +1032,18 @@ namespace $ {
 		}
 
 		/**
+		 * Rights the Land of a new site is grabbed with.
+		 *
+		 * A method rather than the constant itself so that a run without a network
+		 * can put the site in the Land it already has: grabbing one runs
+		 * Proof-of-Work, which is seconds of a browser rather than a step of a
+		 * scenario.
+		 */
+		site_preset(): null | $giper_baza_rank_preset {
+			return preset_site
+		}
+
+		/**
 		 * Creates the site: a Land grabbed for it, one page, one root frame.
 		 *
 		 * Must run inside a fiber — a button press, not a render. Grabbing a Land
@@ -993,7 +1057,7 @@ namespace $ {
 		@ $mol_action
 		site_make( site_title: string, page_title: string ) {
 
-			const site = this.home().Site( null )!.ensure( preset_site )
+			const site = this.home().Site( null )!.ensure( this.site_preset() )
 			if( !site ) return null
 
 			if( !site.Title()?.val() ) site.Title( null )!.val( site_title )
@@ -1333,15 +1397,7 @@ namespace $ {
 		 */
 		node_spec( id: string, deep: number ): $bog_figmol_blocks_spec {
 
-			const props = {} as Record< string, string >
-			const dict = this.node( id ).Props()
-
-			for( const key of dict?.keys() ?? [] ) {
-				const name = String( key ?? '' )
-				if( !name ) continue
-				props[ name ] = String( dict!.key( key )?.val() ?? '' )
-			}
-
+			const props = { ... this.props( id ) }
 			const rect = this.rect( id )
 
 			return {
