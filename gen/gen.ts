@@ -233,6 +233,10 @@ namespace $ {
 		readonly id: string
 		readonly title: string
 		readonly comp: string
+		/** Component the master is built out of — the class extends that one. */
+		readonly base: string
+		/** The master itself, for the properties it carries. */
+		readonly head: $bog_figmol_gen_unit
 		readonly units: readonly $bog_figmol_gen_unit[]
 		readonly style: Record< string, unknown >
 	}
@@ -442,28 +446,48 @@ namespace $ {
 			},
 		): $bog_figmol_gen_part {
 
-			const frame = comp.root ?? null
-			const flow = this.flow( frame )
+			const frame = comp.root ?? { kind: 'frame' } as $bog_figmol_gen_node
 
-			const ctx = { count: 0, accent: about.accent, comps: about.comps }
-			const units = ( frame?.kids ?? [] ).map( kid => this.unit( kid, flow, ctx, frame ?? undefined ) )
+			// The master is turned into a unit like any other node — that is how a
+			// component made out of a card stays a card, and one made out of a text
+			// keeps its caption. Its own name is never emitted, so the counter
+			// starts below one and the children come out as Node1 upwards.
+			const ctx = { count: -1, accent: about.accent, comps: about.comps }
+			const head = this.unit( frame, false, ctx, undefined )
 
-			const style: Record< string, unknown > = {}
-
-			if( flow ) figmol_gen_assign( style, this.style_flow( frame! ) )
-			else style.position = 'relative'
-
-			figmol_gen_assign( style, this.style_props( frame?.props ?? {} ) )
-
-			this.spread( style, units )
+			const style = this.style_loose( head.style, this.flow( frame ) )
+			this.spread( style, head.kids )
 
 			return {
 				id: about.id,
 				title: about.title,
 				comp: about.comp,
-				units,
+				base: head.comp,
+				head,
+				units: head.kids,
 				style,
 			}
+		}
+
+		/**
+		 * A style with the placement taken out of it.
+		 *
+		 * Where a component sits and how big it is belongs to every instance of it
+		 * separately — that is what lets one component fit a narrow column and a
+		 * wide row. What stays is the layout, the look and the padding.
+		 *
+		 * A master that places its children by hand still needs to be something
+		 * they can be placed against, hence the `relative` put back.
+		 */
+		static style_loose( style: Record< string, unknown >, flow: boolean ) {
+
+			const res = { ... style }
+
+			for( const key of [ 'position', 'left', 'top', 'width', 'height', 'minHeight' ] ) delete res[ key ]
+
+			if( !flow ) res.position = 'relative'
+
+			return res
 		}
 
 		/** Every node of a subtree as a rule of the style sheet of its component. */
@@ -747,8 +771,10 @@ namespace $ {
 
 			const rows = [ this.view_tree_root( plan ) ]
 
-			for( const screen of plan.screens ) rows.push( this.view_tree_block( screen.comp, screen.units ) )
-			for( const part of plan.parts ) rows.push( this.view_tree_block( part.comp, part.units ) )
+			const view = figmol_gen_sign( 'mol_view' )
+
+			for( const screen of plan.screens ) rows.push( this.view_tree_block( screen.comp, view, null, screen.units ) )
+			for( const part of plan.parts ) rows.push( this.view_tree_block( part.comp, part.base, part.head, part.units ) )
 
 			return rows.join( '\n' )
 		}
@@ -799,15 +825,28 @@ namespace $ {
 			return rows.join( '\n' ) + '\n'
 		}
 
-		/** One declared component: a page, or a component of the site. */
-		static view_tree_block( comp: string, units: readonly $bog_figmol_gen_unit[] ) {
+		/**
+		 * One declared component: a page, or a component of the site.
+		 *
+		 * A page is always a plain view holding what was drawn on it. A component
+		 * is whatever its master was — a card master declares a card — and carries
+		 * the properties of that master itself.
+		 */
+		static view_tree_block(
+			comp: string,
+			base: string,
+			head: $bog_figmol_gen_unit | null,
+			units: readonly $bog_figmol_gen_unit[],
+		) {
 
-			const rows = [ comp + ' ' + figmol_gen_sign( 'mol_view' ) ]
+			const rows = [ comp + ' ' + base ]
 
-			if( !units.length ) return rows.join( '\n' ) + '\n'
+			if( head ) rows.push( ... this.view_tree_props( head, '\t' ) )
 
-			rows.push( '\tsub /' )
-			for( const unit of units ) rows.push( ... this.view_tree_unit( unit, 2 ) )
+			if( units.length ) {
+				rows.push( '\tsub /' )
+				for( const unit of units ) rows.push( ... this.view_tree_unit( unit, 2 ) )
+			}
 
 			return rows.join( '\n' ) + '\n'
 		}
@@ -817,51 +856,61 @@ namespace $ {
 			const pad = '\t'.repeat( deep )
 			const rows = [ pad + '<= ' + unit.name + ' ' + unit.comp ]
 
+			rows.push( ... this.view_tree_props( unit, pad + '\t' ) )
+
+			if( unit.kids.length ) {
+				rows.push( pad + '\tsub /' )
+				for( const kid of unit.kids ) rows.push( ... this.view_tree_unit( kid, deep + 2 ) )
+			}
+
+			return rows
+		}
+
+		/** What a node declares beyond where it sits — captions, links, readings. */
+		static view_tree_props( unit: $bog_figmol_gen_unit, pad: string ): string[] {
+
+			const rows = [] as string[]
+
 			switch( unit.kind ) {
 
 				case 'image':
 				case 'button':
 				case 'bui_avatar':
-					rows.push( pad + '\turi \\' + unit.uri )
-					rows.push( pad + '\ttitle \\' + unit.title )
+					rows.push( pad + 'uri \\' + unit.uri )
+					rows.push( pad + 'title \\' + unit.title )
 					break
 
 				case 'text':
-					rows.push( pad + '\ttitle \\' + unit.title )
+					rows.push( pad + 'title \\' + unit.title )
 					break
 
 				case 'bui_button':
 				case 'bui_badge':
-					rows.push( pad + '\ttitle \\' + unit.title )
-					rows.push( pad + '\tvariant \\' + unit.variant )
+					rows.push( pad + 'title \\' + unit.title )
+					rows.push( pad + 'variant \\' + unit.variant )
 					break
 
 				case 'bui_alert':
-					rows.push( pad + '\ttitle \\' + unit.title )
-					rows.push( pad + '\ttext \\' + unit.note )
+					rows.push( pad + 'title \\' + unit.title )
+					rows.push( pad + 'text \\' + unit.note )
 					break
 
 				case 'bui_field':
-					rows.push( pad + '\thint \\' + unit.title )
+					rows.push( pad + 'hint \\' + unit.title )
 					break
 
 				case 'bui_progress':
-					rows.push( pad + '\tvalue ' + unit.value )
-					rows.push( pad + '\tmax ' + unit.max )
+					rows.push( pad + 'value ' + unit.value )
+					rows.push( pad + 'max ' + unit.max )
 					break
 
 				case 'bui_tabs':
-					rows.push( pad + '\toptions *' )
+					rows.push( pad + 'options *' )
 					for( const [ key, title ] of unit.options ) {
-						rows.push( pad + '\t\t' + key + ' \\' + title )
+						rows.push( pad + '\t' + key + ' \\' + title )
 					}
 					break
 
-			}
-
-			if( unit.kids.length ) {
-				rows.push( pad + '\tsub /' )
-				for( const kid of unit.kids ) rows.push( ... this.view_tree_unit( kid, deep + 2 ) )
 			}
 
 			return rows

@@ -604,6 +604,69 @@ namespace $ {
 
 		},
 
+		/**
+		 * A component made out of a card has to stay a card, and one made out of a
+		 * text has to keep its caption — the master is what the class is.
+		 */
+		'a component is built out of whatever its master is'() {
+
+			const files = $bog_figmol_gen.files({
+				title: 'Kit',
+				comps: [
+					{
+						id: 'c1',
+						title: 'Panel',
+						root: {
+							kind: 'bui_card',
+							w: 320, h: 200,
+							direction: 'column', gap: 10, padding: 20, align: 'stretch',
+							kids: [ { kind: 'text', w: 260, h: 28, props: { text: 'Inside' } } ],
+						},
+					},
+					{
+						id: 'c2',
+						title: 'Slogan',
+						root: { kind: 'text', w: 240, h: 40, props: { text: 'Ship it', size: '24' } },
+					},
+				],
+				pages: [ { title: 'Home', root: { kind: 'frame', kids: [
+					{ kind: 'inst', master: 'c1', x: 0, y: 0, w: 320, h: 200 },
+					{ kind: 'inst', master: 'c2', x: 0, y: 240, w: 240, h: 40 },
+				] } } ],
+			}, { name: 'kit' } )
+
+			const tree = files[ 'kit.view.tree' ]
+
+			$mol_assert_ok( tree.includes(
+				figmol_gen_test_sign( 'kit_c_panel' ) + ' ' + figmol_gen_test_sign( 'bog_builderui_card' ) + '\n'
+			) )
+			$mol_assert_ok( tree.includes(
+				figmol_gen_test_sign( 'kit_c_slogan' ) + ' ' + figmol_gen_test_sign( 'mol_paragraph' ) + '\n\ttitle \\Ship it\n'
+			) )
+
+			const plan = $bog_figmol_gen.plan({
+				title: 'Kit',
+				comps: [ { id: 'c1', title: 'Panel', root: {
+					kind: 'bui_card',
+					direction: 'column', gap: 10, padding: 20,
+					w: 320, h: 200,
+				} } ],
+			}, { name: 'kit' } )
+
+			const style = plan.parts[ 0 ].style
+
+			// A card of the library carries a bottom margin for the masonry column
+			// it is meant to sit in, and here it is placed by hand.
+			$mol_assert_equal( style.margin, 0 )
+
+			// Where the master sat and how big it was belongs to every instance.
+			$mol_assert_equal( style.position, undefined )
+			$mol_assert_equal( style.left, undefined )
+			$mol_assert_equal( style.width, undefined )
+			$mol_assert_equal( style.gap, '10px' )
+
+		},
+
 		'an instance is a placement and the name of its component'() {
 
 			const tree = figmol_gen_test_kit_files()[ 'kit.view.tree' ]

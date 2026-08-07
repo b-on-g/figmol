@@ -8,7 +8,9 @@ $bog_figmol_app_comps $mol_view
 	sub <= panels /$mol_view
 	Head $mol_view
 		sub /
-			<= title @ \Components
+			- \Named apart from the block palette above, which is a library and
+			- \not something anybody here made
+			<= title @ \My components
 	List $mol_view
 		sub <= rows /
 	Empty $mol_view

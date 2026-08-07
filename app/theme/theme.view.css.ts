@@ -1,5 +1,16 @@
 namespace $ {
 
+	/** Caption over the control instead of beside it. */
+	const figmol_theme_stacked: $mol_style_properties = {
+		flex: {
+			direction: 'column',
+		},
+		align: {
+			items: 'stretch',
+		},
+		gap: '0.25rem',
+	}
+
 	$mol_style_define( $bog_figmol_app_theme, {
 
 		flex: {
@@ -28,6 +39,15 @@ namespace $ {
 			textTransform: 'uppercase',
 			letterSpacing: '0.05em',
 		},
+
+		/**
+		 * Four options do not fit beside a caption in a rail this narrow — they
+		 * wrap into three ragged lines. A switch gets the line to itself, while
+		 * the colours stay beside their captions where they read best.
+		 */
+		Field_font: figmol_theme_stacked,
+		Field_base: figmol_theme_stacked,
+		Field_lights: figmol_theme_stacked,
 
 	} )
 
