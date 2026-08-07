@@ -2821,128 +2821,6 @@ declare namespace $ {
 }
 
 declare namespace $ {
-    /** Reactive Set */
-    class $mol_wire_set<Value> extends Set<Value> {
-        pub: $mol_wire_pub;
-        has(value: Value): boolean;
-        entries(): SetIterator<[Value, Value]>;
-        keys(): SetIterator<Value>;
-        values(): SetIterator<Value>;
-        forEach(task: (value: Value, value2: Value, set: Set<Value>) => void, self?: any): void;
-        [Symbol.iterator](): SetIterator<Value>;
-        get size(): number;
-        add(value: Value): this;
-        delete(value: Value): boolean;
-        clear(): void;
-        item(val: Value, next?: boolean): boolean;
-    }
-}
-
-declare namespace $ {
-    function $mol_dom_serialize(node: Node): string;
-}
-
-declare namespace $ {
-    type $mol_rest_port_mime_hi = 'text' | 'application' | 'font' | 'audio' | 'video' | 'image' | 'model';
-    type $mol_rest_port_mime = `${$mol_rest_port_mime_hi}/${string}`;
-    class $mol_rest_port extends $mol_object {
-        send_code(code: $mol_rest_code): void;
-        send_type(mime: $mol_rest_port_mime): void;
-        send_data(data: null | string | Uint8Array<ArrayBuffer> | Element | object): void;
-        send_nil(): void;
-        send_bin(data: Uint8Array<ArrayBuffer>): void;
-        send_text(data: string): void;
-        send_json(data: object): void;
-        send_dom(data: Element): void;
-        static make<This extends typeof $mol_object>(this: This, config: Partial<InstanceType<This>>): InstanceType<This>;
-    }
-}
-
-declare namespace $ {
-    class $mol_rest_port_ws extends $mol_rest_port {
-    }
-}
-
-declare namespace $ {
-    class $mol_rest_port_ws_std extends $mol_rest_port_ws {
-        socket: WebSocket;
-        send_nil(): void;
-        send_bin(data: Uint8Array<ArrayBuffer>): void;
-        send_text(data: string): void;
-    }
-}
-
-declare namespace $ {
-    enum $giper_baza_slot_kind {
-        /** Free Unit Slot */
-        free = 0,
-        /** Land header for the following parts. */
-        land = 76,// L
-        /** Unit of data. */
-        sand = 252,
-        /** Rights/Keys sharing. */
-        gift = 253,
-        /** Sign for hash list. */
-        seal = 254,
-        /** Public key. */
-        pass = 255
-    }
-}
-
-declare namespace $ {
-    /**
-     * # Generic Graph model
-     * - Supports any type of Nodes and Edges.
-     * - All links are ordered, but this may be ignored.
-     * - Multigraph supported using arrays of Edges.
-     * - Hypergraph supported by reusing same Edge on set of links.
-     * - Ubergraph supported using Edges as Nodes to.
-     **/
-    class $mol_graph<Node, Edge> {
-        /** All registered Nodes */
-        nodes: Set<Node>;
-        /** Edges for Nodes pairs (from-to-edge) */
-        edges_out: Map<Node, Map<Node, Edge>>;
-        /** Edges for Nodes pairs (to-from-edge) */
-        edges_in: Map<Node, Map<Node, Edge>>;
-        /** Full connect two Nodes */
-        link(from: Node, to: Node, edge: Edge): void;
-        /** Full disconnect two Nodes */
-        unlink(from: Node, to: Node): void;
-        /** Forward connect two Nodes */
-        link_out(from: Node, to: Node, edge: Edge): void;
-        /** Backward connect two Nodes */
-        link_in(to: Node, from: Node, edge: Edge): void;
-        /** Return any Edge for two Nodes or null */
-        edge(from: Node, to: Node): NonNullable<Edge> | null;
-        /** Return output Edge for two Nodes or null */
-        edge_out(from: Node, to: Node): NonNullable<Edge> | null;
-        /** Return input Edge for two Nodes or null */
-        edge_in(to: Node, from: Node): NonNullable<Edge> | null;
-        /** Cut cycles at lowest priority of Edges */
-        acyclic(get_weight: (edge: Edge) => number): void;
-        /** Topoligical ordered set of all Nodes for acyclic graph */
-        get sorted(): Set<Node>;
-        /** All Nodes which don't have input Edges */
-        get roots(): Node[];
-        /**
-         * Nodes depth statistics for acyclic graph
-         * @example
-         * graph.depth_stat( Math.min )
-         * graph.depth_stat( Math.max )
-         **/
-        nodes_depth(select: (left: number, right: number) => number): Map<Node, number>;
-        /**
-         * Depth's Nodes statistics for acyclic graph
-         * @example
-         * graph.depth_nodes( Math.min )
-         * graph.depth_nodes( Math.max )
-         **/
-        depth_nodes(select: (left: number, right: number) => number): Node[][];
-    }
-}
-
-declare namespace $ {
     class $mol_time_base {
         static patterns: Record<string, (arg: any) => string>;
         static formatter(pattern: string): (arg: any) => string;
@@ -3083,155 +2961,6 @@ declare namespace $ {
             sss: (moment: $mol_time_moment) => string;
             Z: (moment: $mol_time_moment) => string;
         };
-    }
-}
-
-declare namespace $ {
-    /** Moment from time. */
-    function $giper_baza_time_moment(time: number): $mol_time_moment;
-    /** User readable time+tick view. */
-    function $giper_baza_time_dump(time: number, tick?: number): string;
-    /** Current time with 0 tick. */
-    function $giper_baza_time_now(): number;
-    /** Run atomic transaction by temp freezing time. */
-    function $giper_baza_time_freeze(task: () => void): void;
-}
-
-declare namespace $ {
-    /** Module for working with terminal. Text coloring when output in terminal */
-    class $mol_term_color {
-        static reset: (str: string) => string;
-        static bold: (str: string) => string;
-        static italic: (str: string) => string;
-        static underline: (str: string) => string;
-        static inverse: (str: string) => string;
-        static hidden: (str: string) => string;
-        static strike: (str: string) => string;
-        static gray: (str: string) => string;
-        static red: (str: string) => string;
-        static green: (str: string) => string;
-        static yellow: (str: string) => string;
-        static blue: (str: string) => string;
-        static magenta: (str: string) => string;
-        static cyan: (str: string) => string;
-        static Gray: (str: string) => string;
-        static Red: (str: string) => string;
-        static Green: (str: string) => string;
-        static Yellow: (str: string) => string;
-        static Blue: (str: string) => string;
-        static Magenta: (str: string) => string;
-        static Cyan: (str: string) => string;
-        static ansi(open: number, close: number): (str: string) => string;
-    }
-}
-
-declare namespace $ {
-    type $giper_baza_face_data = Iterable<readonly [peer: string, face: $giper_baza_face]>;
-    class $giper_baza_face extends Object {
-        time: number;
-        tick: number;
-        summ: number;
-        static length(): 16;
-        constructor(time?: number, tick?: number, summ?: number);
-        clone(): $giper_baza_face;
-        get moment(): $mol_time_moment;
-        get time_tick(): number;
-        sync_time(time: number, tick: number): void;
-        sync_summ(summ: number): void;
-        toJSON(): string;
-        [$mol_dev_format_head](): any[];
-    }
-    /** Statistics about Units in Land. it's total Units count & dictionary which maps Peer to Time */
-    class $giper_baza_face_map extends Map<string, $giper_baza_face> {
-        /** Cumulative face for all peers. */
-        stat: $giper_baza_face;
-        constructor(entries?: $giper_baza_face_data);
-        clone(): $giper_baza_face_map;
-        /** Synchronize this clock with another. */
-        sync(right: $giper_baza_face_data): void;
-        /** Update last time for peer. */
-        peer_time(peer: string, time: number, tick: number): void;
-        /** Update Summ for Peer. */
-        peer_summ(peer: string, summ: number): void;
-        peer_summ_shift(peer: string, diff: number): void;
-        /** Generates new time for peer that greater then other seen. */
-        tick(): $giper_baza_face;
-        toJSON(): {
-            [k: string]: $giper_baza_face;
-        };
-        [$mol_dev_format_head](): any[];
-    }
-}
-
-declare namespace $ {
-    /** reactive Dictionary */
-    class $mol_wire_dict<Key, Value> extends Map<Key, Value> {
-        pub: $mol_wire_pub;
-        has(key: Key): boolean;
-        get(key: Key): Value | undefined;
-        entries(): MapIterator<[Key, Value]>;
-        keys(): MapIterator<Key>;
-        values(): MapIterator<Value>;
-        forEach(task: (value: Value, key: Key, dict: Map<Key, Value>) => void, self?: any): void;
-        [Symbol.iterator](): MapIterator<[Key, Value]>;
-        get size(): number;
-        set(key: Key, value: Value): this;
-        delete(key: Key): boolean;
-        clear(): void;
-        item(key: Key, next?: Value | null): NonNullable<Value> | null;
-    }
-}
-
-declare namespace $ {
-    /**
-     * 48-bit streamable array hash function
-     * Based on cyrb53: https://stackoverflow.com/a/52171480
-     */
-    function $mol_hash_numbers(buff: ArrayLike<number>, seed?: number): number;
-}
-
-declare namespace $ {
-    /** Virtual Pawn that represents contained units as high-level data types. */
-    class $giper_baza_pawn extends $mol_object {
-        static tag: keyof typeof $giper_baza_unit_sand_tag;
-        static meta: null | $giper_baza_link;
-        /** Standalone part of Glob which syncs separately, have own rights, and contains Units */
-        land(): $giper_baza_land;
-        /** Land local Pawn id */
-        head(): $giper_baza_link;
-        /** Link to Land/Lord. */
-        land_link(): $giper_baza_link;
-        /** Link to Pawn/Land/Lord. */
-        link(): $giper_baza_link;
-        toJSON(): string;
-        /** Returns another representation of this Pawn. */
-        cast<Pawn extends typeof $giper_baza_pawn>(Pawn: Pawn): InstanceType<Pawn>;
-        /** Ordered inner alive Pawn. */
-        pawns<Pawn extends typeof $giper_baza_pawn>(Pawn: Pawn | null): readonly InstanceType<Pawn>[];
-        /** All ordered alive Units */
-        units(): $giper_baza_unit_sand[];
-        units_of(peer: $giper_baza_link | null): $giper_baza_unit_sand[];
-        meta(next?: $giper_baza_link): $giper_baza_link | null;
-        meta_of(peer: $giper_baza_link | null): $giper_baza_link | null;
-        filled(): boolean;
-        /** Ability to make changes by current peer. */
-        can_change(): boolean;
-        /** Time of last changed unit inside Pawn subtree */
-        last_change(): $mol_time_moment | null;
-        /** All author Passes of Pawn subtree */
-        authors(): $giper_baza_auth_pass[];
-        [$mol_dev_format_head](): any[];
-    }
-}
-
-declare namespace $ {
-    /** Registry of Pawns as Deck entities. */
-    class $giper_baza_fund<Pawn> extends $mol_object {
-        readonly item_make: (head: $giper_baza_link) => Pawn;
-        constructor(item_make: (head: $giper_baza_link) => Pawn);
-        Head(head: $giper_baza_link): Pawn;
-        Data(): Pawn;
-        Tine(): Pawn;
     }
 }
 
@@ -3409,6 +3138,10 @@ declare namespace $ {
 }
 
 declare namespace $ {
+    function $mol_dom_serialize(node: Node): string;
+}
+
+declare namespace $ {
     enum $mol_vary_tip {
         uint = 0,
         link = 32,
@@ -3468,6 +3201,273 @@ declare namespace $ {
         [key in string]: $giper_baza_vary_type;
     }>;
     let $giper_baza_vary: $mol_vary_class;
+}
+
+declare namespace $ {
+    /** Reactive Set */
+    class $mol_wire_set<Value> extends Set<Value> {
+        pub: $mol_wire_pub;
+        has(value: Value): boolean;
+        entries(): SetIterator<[Value, Value]>;
+        keys(): SetIterator<Value>;
+        values(): SetIterator<Value>;
+        forEach(task: (value: Value, value2: Value, set: Set<Value>) => void, self?: any): void;
+        [Symbol.iterator](): SetIterator<Value>;
+        get size(): number;
+        add(value: Value): this;
+        delete(value: Value): boolean;
+        clear(): void;
+        item(val: Value, next?: boolean): boolean;
+    }
+}
+
+declare namespace $ {
+    type $mol_rest_port_mime_hi = 'text' | 'application' | 'font' | 'audio' | 'video' | 'image' | 'model';
+    type $mol_rest_port_mime = `${$mol_rest_port_mime_hi}/${string}`;
+    class $mol_rest_port extends $mol_object {
+        send_code(code: $mol_rest_code): void;
+        send_type(mime: $mol_rest_port_mime): void;
+        send_data(data: null | string | Uint8Array<ArrayBuffer> | Element | object): void;
+        send_nil(): void;
+        send_bin(data: Uint8Array<ArrayBuffer>): void;
+        send_text(data: string): void;
+        send_json(data: object): void;
+        send_dom(data: Element): void;
+        static make<This extends typeof $mol_object>(this: This, config: Partial<InstanceType<This>>): InstanceType<This>;
+    }
+}
+
+declare namespace $ {
+    class $mol_rest_port_ws extends $mol_rest_port {
+    }
+}
+
+declare namespace $ {
+    class $mol_rest_port_ws_std extends $mol_rest_port_ws {
+        socket: WebSocket;
+        send_nil(): void;
+        send_bin(data: Uint8Array<ArrayBuffer>): void;
+        send_text(data: string): void;
+    }
+}
+
+declare namespace $ {
+    enum $giper_baza_slot_kind {
+        /** Free Unit Slot */
+        free = 0,
+        /** Land header for the following parts. */
+        land = 76,// L
+        /** Unit of data. */
+        sand = 252,
+        /** Rights/Keys sharing. */
+        gift = 253,
+        /** Sign for hash list. */
+        seal = 254,
+        /** Public key. */
+        pass = 255
+    }
+}
+
+declare namespace $ {
+    /**
+     * # Generic Graph model
+     * - Supports any type of Nodes and Edges.
+     * - All links are ordered, but this may be ignored.
+     * - Multigraph supported using arrays of Edges.
+     * - Hypergraph supported by reusing same Edge on set of links.
+     * - Ubergraph supported using Edges as Nodes to.
+     **/
+    class $mol_graph<Node, Edge> {
+        /** All registered Nodes */
+        nodes: Set<Node>;
+        /** Edges for Nodes pairs (from-to-edge) */
+        edges_out: Map<Node, Map<Node, Edge>>;
+        /** Edges for Nodes pairs (to-from-edge) */
+        edges_in: Map<Node, Map<Node, Edge>>;
+        /** Full connect two Nodes */
+        link(from: Node, to: Node, edge: Edge): void;
+        /** Full disconnect two Nodes */
+        unlink(from: Node, to: Node): void;
+        /** Forward connect two Nodes */
+        link_out(from: Node, to: Node, edge: Edge): void;
+        /** Backward connect two Nodes */
+        link_in(to: Node, from: Node, edge: Edge): void;
+        /** Return any Edge for two Nodes or null */
+        edge(from: Node, to: Node): NonNullable<Edge> | null;
+        /** Return output Edge for two Nodes or null */
+        edge_out(from: Node, to: Node): NonNullable<Edge> | null;
+        /** Return input Edge for two Nodes or null */
+        edge_in(to: Node, from: Node): NonNullable<Edge> | null;
+        /** Cut cycles at lowest priority of Edges */
+        acyclic(get_weight: (edge: Edge) => number): void;
+        /** Topoligical ordered set of all Nodes for acyclic graph */
+        get sorted(): Set<Node>;
+        /** All Nodes which don't have input Edges */
+        get roots(): Node[];
+        /**
+         * Nodes depth statistics for acyclic graph
+         * @example
+         * graph.depth_stat( Math.min )
+         * graph.depth_stat( Math.max )
+         **/
+        nodes_depth(select: (left: number, right: number) => number): Map<Node, number>;
+        /**
+         * Depth's Nodes statistics for acyclic graph
+         * @example
+         * graph.depth_nodes( Math.min )
+         * graph.depth_nodes( Math.max )
+         **/
+        depth_nodes(select: (left: number, right: number) => number): Node[][];
+    }
+}
+
+declare namespace $ {
+    /** Moment from time. */
+    function $giper_baza_time_moment(time: number): $mol_time_moment;
+    /** User readable time+tick view. */
+    function $giper_baza_time_dump(time: number, tick?: number): string;
+    /** Current time with 0 tick. */
+    function $giper_baza_time_now(): number;
+    /** Run atomic transaction by temp freezing time. */
+    function $giper_baza_time_freeze(task: () => void): void;
+}
+
+declare namespace $ {
+    /** Module for working with terminal. Text coloring when output in terminal */
+    class $mol_term_color {
+        static reset: (str: string) => string;
+        static bold: (str: string) => string;
+        static italic: (str: string) => string;
+        static underline: (str: string) => string;
+        static inverse: (str: string) => string;
+        static hidden: (str: string) => string;
+        static strike: (str: string) => string;
+        static gray: (str: string) => string;
+        static red: (str: string) => string;
+        static green: (str: string) => string;
+        static yellow: (str: string) => string;
+        static blue: (str: string) => string;
+        static magenta: (str: string) => string;
+        static cyan: (str: string) => string;
+        static Gray: (str: string) => string;
+        static Red: (str: string) => string;
+        static Green: (str: string) => string;
+        static Yellow: (str: string) => string;
+        static Blue: (str: string) => string;
+        static Magenta: (str: string) => string;
+        static Cyan: (str: string) => string;
+        static ansi(open: number, close: number): (str: string) => string;
+    }
+}
+
+declare namespace $ {
+    type $giper_baza_face_data = Iterable<readonly [peer: string, face: $giper_baza_face]>;
+    class $giper_baza_face extends Object {
+        time: number;
+        tick: number;
+        summ: number;
+        static length(): 16;
+        constructor(time?: number, tick?: number, summ?: number);
+        clone(): $giper_baza_face;
+        get moment(): $mol_time_moment;
+        get time_tick(): number;
+        sync_time(time: number, tick: number): void;
+        sync_summ(summ: number): void;
+        toJSON(): string;
+        [$mol_dev_format_head](): any[];
+    }
+    /** Statistics about Units in Land. it's total Units count & dictionary which maps Peer to Time */
+    class $giper_baza_face_map extends Map<string, $giper_baza_face> {
+        /** Cumulative face for all peers. */
+        stat: $giper_baza_face;
+        constructor(entries?: $giper_baza_face_data);
+        clone(): $giper_baza_face_map;
+        /** Synchronize this clock with another. */
+        sync(right: $giper_baza_face_data): void;
+        /** Update last time for peer. */
+        peer_time(peer: string, time: number, tick: number): void;
+        /** Update Summ for Peer. */
+        peer_summ(peer: string, summ: number): void;
+        peer_summ_shift(peer: string, diff: number): void;
+        /** Generates new time for peer that greater then other seen. */
+        tick(): $giper_baza_face;
+        toJSON(): {
+            [k: string]: $giper_baza_face;
+        };
+        [$mol_dev_format_head](): any[];
+    }
+}
+
+declare namespace $ {
+    /** reactive Dictionary */
+    class $mol_wire_dict<Key, Value> extends Map<Key, Value> {
+        pub: $mol_wire_pub;
+        has(key: Key): boolean;
+        get(key: Key): Value | undefined;
+        entries(): MapIterator<[Key, Value]>;
+        keys(): MapIterator<Key>;
+        values(): MapIterator<Value>;
+        forEach(task: (value: Value, key: Key, dict: Map<Key, Value>) => void, self?: any): void;
+        [Symbol.iterator](): MapIterator<[Key, Value]>;
+        get size(): number;
+        set(key: Key, value: Value): this;
+        delete(key: Key): boolean;
+        clear(): void;
+        item(key: Key, next?: Value | null): NonNullable<Value> | null;
+    }
+}
+
+declare namespace $ {
+    /**
+     * 48-bit streamable array hash function
+     * Based on cyrb53: https://stackoverflow.com/a/52171480
+     */
+    function $mol_hash_numbers(buff: ArrayLike<number>, seed?: number): number;
+}
+
+declare namespace $ {
+    /** Virtual Pawn that represents contained units as high-level data types. */
+    class $giper_baza_pawn extends $mol_object {
+        static tag: keyof typeof $giper_baza_unit_sand_tag;
+        static meta: null | $giper_baza_link;
+        /** Standalone part of Glob which syncs separately, have own rights, and contains Units */
+        land(): $giper_baza_land;
+        /** Land local Pawn id */
+        head(): $giper_baza_link;
+        /** Link to Land/Lord. */
+        land_link(): $giper_baza_link;
+        /** Link to Pawn/Land/Lord. */
+        link(): $giper_baza_link;
+        toJSON(): string;
+        /** Returns another representation of this Pawn. */
+        cast<Pawn extends typeof $giper_baza_pawn>(Pawn: Pawn): InstanceType<Pawn>;
+        /** Ordered inner alive Pawn. */
+        pawns<Pawn extends typeof $giper_baza_pawn>(Pawn: Pawn | null): readonly InstanceType<Pawn>[];
+        /** All ordered alive Units */
+        units(): $giper_baza_unit_sand[];
+        units_of(peer: $giper_baza_link | null): $giper_baza_unit_sand[];
+        meta(next?: $giper_baza_link): $giper_baza_link | null;
+        meta_of(peer: $giper_baza_link | null): $giper_baza_link | null;
+        filled(): boolean;
+        /** Ability to make changes by current peer. */
+        can_change(): boolean;
+        /** Time of last changed unit inside Pawn subtree */
+        last_change(): $mol_time_moment | null;
+        /** All author Passes of Pawn subtree */
+        authors(): $giper_baza_auth_pass[];
+        [$mol_dev_format_head](): any[];
+    }
+}
+
+declare namespace $ {
+    /** Registry of Pawns as Deck entities. */
+    class $giper_baza_fund<Pawn> extends $mol_object {
+        readonly item_make: (head: $giper_baza_link) => Pawn;
+        constructor(item_make: (head: $giper_baza_link) => Pawn);
+        Head(head: $giper_baza_link): Pawn;
+        Data(): Pawn;
+        Tine(): Pawn;
+    }
 }
 
 declare namespace $ {
@@ -43457,6 +43457,20 @@ declare namespace $.$$ {
 
 declare namespace $ {
     /**
+     * One reversible change of the document.
+     *
+     * Both directions are closures over the values involved rather than a diff:
+     * every write already goes through this class, so the cheapest description of
+     * a step back is the value that was there and the call that puts it back.
+     */
+    /** Both dictionaries the editor reads — the props of a node and the theme. */
+    type figmol_store_texts = {
+        keys(): readonly $giper_baza_vary_type[];
+        key(key: $giper_baza_vary_type): {
+            val(): unknown;
+        } | null | undefined;
+    };
+    /**
      * The document the editor edits, and the only thing that talks to the Baza.
      *
      * Both the canvas and the inspector work through one instance of this, passed
@@ -43470,7 +43484,7 @@ declare namespace $ {
      * subscription. Reads that come back as strings, numbers and arrays are
      * memoized, and that is where the reactivity lives.
      */
-    class $bog_figmol_store extends $mol_object2 {
+    export class $bog_figmol_store extends $mol_object2 {
         /**
          * The same list with every repeated link dropped, the first seat winning.
          *
@@ -43482,6 +43496,8 @@ declare namespace $ {
          * good, because cutting matches by value and takes every mention with it.
          */
         static dedup<Item>(items: readonly Item[], id: (item: Item) => string): readonly Item[];
+        /** A dictionary of strings as a plain record, empty when there is none. */
+        static entries(dict: figmol_store_texts | null | undefined): Readonly<Record<string, string>>;
         /** Bootstrap record in the user's own home Land: a single link to the site. */
         home(): $bog_figmol_schema_home;
         /**
@@ -43579,6 +43595,11 @@ declare namespace $ {
         /** Whether the master of `comp` holds an instance of `target`, however deep. */
         comp_uses(comp: string, target: string, deep: number): boolean;
         node_uses(id: string, target: string, deep: number): boolean;
+        /**
+         * Every token of the theme, read in one go — see `props` below for why
+         * nothing here reads a single key through an accessor that also writes.
+         */
+        theme_dict(): Readonly<Record<string, string>>;
         /** Raw token as written, empty when nothing was. */
         theme_read(key: string): string;
         theme_write(key: string, val: string): void;
@@ -43652,15 +43673,33 @@ declare namespace $ {
         redo(): boolean;
         /** Runs a step of the journal without writing a new one. */
         replay(task: () => void): void;
+        /**
+         * Every property of a node, read in one go.
+         *
+         * Nothing ever writes into this one, and that is the whole point. An
+         * accessor below both reads and writes, and a written `@$mol_mem` keeps
+         * the value it was handed without renewing what it depends on — so an
+         * accessor whose own setter creates the cell it reads goes on holding the
+         * value it wrote and never hears of that cell again. Undo of the first
+         * write to a property was exactly that: the document went back and the
+         * canvas did not.
+         *
+         * It also costs nothing extra: finding one key in a dictionary walks it
+         * anyway, and a node has a handful of properties at most.
+         */
+        props(id: string): Readonly<Record<string, string>>;
         /** One of the string properties of a node. */
         prop_read(id: string, key: string): string;
         prop_write(id: string, key: string, val: string): void;
         prop_edit(id: string, key: string, val: string): void;
         /** Geometry and layout of a node, the fields stored as numbers of their own. */
+        nums(id: string): Readonly<Record<string, number>>;
+        /** Read through the record above, and never through an accessor that writes. */
         num_read(id: string, field: string): number;
         num_write(id: string, field: string, val: number): void;
         num_edit(id: string, field: string, val: number): void;
         /** Layout of a node, the fields stored as strings of their own. */
+        strs(id: string): Readonly<Record<string, string>>;
         str_read(id: string, field: string): string;
         str_write(id: string, field: string, val: string): void;
         str_edit(id: string, field: string, val: string): void;
@@ -43723,6 +43762,15 @@ declare namespace $ {
          * the whole list rewrite counted them too. Negative means the end.
          */
         list_put(list: $giper_baza_list_link, id: string, at: number): void;
+        /**
+         * Rights the Land of a new site is grabbed with.
+         *
+         * A method rather than the constant itself so that a run without a network
+         * can put the site in the Land it already has: grabbing one runs
+         * Proof-of-Work, which is seconds of a browser rather than a step of a
+         * scenario.
+         */
+        site_preset(): null | $giper_baza_rank_preset;
         /**
          * Creates the site: a Land grabbed for it, one page, one root frame.
          *
@@ -43846,6 +43894,7 @@ declare namespace $ {
          */
         node_lift(id: string, top: boolean): void;
     }
+    export {};
 }
 
 declare namespace $ {

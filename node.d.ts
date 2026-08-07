@@ -2807,6 +2807,262 @@ declare namespace $ {
 }
 
 declare namespace $ {
+    class $mol_time_base {
+        static patterns: Record<string, (arg: any) => string>;
+        static formatter(pattern: string): (arg: any) => string;
+        toString(pattern: string): string;
+    }
+}
+
+declare namespace $ {
+    type $mol_time_duration_config = number | string | readonly [number, number, number, number, number, number] | {
+        year?: number;
+        month?: number;
+        day?: number;
+        hour?: number;
+        minute?: number;
+        second?: number;
+    };
+    /**
+     * Small, simple, powerful, and fast TypeScript/JavaScript library for proper date/time/duration/interval arithmetic.
+     *
+     * Immutable iso8601 time duration representation.
+     * @see http://localhost:9080/mol/app/docs/-/test.html#!demo=mol_time_demo
+     */
+    class $mol_time_duration extends $mol_time_base {
+        constructor(config?: $mol_time_duration_config);
+        readonly year: number;
+        readonly month: number;
+        readonly day: number;
+        readonly hour: number;
+        readonly minute: number;
+        readonly second: number;
+        get normal(): $mol_time_duration;
+        summ(config: $mol_time_duration_config): $mol_time_duration;
+        mult(numb: number): $mol_time_duration;
+        count(config: $mol_time_duration_config): number;
+        valueOf(): number;
+        toJSON(): string;
+        toString(pattern?: string): string;
+        toArray(): readonly [number, number, number, number, number, number];
+        [Symbol.toPrimitive](mode: 'default' | 'number' | 'string'): string | number;
+        static patterns: {
+            '#Y': (duration: $mol_time_duration) => string;
+            '#M': (duration: $mol_time_duration) => string;
+            '#D': (duration: $mol_time_duration) => string;
+            '#h': (duration: $mol_time_duration) => string;
+            '#m': (duration: $mol_time_duration) => string;
+            '#s': (duration: $mol_time_duration) => string;
+            hh: (moment: $mol_time_moment) => string;
+            h: (moment: $mol_time_moment) => string;
+            ':mm': (moment: $mol_time_moment) => string;
+            mm: (moment: $mol_time_moment) => string;
+            m: (moment: $mol_time_moment) => string;
+            ':ss': (moment: $mol_time_moment) => string;
+            ss: (moment: $mol_time_moment) => string;
+            s: (moment: $mol_time_moment) => string;
+            '.sss': (moment: $mol_time_moment) => string;
+            sss: (moment: $mol_time_moment) => string;
+        };
+    }
+}
+
+declare namespace $ {
+    enum $mol_time_moment_weekdays {
+        monday = 0,
+        tuesday = 1,
+        wednesday = 2,
+        thursday = 3,
+        friday = 4,
+        saturday = 5,
+        sunday = 6
+    }
+    type $mol_time_moment_config = number | Date | string | readonly (number | undefined)[] | {
+        year?: number;
+        month?: number;
+        day?: number;
+        hour?: number;
+        minute?: number;
+        second?: number;
+        offset?: $mol_time_duration_config;
+    };
+    /**
+     * Small, simple, powerful, and fast TypeScript/JavaScript library for proper date/time/duration/interval arithmetic.
+     *
+     * Immutable iso8601 time moment representation.
+     * @see http://localhost:9080/mol/app/docs/-/test.html#!demo=mol_time_demo
+     */
+    class $mol_time_moment extends $mol_time_base {
+        constructor(config?: $mol_time_moment_config);
+        readonly year: number | undefined;
+        readonly month: number | undefined;
+        readonly day: number | undefined;
+        readonly hour: number | undefined;
+        readonly minute: number | undefined;
+        readonly second: number | undefined;
+        readonly offset: $mol_time_duration | undefined;
+        get weekday(): number;
+        _native: Date | undefined;
+        get native(): Date;
+        _normal: $mol_time_moment | undefined;
+        get normal(): $mol_time_moment;
+        merge(config: $mol_time_moment_config): $mol_time_moment;
+        shift(config: $mol_time_duration_config): $mol_time_moment;
+        mask(config: $mol_time_moment_config): $mol_time_moment;
+        toOffset(config?: $mol_time_duration_config): $mol_time_moment;
+        valueOf(): number;
+        toJSON(): string;
+        toString(pattern?: string): string;
+        toArray(): readonly [number | undefined, number | undefined, number | undefined, number | undefined, number | undefined, number | undefined, number | undefined];
+        [Symbol.toPrimitive](mode: 'default' | 'number' | 'string'): string | number;
+        [$mol_dev_format_head](): any[];
+        static patterns: {
+            YYYY: (moment: $mol_time_moment) => string;
+            AD: (moment: $mol_time_moment) => string;
+            YY: (moment: $mol_time_moment) => string;
+            Month: (moment: $mol_time_moment) => string;
+            'DD Month': (moment: $mol_time_moment) => string;
+            'D Month': (moment: $mol_time_moment) => string;
+            Mon: (moment: $mol_time_moment) => string;
+            'DD Mon': (moment: $mol_time_moment) => string;
+            'D Mon': (moment: $mol_time_moment) => string;
+            '-MM': (moment: $mol_time_moment) => string;
+            MM: (moment: $mol_time_moment) => string;
+            M: (moment: $mol_time_moment) => string;
+            WeekDay: (moment: $mol_time_moment) => string;
+            WD: (moment: $mol_time_moment) => string;
+            '-DD': (moment: $mol_time_moment) => string;
+            DD: (moment: $mol_time_moment) => string;
+            D: (moment: $mol_time_moment) => string;
+            Thh: (moment: $mol_time_moment) => string;
+            hh: (moment: $mol_time_moment) => string;
+            h: (moment: $mol_time_moment) => string;
+            ':mm': (moment: $mol_time_moment) => string;
+            mm: (moment: $mol_time_moment) => string;
+            m: (moment: $mol_time_moment) => string;
+            ':ss': (moment: $mol_time_moment) => string;
+            ss: (moment: $mol_time_moment) => string;
+            s: (moment: $mol_time_moment) => string;
+            '.sss': (moment: $mol_time_moment) => string;
+            sss: (moment: $mol_time_moment) => string;
+            Z: (moment: $mol_time_moment) => string;
+        };
+    }
+}
+
+declare namespace $ {
+    type $mol_time_interval_config = string | {
+        start?: $mol_time_moment_config;
+        end?: $mol_time_moment_config;
+        duration?: $mol_time_duration_config;
+    };
+    /**
+     * Small, simple, powerful, and fast TypeScript/JavaScript library for proper date/time/duration/interval arithmetic.
+     *
+     * Immutable iso8601 time interval representation.
+     * @see http://localhost:9080/mol/app/docs/-/test.html#!demo=mol_time_demo
+     */
+    class $mol_time_interval extends $mol_time_base {
+        constructor(config: $mol_time_interval_config);
+        private _start;
+        get start(): $mol_time_moment;
+        private _end;
+        get end(): $mol_time_moment;
+        private _duration;
+        get duration(): $mol_time_duration;
+        toJSON(): string;
+        toString(): string;
+        [Symbol.toPrimitive](mode: 'default' | 'number' | 'string'): string;
+    }
+}
+
+declare namespace $ {
+    function $mol_bigint_encode(num: bigint): Uint8Array<ArrayBuffer>;
+}
+
+declare namespace $ {
+    /** Encode text to Unicode Compact Format. */
+    function $mol_charset_ucf_encode(str: string): Uint8Array<ArrayBuffer>;
+    function $mol_charset_ucf_encode_to(str: string, buf: Uint8Array<ArrayBuffer>, from?: number): number;
+    /** Decode text from Unicode Compact Format. */
+    function $mol_charset_ucf_decode(buffer: Uint8Array<ArrayBuffer>, mode?: number): string;
+}
+
+declare namespace $ {
+    function $mol_bigint_decode(buf: Uint8Array<ArrayBuffer>): bigint;
+}
+
+declare namespace $ {
+    function $mol_dom_serialize(node: Node): string;
+}
+
+declare namespace $ {
+    function $mol_dom_parse(text: string, type?: DOMParserSupportedType): Document;
+}
+
+declare namespace $ {
+    enum $mol_vary_tip {
+        uint = 0,
+        link = 32,
+        spec = 64,
+        list = 96,
+        blob = 128,
+        text = 160,
+        tupl = 192,
+        sint = 224
+    }
+    enum $mol_vary_len {
+        L1 = 28,
+        L2 = 29,
+        L4 = 30,
+        L8 = 31,
+        LA = 32
+    }
+    enum $mol_vary_spec {
+        none,
+        true,
+        fake,
+        both,
+        fp16,
+        fp32,
+        fp64,
+        f128,
+        f256
+    }
+    /** VaryPack - simple fast compact data binarization format. */
+    class $mol_vary_class extends Object {
+        lean_symbol: symbol;
+        array: Uint8Array<ArrayBuffer>;
+        buffer: DataView<ArrayBuffer>;
+        /** Packs any data to Uint8Array with deduplication. */
+        pack(data: readonly unknown[]): Uint8Array<ArrayBuffer>;
+        /** Parses buffer to rich runtime structures. */
+        take(array: Uint8Array<ArrayBuffer>): unknown;
+        rich_index: Map<string | null, any>;
+        /** Isolated Vary for custom types */
+        zone(): $mol_vary_class;
+        rich_node(keys: readonly string[]): Map<string | null, any>;
+        lean_find(val: any): any;
+        /** Adds custom types support. */
+        type<const Instance extends object, const Keys extends readonly any[], const Vals extends readonly any[]>({ type, keys, rich, lean }: {
+            type: new (...vals: any[]) => Instance;
+            keys: Keys;
+            lean: (obj: Instance) => Vals;
+            rich: (vals: Vals) => Instance;
+        }): void;
+    }
+    let $mol_vary: $mol_vary_class;
+}
+
+declare namespace $ {
+    /** Supported primitive types. */
+    type $giper_baza_vary_type = null | boolean | number | bigint | string | Uint8Array<ArrayBuffer> | Uint16Array<ArrayBuffer> | Uint32Array<ArrayBuffer> | BigUint64Array<ArrayBuffer> | Int8Array<ArrayBuffer> | Int16Array<ArrayBuffer> | Int32Array<ArrayBuffer> | BigInt64Array<ArrayBuffer> | Float64Array<ArrayBuffer> | Float32Array<ArrayBuffer> | Float64Array<ArrayBuffer> | $mol_time_moment | $mol_time_duration | $mol_time_interval | $mol_tree2 | $giper_baza_link | Element | readonly $giper_baza_vary_type[] | Readonly<{
+        [key in string]: $giper_baza_vary_type;
+    }>;
+    let $giper_baza_vary: $mol_vary_class;
+}
+
+declare namespace $ {
     /** Reactive Set */
     class $mol_wire_set<Value> extends Set<Value> {
         pub: $mol_wire_pub;
@@ -2886,10 +3142,6 @@ declare namespace $ {
         'Network Read Timeout Error' = 598,
         'Network Connect Timeout Error' = 599
     }
-}
-
-declare namespace $ {
-    function $mol_dom_serialize(node: Node): string;
 }
 
 declare namespace $ {
@@ -3048,150 +3300,6 @@ declare namespace $ {
 }
 
 declare namespace $ {
-    class $mol_time_base {
-        static patterns: Record<string, (arg: any) => string>;
-        static formatter(pattern: string): (arg: any) => string;
-        toString(pattern: string): string;
-    }
-}
-
-declare namespace $ {
-    type $mol_time_duration_config = number | string | readonly [number, number, number, number, number, number] | {
-        year?: number;
-        month?: number;
-        day?: number;
-        hour?: number;
-        minute?: number;
-        second?: number;
-    };
-    /**
-     * Small, simple, powerful, and fast TypeScript/JavaScript library for proper date/time/duration/interval arithmetic.
-     *
-     * Immutable iso8601 time duration representation.
-     * @see http://localhost:9080/mol/app/docs/-/test.html#!demo=mol_time_demo
-     */
-    class $mol_time_duration extends $mol_time_base {
-        constructor(config?: $mol_time_duration_config);
-        readonly year: number;
-        readonly month: number;
-        readonly day: number;
-        readonly hour: number;
-        readonly minute: number;
-        readonly second: number;
-        get normal(): $mol_time_duration;
-        summ(config: $mol_time_duration_config): $mol_time_duration;
-        mult(numb: number): $mol_time_duration;
-        count(config: $mol_time_duration_config): number;
-        valueOf(): number;
-        toJSON(): string;
-        toString(pattern?: string): string;
-        toArray(): readonly [number, number, number, number, number, number];
-        [Symbol.toPrimitive](mode: 'default' | 'number' | 'string'): string | number;
-        static patterns: {
-            '#Y': (duration: $mol_time_duration) => string;
-            '#M': (duration: $mol_time_duration) => string;
-            '#D': (duration: $mol_time_duration) => string;
-            '#h': (duration: $mol_time_duration) => string;
-            '#m': (duration: $mol_time_duration) => string;
-            '#s': (duration: $mol_time_duration) => string;
-            hh: (moment: $mol_time_moment) => string;
-            h: (moment: $mol_time_moment) => string;
-            ':mm': (moment: $mol_time_moment) => string;
-            mm: (moment: $mol_time_moment) => string;
-            m: (moment: $mol_time_moment) => string;
-            ':ss': (moment: $mol_time_moment) => string;
-            ss: (moment: $mol_time_moment) => string;
-            s: (moment: $mol_time_moment) => string;
-            '.sss': (moment: $mol_time_moment) => string;
-            sss: (moment: $mol_time_moment) => string;
-        };
-    }
-}
-
-declare namespace $ {
-    enum $mol_time_moment_weekdays {
-        monday = 0,
-        tuesday = 1,
-        wednesday = 2,
-        thursday = 3,
-        friday = 4,
-        saturday = 5,
-        sunday = 6
-    }
-    type $mol_time_moment_config = number | Date | string | readonly (number | undefined)[] | {
-        year?: number;
-        month?: number;
-        day?: number;
-        hour?: number;
-        minute?: number;
-        second?: number;
-        offset?: $mol_time_duration_config;
-    };
-    /**
-     * Small, simple, powerful, and fast TypeScript/JavaScript library for proper date/time/duration/interval arithmetic.
-     *
-     * Immutable iso8601 time moment representation.
-     * @see http://localhost:9080/mol/app/docs/-/test.html#!demo=mol_time_demo
-     */
-    class $mol_time_moment extends $mol_time_base {
-        constructor(config?: $mol_time_moment_config);
-        readonly year: number | undefined;
-        readonly month: number | undefined;
-        readonly day: number | undefined;
-        readonly hour: number | undefined;
-        readonly minute: number | undefined;
-        readonly second: number | undefined;
-        readonly offset: $mol_time_duration | undefined;
-        get weekday(): number;
-        _native: Date | undefined;
-        get native(): Date;
-        _normal: $mol_time_moment | undefined;
-        get normal(): $mol_time_moment;
-        merge(config: $mol_time_moment_config): $mol_time_moment;
-        shift(config: $mol_time_duration_config): $mol_time_moment;
-        mask(config: $mol_time_moment_config): $mol_time_moment;
-        toOffset(config?: $mol_time_duration_config): $mol_time_moment;
-        valueOf(): number;
-        toJSON(): string;
-        toString(pattern?: string): string;
-        toArray(): readonly [number | undefined, number | undefined, number | undefined, number | undefined, number | undefined, number | undefined, number | undefined];
-        [Symbol.toPrimitive](mode: 'default' | 'number' | 'string'): string | number;
-        [$mol_dev_format_head](): any[];
-        static patterns: {
-            YYYY: (moment: $mol_time_moment) => string;
-            AD: (moment: $mol_time_moment) => string;
-            YY: (moment: $mol_time_moment) => string;
-            Month: (moment: $mol_time_moment) => string;
-            'DD Month': (moment: $mol_time_moment) => string;
-            'D Month': (moment: $mol_time_moment) => string;
-            Mon: (moment: $mol_time_moment) => string;
-            'DD Mon': (moment: $mol_time_moment) => string;
-            'D Mon': (moment: $mol_time_moment) => string;
-            '-MM': (moment: $mol_time_moment) => string;
-            MM: (moment: $mol_time_moment) => string;
-            M: (moment: $mol_time_moment) => string;
-            WeekDay: (moment: $mol_time_moment) => string;
-            WD: (moment: $mol_time_moment) => string;
-            '-DD': (moment: $mol_time_moment) => string;
-            DD: (moment: $mol_time_moment) => string;
-            D: (moment: $mol_time_moment) => string;
-            Thh: (moment: $mol_time_moment) => string;
-            hh: (moment: $mol_time_moment) => string;
-            h: (moment: $mol_time_moment) => string;
-            ':mm': (moment: $mol_time_moment) => string;
-            mm: (moment: $mol_time_moment) => string;
-            m: (moment: $mol_time_moment) => string;
-            ':ss': (moment: $mol_time_moment) => string;
-            ss: (moment: $mol_time_moment) => string;
-            s: (moment: $mol_time_moment) => string;
-            '.sss': (moment: $mol_time_moment) => string;
-            sss: (moment: $mol_time_moment) => string;
-            Z: (moment: $mol_time_moment) => string;
-        };
-    }
-}
-
-declare namespace $ {
     /** Moment from time. */
     function $giper_baza_time_moment(time: number): $mol_time_moment;
     /** User readable time+tick view. */
@@ -3310,114 +3418,6 @@ declare namespace $ {
         Data(): Pawn;
         Tine(): Pawn;
     }
-}
-
-declare namespace $ {
-    type $mol_time_interval_config = string | {
-        start?: $mol_time_moment_config;
-        end?: $mol_time_moment_config;
-        duration?: $mol_time_duration_config;
-    };
-    /**
-     * Small, simple, powerful, and fast TypeScript/JavaScript library for proper date/time/duration/interval arithmetic.
-     *
-     * Immutable iso8601 time interval representation.
-     * @see http://localhost:9080/mol/app/docs/-/test.html#!demo=mol_time_demo
-     */
-    class $mol_time_interval extends $mol_time_base {
-        constructor(config: $mol_time_interval_config);
-        private _start;
-        get start(): $mol_time_moment;
-        private _end;
-        get end(): $mol_time_moment;
-        private _duration;
-        get duration(): $mol_time_duration;
-        toJSON(): string;
-        toString(): string;
-        [Symbol.toPrimitive](mode: 'default' | 'number' | 'string'): string;
-    }
-}
-
-declare namespace $ {
-    function $mol_bigint_encode(num: bigint): Uint8Array<ArrayBuffer>;
-}
-
-declare namespace $ {
-    /** Encode text to Unicode Compact Format. */
-    function $mol_charset_ucf_encode(str: string): Uint8Array<ArrayBuffer>;
-    function $mol_charset_ucf_encode_to(str: string, buf: Uint8Array<ArrayBuffer>, from?: number): number;
-    /** Decode text from Unicode Compact Format. */
-    function $mol_charset_ucf_decode(buffer: Uint8Array<ArrayBuffer>, mode?: number): string;
-}
-
-declare namespace $ {
-    function $mol_bigint_decode(buf: Uint8Array<ArrayBuffer>): bigint;
-}
-
-declare namespace $ {
-    function $mol_dom_parse(text: string, type?: DOMParserSupportedType): Document;
-}
-
-declare namespace $ {
-    enum $mol_vary_tip {
-        uint = 0,
-        link = 32,
-        spec = 64,
-        list = 96,
-        blob = 128,
-        text = 160,
-        tupl = 192,
-        sint = 224
-    }
-    enum $mol_vary_len {
-        L1 = 28,
-        L2 = 29,
-        L4 = 30,
-        L8 = 31,
-        LA = 32
-    }
-    enum $mol_vary_spec {
-        none,
-        true,
-        fake,
-        both,
-        fp16,
-        fp32,
-        fp64,
-        f128,
-        f256
-    }
-    /** VaryPack - simple fast compact data binarization format. */
-    class $mol_vary_class extends Object {
-        lean_symbol: symbol;
-        array: Uint8Array<ArrayBuffer>;
-        buffer: DataView<ArrayBuffer>;
-        /** Packs any data to Uint8Array with deduplication. */
-        pack(data: readonly unknown[]): Uint8Array<ArrayBuffer>;
-        /** Parses buffer to rich runtime structures. */
-        take(array: Uint8Array<ArrayBuffer>): unknown;
-        rich_index: Map<string | null, any>;
-        /** Isolated Vary for custom types */
-        zone(): $mol_vary_class;
-        rich_node(keys: readonly string[]): Map<string | null, any>;
-        lean_find(val: any): any;
-        /** Adds custom types support. */
-        type<const Instance extends object, const Keys extends readonly any[], const Vals extends readonly any[]>({ type, keys, rich, lean }: {
-            type: new (...vals: any[]) => Instance;
-            keys: Keys;
-            lean: (obj: Instance) => Vals;
-            rich: (vals: Vals) => Instance;
-        }): void;
-    }
-    let $mol_vary: $mol_vary_class;
-}
-
-declare namespace $ {
-    /** Supported primitive types. */
-    type $giper_baza_vary_type = null | boolean | number | bigint | string | Uint8Array<ArrayBuffer> | Uint16Array<ArrayBuffer> | Uint32Array<ArrayBuffer> | BigUint64Array<ArrayBuffer> | Int8Array<ArrayBuffer> | Int16Array<ArrayBuffer> | Int32Array<ArrayBuffer> | BigInt64Array<ArrayBuffer> | Float64Array<ArrayBuffer> | Float32Array<ArrayBuffer> | Float64Array<ArrayBuffer> | $mol_time_moment | $mol_time_duration | $mol_time_interval | $mol_tree2 | $giper_baza_link | Element | readonly $giper_baza_vary_type[] | Readonly<{
-        [key in string]: $giper_baza_vary_type;
-    }>;
-    let $giper_baza_vary: $mol_vary_class;
 }
 
 declare namespace $ {
@@ -39722,6 +39722,20 @@ declare namespace $ {
 
 declare namespace $ {
     /**
+     * One reversible change of the document.
+     *
+     * Both directions are closures over the values involved rather than a diff:
+     * every write already goes through this class, so the cheapest description of
+     * a step back is the value that was there and the call that puts it back.
+     */
+    /** Both dictionaries the editor reads — the props of a node and the theme. */
+    type figmol_store_texts = {
+        keys(): readonly $giper_baza_vary_type[];
+        key(key: $giper_baza_vary_type): {
+            val(): unknown;
+        } | null | undefined;
+    };
+    /**
      * The document the editor edits, and the only thing that talks to the Baza.
      *
      * Both the canvas and the inspector work through one instance of this, passed
@@ -39735,7 +39749,7 @@ declare namespace $ {
      * subscription. Reads that come back as strings, numbers and arrays are
      * memoized, and that is where the reactivity lives.
      */
-    class $bog_figmol_store extends $mol_object2 {
+    export class $bog_figmol_store extends $mol_object2 {
         /**
          * The same list with every repeated link dropped, the first seat winning.
          *
@@ -39747,6 +39761,8 @@ declare namespace $ {
          * good, because cutting matches by value and takes every mention with it.
          */
         static dedup<Item>(items: readonly Item[], id: (item: Item) => string): readonly Item[];
+        /** A dictionary of strings as a plain record, empty when there is none. */
+        static entries(dict: figmol_store_texts | null | undefined): Readonly<Record<string, string>>;
         /** Bootstrap record in the user's own home Land: a single link to the site. */
         home(): $bog_figmol_schema_home;
         /**
@@ -39844,6 +39860,11 @@ declare namespace $ {
         /** Whether the master of `comp` holds an instance of `target`, however deep. */
         comp_uses(comp: string, target: string, deep: number): boolean;
         node_uses(id: string, target: string, deep: number): boolean;
+        /**
+         * Every token of the theme, read in one go — see `props` below for why
+         * nothing here reads a single key through an accessor that also writes.
+         */
+        theme_dict(): Readonly<Record<string, string>>;
         /** Raw token as written, empty when nothing was. */
         theme_read(key: string): string;
         theme_write(key: string, val: string): void;
@@ -39917,15 +39938,33 @@ declare namespace $ {
         redo(): boolean;
         /** Runs a step of the journal without writing a new one. */
         replay(task: () => void): void;
+        /**
+         * Every property of a node, read in one go.
+         *
+         * Nothing ever writes into this one, and that is the whole point. An
+         * accessor below both reads and writes, and a written `@$mol_mem` keeps
+         * the value it was handed without renewing what it depends on — so an
+         * accessor whose own setter creates the cell it reads goes on holding the
+         * value it wrote and never hears of that cell again. Undo of the first
+         * write to a property was exactly that: the document went back and the
+         * canvas did not.
+         *
+         * It also costs nothing extra: finding one key in a dictionary walks it
+         * anyway, and a node has a handful of properties at most.
+         */
+        props(id: string): Readonly<Record<string, string>>;
         /** One of the string properties of a node. */
         prop_read(id: string, key: string): string;
         prop_write(id: string, key: string, val: string): void;
         prop_edit(id: string, key: string, val: string): void;
         /** Geometry and layout of a node, the fields stored as numbers of their own. */
+        nums(id: string): Readonly<Record<string, number>>;
+        /** Read through the record above, and never through an accessor that writes. */
         num_read(id: string, field: string): number;
         num_write(id: string, field: string, val: number): void;
         num_edit(id: string, field: string, val: number): void;
         /** Layout of a node, the fields stored as strings of their own. */
+        strs(id: string): Readonly<Record<string, string>>;
         str_read(id: string, field: string): string;
         str_write(id: string, field: string, val: string): void;
         str_edit(id: string, field: string, val: string): void;
@@ -39988,6 +40027,15 @@ declare namespace $ {
          * the whole list rewrite counted them too. Negative means the end.
          */
         list_put(list: $giper_baza_list_link, id: string, at: number): void;
+        /**
+         * Rights the Land of a new site is grabbed with.
+         *
+         * A method rather than the constant itself so that a run without a network
+         * can put the site in the Land it already has: grabbing one runs
+         * Proof-of-Work, which is seconds of a browser rather than a step of a
+         * scenario.
+         */
+        site_preset(): null | $giper_baza_rank_preset;
         /**
          * Creates the site: a Land grabbed for it, one page, one root frame.
          *
@@ -40111,6 +40159,7 @@ declare namespace $ {
          */
         node_lift(id: string, top: boolean): void;
     }
+    export {};
 }
 
 declare namespace $ {

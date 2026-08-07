@@ -3032,196 +3032,6 @@ var $;
 ;
 "use strict";
 var $;
-(function ($_1) {
-    $mol_test({
-        'Watch one value'($) {
-            class App extends $mol_object2 {
-                static $ = $;
-                static set = new $mol_wire_set();
-                static lucky() {
-                    return this.set.has(777);
-                }
-            }
-            __decorate([
-                $mol_wire_solo
-            ], App, "lucky", null);
-            $mol_assert_equal(App.lucky(), false);
-            App.set.add(666);
-            $mol_assert_equal(App.lucky(), false);
-            App.set.add(777);
-            $mol_assert_equal(App.lucky(), true);
-            App.set.delete(777);
-            $mol_assert_equal(App.lucky(), false);
-        },
-        'Watch item channel'($) {
-            class App extends $mol_object2 {
-                static $ = $;
-                static set = new $mol_wire_set();
-                static lucky() {
-                    return this.set.item(777);
-                }
-            }
-            __decorate([
-                $mol_wire_solo
-            ], App, "lucky", null);
-            $mol_assert_equal(App.lucky(), false);
-            App.set.item(666, true);
-            $mol_assert_equal(App.lucky(), false);
-            App.set.item(777, true);
-            $mol_assert_equal(App.lucky(), true);
-            App.set.item(777, false);
-            $mol_assert_equal(App.lucky(), false);
-        },
-        'Watch size'($) {
-            class App extends $mol_object2 {
-                static $ = $;
-                static set = new $mol_wire_set();
-                static size() {
-                    return this.set.size;
-                }
-            }
-            __decorate([
-                $mol_wire_solo
-            ], App, "size", null);
-            $mol_assert_equal(App.size(), 0);
-            App.set.add(666);
-            $mol_assert_equal(App.size(), 1);
-            App.set.add(777);
-            $mol_assert_equal(App.size(), 2);
-            App.set.delete(777);
-            $mol_assert_equal(App.size(), 1);
-        },
-        'Watch for-of'($) {
-            class App extends $mol_object2 {
-                static $ = $;
-                static set = new $mol_wire_set();
-                static sum() {
-                    let res = 0;
-                    for (const val of this.set) {
-                        res += val;
-                    }
-                    return res;
-                }
-            }
-            __decorate([
-                $mol_wire_solo
-            ], App, "sum", null);
-            $mol_assert_equal(App.sum(), 0);
-            App.set.add(111);
-            $mol_assert_equal(App.sum(), 111);
-            App.set.add(222);
-            $mol_assert_equal(App.sum(), 333);
-            App.set.delete(111);
-            $mol_assert_equal(App.sum(), 222);
-        },
-        'Watch forEach'($) {
-            class App extends $mol_object2 {
-                static $ = $;
-                static set = new $mol_wire_set();
-                static sum() {
-                    let res = 0;
-                    this.set.forEach(val => res += val);
-                    return res;
-                }
-            }
-            __decorate([
-                $mol_wire_solo
-            ], App, "sum", null);
-            $mol_assert_equal(App.sum(), 0);
-            App.set.add(111);
-            $mol_assert_equal(App.sum(), 111);
-            App.set.add(222);
-            $mol_assert_equal(App.sum(), 333);
-            App.set.delete(111);
-            $mol_assert_equal(App.sum(), 222);
-        },
-    });
-})($ || ($ = {}));
-
-;
-"use strict";
-var $;
-(function ($) {
-    $mol_test({
-        'ordered links'() {
-            var graph = new $mol_graph();
-            graph.link('A', 'B', 'E');
-            $mol_assert_equal(graph.edge_out('A', 'B'), 'E');
-            $mol_assert_equal(graph.edge_in('B', 'A'), 'E');
-            $mol_assert_equal(graph.edge_out('B', 'A'), null);
-            $mol_assert_equal(graph.edge_in('A', 'B'), null);
-        },
-        'nodes without edges'() {
-            var graph = new $mol_graph();
-            graph.nodes.add('A');
-            graph.nodes.add('B');
-            graph.nodes.add('C');
-            graph.nodes.add('D');
-            graph.acyclic(edge => 0);
-            $mol_assert_equal([...graph.sorted].join(''), 'ABCD');
-        },
-        'partial ordering'() {
-            var graph = new $mol_graph();
-            graph.nodes.add('A');
-            graph.nodes.add('B');
-            graph.nodes.add('C');
-            graph.nodes.add('D');
-            graph.link('B', 'C', { priority: 0 });
-            graph.acyclic(edge => edge.priority);
-            $mol_assert_equal([...graph.sorted].join(''), 'ACBD');
-        },
-        'sorting must cut cycles at low priority edges A'() {
-            var graph = new $mol_graph();
-            graph.link('A', 'B', { priority: 0 });
-            graph.link('B', 'C', { priority: -2 });
-            graph.link('C', 'D', { priority: 0 });
-            graph.link('D', 'A', { priority: -1 });
-            graph.acyclic(edge => edge.priority);
-            $mol_assert_equal([...graph.sorted].join(''), 'BADC');
-        },
-        'sorting must cut cycles at low priority edges B'() {
-            var graph = new $mol_graph();
-            graph.link('B', 'C', { priority: -2 });
-            graph.link('C', 'D', { priority: 0 });
-            graph.link('D', 'A', { priority: -1 });
-            graph.link('A', 'B', { priority: 0 });
-            graph.acyclic(edge => edge.priority);
-            $mol_assert_equal([...graph.sorted].join(''), 'BADC');
-        },
-        'sorting must cut cycles at low priority edges C'() {
-            var graph = new $mol_graph();
-            graph.link('C', 'D', { priority: 0 });
-            graph.link('D', 'A', { priority: -1 });
-            graph.link('A', 'B', { priority: 0 });
-            graph.link('B', 'C', { priority: -2 });
-            graph.acyclic(edge => edge.priority);
-            $mol_assert_equal([...graph.sorted].join(''), 'BADC');
-        },
-        'sorting must cut cycles at low priority edges D'() {
-            var graph = new $mol_graph();
-            graph.link('D', 'A', { priority: -1 });
-            graph.link('A', 'B', { priority: 0 });
-            graph.link('B', 'C', { priority: -2 });
-            graph.link('C', 'D', { priority: 0 });
-            graph.acyclic(edge => edge.priority);
-            $mol_assert_equal([...graph.sorted].join(''), 'BADC');
-        },
-        'sorting must group cutted cycles'() {
-            var graph = new $mol_graph();
-            graph.link('A', 'B', 0);
-            graph.link('B', 'C', 0);
-            graph.link('C', 'D', -2);
-            graph.link('D', 'E', 0);
-            graph.link('E', 'C', 0);
-            graph.acyclic(edge => edge);
-            $mol_assert_equal([...graph.sorted].join(''), 'CEDBA');
-        },
-    });
-})($ || ($ = {}));
-
-;
-"use strict";
-var $;
 (function ($) {
     $mol_test({
         'parse and serial'() {
@@ -3325,222 +3135,6 @@ var $;
             $mol_assert_equal(restored.offset?.count('PT1m'), 0);
         },
     });
-})($ || ($ = {}));
-
-;
-"use strict";
-var $;
-(function ($_1) {
-    $mol_test({
-        'Watch one value'($) {
-            class App extends $mol_object2 {
-                static $ = $;
-                static dict = new $mol_wire_dict();
-                static lucky() {
-                    return this.dict.get(777);
-                }
-            }
-            __decorate([
-                $mol_wire_solo
-            ], App, "lucky", null);
-            $mol_assert_equal(App.lucky(), undefined);
-            App.dict.set(666, 6666);
-            $mol_assert_equal(App.lucky(), undefined);
-            App.dict.set(777, 7777);
-            $mol_assert_equal(App.lucky(), 7777);
-            App.dict.delete(777);
-            $mol_assert_equal(App.lucky(), undefined);
-        },
-        'Watch item channel'($) {
-            class App extends $mol_object2 {
-                static $ = $;
-                static dict = new $mol_wire_dict();
-                static lucky() {
-                    return this.dict.item(777);
-                }
-            }
-            __decorate([
-                $mol_wire_solo
-            ], App, "lucky", null);
-            $mol_assert_equal(App.lucky(), null);
-            App.dict.item(666, 6666);
-            $mol_assert_equal(App.lucky(), null);
-            App.dict.item(777, 7777);
-            $mol_assert_equal(App.lucky(), 7777);
-            App.dict.item(777, null);
-            $mol_assert_equal(App.lucky(), null);
-        },
-        'Watch size'($) {
-            class App extends $mol_object2 {
-                static $ = $;
-                static dict = new $mol_wire_dict();
-                static size() {
-                    return this.dict.size;
-                }
-            }
-            __decorate([
-                $mol_wire_solo
-            ], App, "size", null);
-            $mol_assert_equal(App.size(), 0);
-            App.dict.set(666, 6666);
-            $mol_assert_equal(App.size(), 1);
-            App.dict.set(777, 7777);
-            $mol_assert_equal(App.size(), 2);
-            App.dict.delete(777);
-            $mol_assert_equal(App.size(), 1);
-        },
-        'Watch for-of'($) {
-            class App extends $mol_object2 {
-                static $ = $;
-                static dict = new $mol_wire_dict();
-                static sum() {
-                    let keys = 0;
-                    let vals = 0;
-                    for (const [key, val] of this.dict) {
-                        keys += key;
-                        vals += val;
-                    }
-                    return [keys, vals];
-                }
-            }
-            __decorate([
-                $mol_wire_solo
-            ], App, "sum", null);
-            $mol_assert_like(App.sum(), [0, 0]);
-            App.dict.set(111, 1111);
-            $mol_assert_like(App.sum(), [111, 1111]);
-            App.dict.set(222, 2222);
-            $mol_assert_like(App.sum(), [333, 3333]);
-            App.dict.delete(111);
-            $mol_assert_like(App.sum(), [222, 2222]);
-        },
-        'Watch forEach'($) {
-            class App extends $mol_object2 {
-                static $ = $;
-                static dict = new $mol_wire_dict();
-                static sum() {
-                    let keys = 0;
-                    let vals = 0;
-                    this.dict.forEach((val, key) => {
-                        keys += key;
-                        vals += val;
-                    });
-                    return [keys, vals];
-                }
-            }
-            __decorate([
-                $mol_wire_solo
-            ], App, "sum", null);
-            $mol_assert_like(App.sum(), [0, 0]);
-            App.dict.set(111, 1111);
-            $mol_assert_like(App.sum(), [111, 1111]);
-            App.dict.set(222, 2222);
-            $mol_assert_like(App.sum(), [333, 3333]);
-            App.dict.delete(111);
-            $mol_assert_like(App.sum(), [222, 2222]);
-        },
-    });
-})($ || ($ = {}));
-
-;
-"use strict";
-var $;
-(function ($_1) {
-    var $$;
-    (function ($$) {
-        $mol_test({
-            "Empty release"($) {
-                const pool = new $mol_memory_pool;
-                $mol_assert_equal(pool.empty(), true);
-                pool.release(0, 0);
-                $mol_assert_equal(pool.acquire(8), 0);
-                $mol_assert_equal(pool.empty(), false);
-                pool.release(0, 8);
-                $mol_assert_equal(pool.empty(), true);
-            },
-            "linear allocation"($) {
-                const pool = new $mol_memory_pool;
-                $mol_assert_equal(pool.acquire(8), 0);
-                $mol_assert_equal(pool.acquire(16), 8);
-                $mol_assert_equal(pool.acquire(32), 24);
-            },
-            "allocation in released"($) {
-                const pool = new $mol_memory_pool;
-                $mol_assert_equal(pool.acquire(8), 0);
-                $mol_assert_equal(pool.acquire(16), 8);
-                pool.release(0, 16);
-                $mol_assert_equal(pool.acquire(8), 0);
-                $mol_assert_equal(pool.acquire(16), 24);
-                $mol_assert_equal(pool.acquire(8), 8);
-            },
-            "space limitation"($) {
-                const pool = new $mol_memory_pool(10);
-                pool.acquire(8);
-                pool.release(2, 4);
-                $mol_assert_fail(() => pool.acquire(6), 'No free space\nneed: 6\nhave: 4');
-            },
-            "double release"($) {
-                const pool = new $mol_memory_pool;
-                $mol_assert_fail(() => pool.release(0, 2), 'Double release');
-                $mol_assert_fail(() => pool.release(2, 2), 'Release out of allocated');
-                pool.acquire(16);
-                pool.release(4, 8);
-                $mol_assert_fail(() => pool.release(4, 8), 'Double release');
-                $mol_assert_fail(() => pool.release(10, 4), 'Double release');
-                $mol_assert_fail(() => pool.release(2, 4), 'Double release');
-            },
-        });
-    })($$ = $_1.$$ || ($_1.$$ = {}));
-})($ || ($ = {}));
-
-;
-"use strict";
-var $;
-(function ($_1) {
-    var $$;
-    (function ($$) {
-        $mol_test({
-            "faces serial and parse"($) {
-                const land1 = new $giper_baza_link('12345678_12345678');
-                const land2 = new $giper_baza_link('87654321_87654321');
-                const land3 = new $giper_baza_link('87654321_00000000');
-                const peer1 = new $giper_baza_link('12345678');
-                const peer2 = new $giper_baza_link('87654321');
-                const faces1 = new $giper_baza_face_map;
-                faces1.peer_time(peer1.str, $giper_baza_time_now(), 0);
-                faces1.peer_summ(peer1.str, 0);
-                faces1.peer_time(peer2.str, $giper_baza_time_now(), 0);
-                faces1.peer_summ(peer2.str, 64_000);
-                const faces2 = new $giper_baza_face_map;
-                faces2.peer_time(peer1.str, $giper_baza_time_now(), 0);
-                faces2.peer_summ(peer1.str, 1);
-                faces2.peer_time(peer2.str, $giper_baza_time_now(), 1);
-                const faces3 = new $giper_baza_face_map;
-                const parts = [
-                    [land1.str, new $giper_baza_pack_part([], faces1)],
-                    [land2.str, new $giper_baza_pack_part([], faces2)],
-                    [land3.str, new $giper_baza_pack_part([], faces3)],
-                ];
-                const pack = $giper_baza_pack.make(parts);
-                $mol_assert_equal(parts, pack.parts());
-            },
-            "units serial and parse"($) {
-                const land = new $giper_baza_link('12345678_12345678');
-                const pass = $.$giper_baza_auth.grab().pass();
-                const gift = $giper_baza_unit_gift.make();
-                const sand_small = $giper_baza_unit_sand.make(5);
-                const ball = new Uint8Array($giper_baza_unit_sand.size_equator + 5);
-                const sand_big = $giper_baza_unit_sand.make(ball.byteLength);
-                sand_big.ball(ball);
-                const seal = $giper_baza_unit_seal.make(15, true);
-                const parts = [
-                    [land.str, new $giper_baza_pack_part([pass, gift, sand_small, sand_big, seal])],
-                ];
-                const pack = $giper_baza_pack.make(parts);
-                $mol_assert_equal(parts, pack.parts());
-            },
-        });
-    })($$ = $_1.$$ || ($_1.$$ = {}));
 })($ || ($ = {}));
 
 ;
@@ -4220,6 +3814,412 @@ var $;
 					foo \\bar
 			`);
                 $mol_assert_equal($.$mol_tree2_to_string($giper_baza_vary.take($giper_baza_vary.pack([tree]))[0]), $.$mol_tree2_to_string(tree));
+            },
+        });
+    })($$ = $_1.$$ || ($_1.$$ = {}));
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($_1) {
+    $mol_test({
+        'Watch one value'($) {
+            class App extends $mol_object2 {
+                static $ = $;
+                static set = new $mol_wire_set();
+                static lucky() {
+                    return this.set.has(777);
+                }
+            }
+            __decorate([
+                $mol_wire_solo
+            ], App, "lucky", null);
+            $mol_assert_equal(App.lucky(), false);
+            App.set.add(666);
+            $mol_assert_equal(App.lucky(), false);
+            App.set.add(777);
+            $mol_assert_equal(App.lucky(), true);
+            App.set.delete(777);
+            $mol_assert_equal(App.lucky(), false);
+        },
+        'Watch item channel'($) {
+            class App extends $mol_object2 {
+                static $ = $;
+                static set = new $mol_wire_set();
+                static lucky() {
+                    return this.set.item(777);
+                }
+            }
+            __decorate([
+                $mol_wire_solo
+            ], App, "lucky", null);
+            $mol_assert_equal(App.lucky(), false);
+            App.set.item(666, true);
+            $mol_assert_equal(App.lucky(), false);
+            App.set.item(777, true);
+            $mol_assert_equal(App.lucky(), true);
+            App.set.item(777, false);
+            $mol_assert_equal(App.lucky(), false);
+        },
+        'Watch size'($) {
+            class App extends $mol_object2 {
+                static $ = $;
+                static set = new $mol_wire_set();
+                static size() {
+                    return this.set.size;
+                }
+            }
+            __decorate([
+                $mol_wire_solo
+            ], App, "size", null);
+            $mol_assert_equal(App.size(), 0);
+            App.set.add(666);
+            $mol_assert_equal(App.size(), 1);
+            App.set.add(777);
+            $mol_assert_equal(App.size(), 2);
+            App.set.delete(777);
+            $mol_assert_equal(App.size(), 1);
+        },
+        'Watch for-of'($) {
+            class App extends $mol_object2 {
+                static $ = $;
+                static set = new $mol_wire_set();
+                static sum() {
+                    let res = 0;
+                    for (const val of this.set) {
+                        res += val;
+                    }
+                    return res;
+                }
+            }
+            __decorate([
+                $mol_wire_solo
+            ], App, "sum", null);
+            $mol_assert_equal(App.sum(), 0);
+            App.set.add(111);
+            $mol_assert_equal(App.sum(), 111);
+            App.set.add(222);
+            $mol_assert_equal(App.sum(), 333);
+            App.set.delete(111);
+            $mol_assert_equal(App.sum(), 222);
+        },
+        'Watch forEach'($) {
+            class App extends $mol_object2 {
+                static $ = $;
+                static set = new $mol_wire_set();
+                static sum() {
+                    let res = 0;
+                    this.set.forEach(val => res += val);
+                    return res;
+                }
+            }
+            __decorate([
+                $mol_wire_solo
+            ], App, "sum", null);
+            $mol_assert_equal(App.sum(), 0);
+            App.set.add(111);
+            $mol_assert_equal(App.sum(), 111);
+            App.set.add(222);
+            $mol_assert_equal(App.sum(), 333);
+            App.set.delete(111);
+            $mol_assert_equal(App.sum(), 222);
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($) {
+    $mol_test({
+        'ordered links'() {
+            var graph = new $mol_graph();
+            graph.link('A', 'B', 'E');
+            $mol_assert_equal(graph.edge_out('A', 'B'), 'E');
+            $mol_assert_equal(graph.edge_in('B', 'A'), 'E');
+            $mol_assert_equal(graph.edge_out('B', 'A'), null);
+            $mol_assert_equal(graph.edge_in('A', 'B'), null);
+        },
+        'nodes without edges'() {
+            var graph = new $mol_graph();
+            graph.nodes.add('A');
+            graph.nodes.add('B');
+            graph.nodes.add('C');
+            graph.nodes.add('D');
+            graph.acyclic(edge => 0);
+            $mol_assert_equal([...graph.sorted].join(''), 'ABCD');
+        },
+        'partial ordering'() {
+            var graph = new $mol_graph();
+            graph.nodes.add('A');
+            graph.nodes.add('B');
+            graph.nodes.add('C');
+            graph.nodes.add('D');
+            graph.link('B', 'C', { priority: 0 });
+            graph.acyclic(edge => edge.priority);
+            $mol_assert_equal([...graph.sorted].join(''), 'ACBD');
+        },
+        'sorting must cut cycles at low priority edges A'() {
+            var graph = new $mol_graph();
+            graph.link('A', 'B', { priority: 0 });
+            graph.link('B', 'C', { priority: -2 });
+            graph.link('C', 'D', { priority: 0 });
+            graph.link('D', 'A', { priority: -1 });
+            graph.acyclic(edge => edge.priority);
+            $mol_assert_equal([...graph.sorted].join(''), 'BADC');
+        },
+        'sorting must cut cycles at low priority edges B'() {
+            var graph = new $mol_graph();
+            graph.link('B', 'C', { priority: -2 });
+            graph.link('C', 'D', { priority: 0 });
+            graph.link('D', 'A', { priority: -1 });
+            graph.link('A', 'B', { priority: 0 });
+            graph.acyclic(edge => edge.priority);
+            $mol_assert_equal([...graph.sorted].join(''), 'BADC');
+        },
+        'sorting must cut cycles at low priority edges C'() {
+            var graph = new $mol_graph();
+            graph.link('C', 'D', { priority: 0 });
+            graph.link('D', 'A', { priority: -1 });
+            graph.link('A', 'B', { priority: 0 });
+            graph.link('B', 'C', { priority: -2 });
+            graph.acyclic(edge => edge.priority);
+            $mol_assert_equal([...graph.sorted].join(''), 'BADC');
+        },
+        'sorting must cut cycles at low priority edges D'() {
+            var graph = new $mol_graph();
+            graph.link('D', 'A', { priority: -1 });
+            graph.link('A', 'B', { priority: 0 });
+            graph.link('B', 'C', { priority: -2 });
+            graph.link('C', 'D', { priority: 0 });
+            graph.acyclic(edge => edge.priority);
+            $mol_assert_equal([...graph.sorted].join(''), 'BADC');
+        },
+        'sorting must group cutted cycles'() {
+            var graph = new $mol_graph();
+            graph.link('A', 'B', 0);
+            graph.link('B', 'C', 0);
+            graph.link('C', 'D', -2);
+            graph.link('D', 'E', 0);
+            graph.link('E', 'C', 0);
+            graph.acyclic(edge => edge);
+            $mol_assert_equal([...graph.sorted].join(''), 'CEDBA');
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($_1) {
+    $mol_test({
+        'Watch one value'($) {
+            class App extends $mol_object2 {
+                static $ = $;
+                static dict = new $mol_wire_dict();
+                static lucky() {
+                    return this.dict.get(777);
+                }
+            }
+            __decorate([
+                $mol_wire_solo
+            ], App, "lucky", null);
+            $mol_assert_equal(App.lucky(), undefined);
+            App.dict.set(666, 6666);
+            $mol_assert_equal(App.lucky(), undefined);
+            App.dict.set(777, 7777);
+            $mol_assert_equal(App.lucky(), 7777);
+            App.dict.delete(777);
+            $mol_assert_equal(App.lucky(), undefined);
+        },
+        'Watch item channel'($) {
+            class App extends $mol_object2 {
+                static $ = $;
+                static dict = new $mol_wire_dict();
+                static lucky() {
+                    return this.dict.item(777);
+                }
+            }
+            __decorate([
+                $mol_wire_solo
+            ], App, "lucky", null);
+            $mol_assert_equal(App.lucky(), null);
+            App.dict.item(666, 6666);
+            $mol_assert_equal(App.lucky(), null);
+            App.dict.item(777, 7777);
+            $mol_assert_equal(App.lucky(), 7777);
+            App.dict.item(777, null);
+            $mol_assert_equal(App.lucky(), null);
+        },
+        'Watch size'($) {
+            class App extends $mol_object2 {
+                static $ = $;
+                static dict = new $mol_wire_dict();
+                static size() {
+                    return this.dict.size;
+                }
+            }
+            __decorate([
+                $mol_wire_solo
+            ], App, "size", null);
+            $mol_assert_equal(App.size(), 0);
+            App.dict.set(666, 6666);
+            $mol_assert_equal(App.size(), 1);
+            App.dict.set(777, 7777);
+            $mol_assert_equal(App.size(), 2);
+            App.dict.delete(777);
+            $mol_assert_equal(App.size(), 1);
+        },
+        'Watch for-of'($) {
+            class App extends $mol_object2 {
+                static $ = $;
+                static dict = new $mol_wire_dict();
+                static sum() {
+                    let keys = 0;
+                    let vals = 0;
+                    for (const [key, val] of this.dict) {
+                        keys += key;
+                        vals += val;
+                    }
+                    return [keys, vals];
+                }
+            }
+            __decorate([
+                $mol_wire_solo
+            ], App, "sum", null);
+            $mol_assert_like(App.sum(), [0, 0]);
+            App.dict.set(111, 1111);
+            $mol_assert_like(App.sum(), [111, 1111]);
+            App.dict.set(222, 2222);
+            $mol_assert_like(App.sum(), [333, 3333]);
+            App.dict.delete(111);
+            $mol_assert_like(App.sum(), [222, 2222]);
+        },
+        'Watch forEach'($) {
+            class App extends $mol_object2 {
+                static $ = $;
+                static dict = new $mol_wire_dict();
+                static sum() {
+                    let keys = 0;
+                    let vals = 0;
+                    this.dict.forEach((val, key) => {
+                        keys += key;
+                        vals += val;
+                    });
+                    return [keys, vals];
+                }
+            }
+            __decorate([
+                $mol_wire_solo
+            ], App, "sum", null);
+            $mol_assert_like(App.sum(), [0, 0]);
+            App.dict.set(111, 1111);
+            $mol_assert_like(App.sum(), [111, 1111]);
+            App.dict.set(222, 2222);
+            $mol_assert_like(App.sum(), [333, 3333]);
+            App.dict.delete(111);
+            $mol_assert_like(App.sum(), [222, 2222]);
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($_1) {
+    var $$;
+    (function ($$) {
+        $mol_test({
+            "Empty release"($) {
+                const pool = new $mol_memory_pool;
+                $mol_assert_equal(pool.empty(), true);
+                pool.release(0, 0);
+                $mol_assert_equal(pool.acquire(8), 0);
+                $mol_assert_equal(pool.empty(), false);
+                pool.release(0, 8);
+                $mol_assert_equal(pool.empty(), true);
+            },
+            "linear allocation"($) {
+                const pool = new $mol_memory_pool;
+                $mol_assert_equal(pool.acquire(8), 0);
+                $mol_assert_equal(pool.acquire(16), 8);
+                $mol_assert_equal(pool.acquire(32), 24);
+            },
+            "allocation in released"($) {
+                const pool = new $mol_memory_pool;
+                $mol_assert_equal(pool.acquire(8), 0);
+                $mol_assert_equal(pool.acquire(16), 8);
+                pool.release(0, 16);
+                $mol_assert_equal(pool.acquire(8), 0);
+                $mol_assert_equal(pool.acquire(16), 24);
+                $mol_assert_equal(pool.acquire(8), 8);
+            },
+            "space limitation"($) {
+                const pool = new $mol_memory_pool(10);
+                pool.acquire(8);
+                pool.release(2, 4);
+                $mol_assert_fail(() => pool.acquire(6), 'No free space\nneed: 6\nhave: 4');
+            },
+            "double release"($) {
+                const pool = new $mol_memory_pool;
+                $mol_assert_fail(() => pool.release(0, 2), 'Double release');
+                $mol_assert_fail(() => pool.release(2, 2), 'Release out of allocated');
+                pool.acquire(16);
+                pool.release(4, 8);
+                $mol_assert_fail(() => pool.release(4, 8), 'Double release');
+                $mol_assert_fail(() => pool.release(10, 4), 'Double release');
+                $mol_assert_fail(() => pool.release(2, 4), 'Double release');
+            },
+        });
+    })($$ = $_1.$$ || ($_1.$$ = {}));
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($_1) {
+    var $$;
+    (function ($$) {
+        $mol_test({
+            "faces serial and parse"($) {
+                const land1 = new $giper_baza_link('12345678_12345678');
+                const land2 = new $giper_baza_link('87654321_87654321');
+                const land3 = new $giper_baza_link('87654321_00000000');
+                const peer1 = new $giper_baza_link('12345678');
+                const peer2 = new $giper_baza_link('87654321');
+                const faces1 = new $giper_baza_face_map;
+                faces1.peer_time(peer1.str, $giper_baza_time_now(), 0);
+                faces1.peer_summ(peer1.str, 0);
+                faces1.peer_time(peer2.str, $giper_baza_time_now(), 0);
+                faces1.peer_summ(peer2.str, 64_000);
+                const faces2 = new $giper_baza_face_map;
+                faces2.peer_time(peer1.str, $giper_baza_time_now(), 0);
+                faces2.peer_summ(peer1.str, 1);
+                faces2.peer_time(peer2.str, $giper_baza_time_now(), 1);
+                const faces3 = new $giper_baza_face_map;
+                const parts = [
+                    [land1.str, new $giper_baza_pack_part([], faces1)],
+                    [land2.str, new $giper_baza_pack_part([], faces2)],
+                    [land3.str, new $giper_baza_pack_part([], faces3)],
+                ];
+                const pack = $giper_baza_pack.make(parts);
+                $mol_assert_equal(parts, pack.parts());
+            },
+            "units serial and parse"($) {
+                const land = new $giper_baza_link('12345678_12345678');
+                const pass = $.$giper_baza_auth.grab().pass();
+                const gift = $giper_baza_unit_gift.make();
+                const sand_small = $giper_baza_unit_sand.make(5);
+                const ball = new Uint8Array($giper_baza_unit_sand.size_equator + 5);
+                const sand_big = $giper_baza_unit_sand.make(ball.byteLength);
+                sand_big.ball(ball);
+                const seal = $giper_baza_unit_seal.make(15, true);
+                const parts = [
+                    [land.str, new $giper_baza_pack_part([pass, gift, sand_small, sand_big, seal])],
+                ];
+                const pack = $giper_baza_pack.make(parts);
+                $mol_assert_equal(parts, pack.parts());
             },
         });
     })($$ = $_1.$$ || ($_1.$$ = {}));
@@ -7373,6 +7373,466 @@ var $;
 ;
 "use strict";
 var $;
+(function ($_1) {
+    $mol_test({
+        /**
+         * A drag that comes close to a neighbour lands exactly on it, says so with
+         * a guide across the sheet, and writes nothing until the pointer is let go
+         * — a drag that wrote as it went would be hundreds of units for one move.
+         */
+        'a dragged element sticks to its neighbour and says so with a guide'($) {
+            const scene = figmol_web_scene($);
+            const root = scene.build();
+            const near = scene.store.node_add('rect', root, 100, 100, '');
+            const moved = scene.store.node_add('rect', root, 500, 400, '');
+            scene.draw();
+            // Three pixels short of the left edge of the neighbour, which is well
+            // within the six a hand is allowed to miss by.
+            const from = scene.spot(610, 470);
+            const to = scene.spot(213, 470);
+            figmol_web_point(scene.shape(moved), 'pointerdown', from);
+            scene.draw();
+            figmol_web_point(scene.canvas.dom_node(), 'pointermove', to);
+            scene.draw();
+            $mol_assert_equal(scene.canvas.guide_x(), 100);
+            $mol_assert_equal(scene.canvas.guide_y(), null);
+            $mol_assert_ok(scene.node.querySelector('[bog_figmol_app_canvas_guide_x]'));
+            // The rulers to whatever the box now stands beside are up as well.
+            $mol_assert_ok(scene.node.querySelector('[bog_figmol_app_canvas_measure]'));
+            // The shape has moved on screen and the document has not heard of it.
+            $mol_assert_like(scene.canvas.shape_rect(moved), [100, 400, 220, 140]);
+            $mol_assert_like(scene.store.rect(moved), [500, 400, 220, 140]);
+            $mol_assert_equal(Math.round(scene.shape(moved).getBoundingClientRect().left), Math.round(scene.shape(near).getBoundingClientRect().left));
+            figmol_web_point(scene.canvas.dom_node(), 'pointerup', { ...to, buttons: 0 });
+            scene.draw();
+            $mol_assert_like(scene.store.rect(moved), [100, 400, 220, 140]);
+            // The guide belongs to the gesture and goes away with it.
+            $mol_assert_equal(scene.canvas.guide_x(), null);
+            $mol_assert_equal(scene.node.querySelector('[bog_figmol_app_canvas_guide_x]'), null);
+            scene.done();
+        },
+        /**
+         * A corner grip moves two edges and a side grip moves one, and the corner
+         * across from whichever is pulled stays where it is.
+         */
+        'a corner grip resizes both ways and a side grip only its own'($) {
+            const scene = figmol_web_scene($);
+            const root = scene.build();
+            const id = scene.store.node_add('rect', root, 300, 300, '');
+            scene.canvas.selection([id]);
+            scene.draw();
+            // Grips belong to a single picked element, and there they are.
+            $mol_assert_equal(scene.shape(id).querySelectorAll('[figmol_handle]').length, 8);
+            figmol_web_drag(scene, scene.canvas.Shape(id).Handle_se().dom_node(), scene.spot(520, 440), scene.spot(560, 460));
+            $mol_assert_like(scene.store.rect(id), [300, 300, 260, 160]);
+            // A side grip is offered the other axis and refuses it.
+            figmol_web_drag(scene, scene.canvas.Shape(id).Handle_e().dom_node(), scene.spot(560, 380), scene.spot(590, 430));
+            $mol_assert_like(scene.store.rect(id), [300, 300, 290, 160]);
+            // The box on screen is the box in the document.
+            const rect = scene.shape(id).getBoundingClientRect();
+            $mol_assert_equal(Math.round(rect.width), 290);
+            $mol_assert_equal(Math.round(rect.height), 160);
+            // A grip that pulls the west edge leaves the east one alone.
+            figmol_web_drag(scene, scene.canvas.Shape(id).Handle_w().dom_node(), scene.spot(300, 380), scene.spot(340, 380));
+            $mol_assert_like(scene.store.rect(id), [340, 300, 250, 160]);
+            scene.done();
+        },
+        /**
+         * A band pulled across empty space picks up everything it touches, the
+         * whole lot moves as one, and one step back is the whole of that move —
+         * not one step per element.
+         */
+        'a rubber band picks several elements and one undo takes their move back'($) {
+            const scene = figmol_web_scene($);
+            const root = scene.build();
+            const a = scene.store.node_add('rect', root, 100, 300, '');
+            const b = scene.store.node_add('rect', root, 400, 300, '');
+            const far = scene.store.node_add('rect', root, 900, 300, '');
+            scene.draw();
+            figmol_web_drag(scene, scene.canvas.dom_node(), scene.spot(80, 280), scene.spot(700, 500));
+            $mol_assert_like(scene.canvas.selection(), [a, b]);
+            // A frame is drawn around several elements instead of grips on each.
+            $mol_assert_ok(scene.node.querySelector('[figmol_group]'));
+            $mol_assert_equal(scene.shape(a).querySelectorAll('[figmol_handle]').length, 0);
+            figmol_web_drag(scene, scene.shape(b), scene.spot(510, 370), scene.spot(560, 400));
+            $mol_assert_like(scene.store.rect(a), [150, 330, 220, 140]);
+            $mol_assert_like(scene.store.rect(b), [450, 330, 220, 140]);
+            $mol_assert_like(scene.store.rect(far), [900, 300, 220, 140]);
+            figmol_web_key($.$mol_dom_context, 'KeyZ', 90, { metaKey: true });
+            scene.draw();
+            $mol_assert_like(scene.store.rect(a), [100, 300, 220, 140]);
+            $mol_assert_like(scene.store.rect(b), [400, 300, 220, 140]);
+            scene.done();
+        },
+        /**
+         * A frame with a direction lays its children out itself: what falls into
+         * one joins the flow and gives up its own coordinates, and what is pulled
+         * back out keeps the place the pointer left it in.
+         */
+        'an element dropped into a frame joins its flow and comes back out where it was left'($) {
+            const scene = figmol_web_scene($);
+            const root = scene.build();
+            const frame = scene.store.node_add('frame', root, 100, 100, '');
+            const box = scene.store.node_add('rect', root, 800, 150, '');
+            scene.draw();
+            $mol_assert_equal(scene.store.auto_layout(frame), true);
+            $mol_assert_equal(scene.store.flow(box), false);
+            const grab = scene.spot(910, 220);
+            const drop = scene.spot(340, 260);
+            figmol_web_point(scene.shape(box), 'pointerdown', grab);
+            scene.draw();
+            figmol_web_point(scene.canvas.dom_node(), 'pointermove', drop);
+            scene.draw();
+            // The frame the drop is aimed at says so while the pointer is still down.
+            $mol_assert_equal(scene.canvas.drop_target(), frame);
+            $mol_assert_equal(scene.shape(frame).getAttribute('figmol_dropping'), 'true');
+            figmol_web_point(scene.canvas.dom_node(), 'pointerup', { ...drop, buttons: 0 });
+            scene.draw();
+            $mol_assert_equal(scene.store.parent(box), frame);
+            $mol_assert_equal(scene.store.flow(box), true);
+            $mol_assert_ok(scene.shape(frame).contains(scene.shape(box)));
+            // Its own placement is gone: the frame decides where it sits now.
+            $mol_assert_equal(scene.shape(box).getAttribute('figmol_flow'), 'true');
+            $mol_assert_equal(scene.shape(box).style.left, '');
+            $mol_assert_equal(scene.canvas.drop_target(), '');
+            // And back out onto the page. A press on a child of a frame takes the
+            // frame, so getting hold of the child is a double click first — the
+            // same way in as anywhere else.
+            const inside = scene.shape(box).getBoundingClientRect();
+            scene.shape(box).dispatchEvent(new MouseEvent('dblclick', {
+                bubbles: true,
+                cancelable: true,
+                clientX: inside.left + 20,
+                clientY: inside.top + 10,
+            }));
+            scene.draw();
+            $mol_assert_equal(scene.canvas.scope(), frame);
+            $mol_assert_like(scene.canvas.selection(), [box]);
+            const before = scene.canvas.node_place(box);
+            const out_from = scene.spot(before[0] + 20, before[1] + 20);
+            const out_to = scene.spot(820, 620);
+            figmol_web_drag(scene, scene.shape(box), out_from, out_to);
+            $mol_assert_equal(scene.store.parent(box), root);
+            $mol_assert_equal(scene.store.flow(box), false);
+            $mol_assert_equal(scene.store.x(box), 800);
+            $mol_assert_equal(scene.store.y(box), 600);
+            scene.done();
+        },
+        /**
+         * Inside an auto layout a drag is about the order and not about the
+         * coordinates, and where the element ends up is read off the screen —
+         * the numbers stored on it say nothing there.
+         */
+        'a drag inside an auto layout changes the order of the frame'($) {
+            const scene = figmol_web_scene($);
+            const root = scene.build();
+            const frame = scene.store.node_add('frame', root, 100, 100, '');
+            const one = scene.store.node_add('rect', frame, 0, 0, '');
+            const two = scene.store.node_add('rect', frame, 0, 0, '');
+            scene.draw();
+            $mol_assert_like(scene.store.kids(frame), [one, two]);
+            const first = scene.shape(one).getBoundingClientRect();
+            const second = scene.shape(two).getBoundingClientRect();
+            // A press on a child of a frame takes the frame, so the way to an
+            // element inside one is the same as everywhere: a double click in.
+            scene.shape(two).dispatchEvent(new MouseEvent('dblclick', {
+                bubbles: true,
+                cancelable: true,
+                clientX: second.left + 20,
+                clientY: second.top + 10,
+            }));
+            scene.draw();
+            $mol_assert_equal(scene.canvas.scope(), frame);
+            $mol_assert_like(scene.canvas.selection(), [two]);
+            // Above the middle of the element that is first, which is the whole of
+            // what "put this one before that one" means to the drop.
+            figmol_web_drag(scene, scene.shape(two), { clientX: second.left + 20, clientY: second.top + 10 }, { clientX: first.left + 20, clientY: first.top + 5 });
+            $mol_assert_like(scene.store.kids(frame), [two, one]);
+            // The page shows the same order, and neither of them has moved out.
+            const drawn = [...scene.shape(frame).children]
+                .map(node => node.getAttribute('figmol_node'))
+                .filter(id => !!id);
+            $mol_assert_like(drawn, [two, one]);
+            $mol_assert_equal(scene.store.parent(two), frame);
+            scene.done();
+        },
+        /**
+         * What a press picks out of the stack under it: the outermost element of
+         * the level being edited, whatever is deepest with ⌘, and one level deeper
+         * after a double click.
+         */
+        'a press picks the outer element, ⌘ the deepest and a double click goes inside'($) {
+            const scene = figmol_web_scene($);
+            const root = scene.build();
+            const card = scene.store.node_add('bui_card', root, 100, 100, '');
+            const label = scene.store.node_add('text', card, 0, 0, 'Inside');
+            scene.draw();
+            const at = () => {
+                const rect = scene.shape(label).getBoundingClientRect();
+                return { clientX: rect.left + 10, clientY: rect.top + 5 };
+            };
+            figmol_web_point(scene.shape(label), 'pointerdown', at());
+            figmol_web_point(scene.canvas.dom_node(), 'pointerup', { ...at(), buttons: 0 });
+            scene.draw();
+            $mol_assert_like(scene.canvas.selection(), [card]);
+            figmol_web_point(scene.shape(label), 'pointerdown', { ...at(), metaKey: true });
+            figmol_web_point(scene.canvas.dom_node(), 'pointerup', { ...at(), metaKey: true, buttons: 0 });
+            scene.draw();
+            $mol_assert_like(scene.canvas.selection(), [label]);
+            // ⌘ reaches past the level being edited without changing it.
+            $mol_assert_equal(scene.canvas.scope(), '');
+            scene.canvas.selection([card]);
+            scene.draw();
+            scene.shape(label).dispatchEvent(new MouseEvent('dblclick', {
+                bubbles: true,
+                cancelable: true,
+                ...at(),
+            }));
+            scene.draw();
+            $mol_assert_equal(scene.canvas.scope(), card);
+            $mol_assert_like(scene.canvas.selection(), [label]);
+            // Clicks are now inside the card, so a plain press takes the caption.
+            figmol_web_point(scene.shape(label), 'pointerdown', at());
+            figmol_web_point(scene.canvas.dom_node(), 'pointerup', { ...at(), buttons: 0 });
+            scene.draw();
+            $mol_assert_like(scene.canvas.selection(), [label]);
+            scene.done();
+        },
+        /**
+         * The shortcuts, on the keys every editor spells them with: duplicate,
+         * nudge by one pixel and by ten, delete and drop the selection.
+         */
+        'the keyboard duplicates, nudges, deletes and lets go'($) {
+            const scene = figmol_web_scene($);
+            const root = scene.build();
+            const id = scene.store.node_add('rect', root, 300, 300, '');
+            scene.canvas.selection([id]);
+            scene.draw();
+            const win = $.$mol_dom_context;
+            figmol_web_key(win, 'KeyD', 68, { metaKey: true });
+            scene.draw();
+            const kids = scene.store.kids(root);
+            $mol_assert_equal(kids.length, 2);
+            // A copy stands beside the original and is what the next step acts on.
+            const copy = kids[1];
+            $mol_assert_like(scene.canvas.selection(), [copy]);
+            $mol_assert_like(scene.store.rect(copy), [324, 324, 220, 140]);
+            $mol_assert_ok(scene.shape(copy));
+            figmol_web_key(win, 'ArrowRight', 39);
+            scene.draw();
+            $mol_assert_equal(scene.store.x(copy), 325);
+            figmol_web_key(win, 'ArrowDown', 40, { shiftKey: true });
+            scene.draw();
+            $mol_assert_equal(scene.store.y(copy), 334);
+            // Delete belongs to the canvas, which hears the keys once it has focus.
+            figmol_web_key(scene.canvas.dom_node(), 'Delete', 46);
+            scene.draw();
+            $mol_assert_like(scene.store.kids(root), [id]);
+            $mol_assert_like(scene.canvas.selection(), []);
+            $mol_assert_equal(scene.shape(copy), null);
+            // And Escape lets go of whatever is picked.
+            scene.canvas.selection([id]);
+            scene.draw();
+            $mol_assert_equal(scene.shape(id).getAttribute('figmol_selected'), 'true');
+            figmol_web_key(scene.canvas.dom_node(), 'Escape', 27);
+            scene.draw();
+            $mol_assert_like(scene.canvas.selection(), []);
+            $mol_assert_equal(scene.shape(id).getAttribute('figmol_selected'), null);
+            // One step back brings the copy the ⌘D made, and the delete with it.
+            figmol_web_key(win, 'KeyZ', 90, { metaKey: true });
+            scene.draw();
+            $mol_assert_like(scene.store.kids(root), [id, copy]);
+            scene.done();
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($_1) {
+    /** Presses on a shape and lets go, which is what picks it. */
+    const figmol_web_pick = (scene, id, keys = {}) => {
+        const rect = scene.shape(id).getBoundingClientRect();
+        const at = { clientX: rect.left + 10, clientY: rect.top + 5 };
+        figmol_web_point(scene.shape(id), 'pointerdown', { ...at, ...keys });
+        figmol_web_point(scene.canvas.dom_node(), 'pointerup', { ...at, ...keys, buttons: 0 });
+        scene.draw();
+    };
+    $mol_test({
+        /**
+         * Every field of the inspector writes straight into the document, and the
+         * canvas draws the document — so what is typed on the right shows up in the
+         * middle without anything in between being applied or confirmed.
+         */
+        'the inspector writes the caption, the colour and the link, and the canvas shows all three'($) {
+            const scene = figmol_web_scene($);
+            const root = scene.build();
+            const id = scene.store.node_add('button', root, 200, 200, 'Button');
+            scene.draw();
+            // Nothing is picked, so there is nothing to describe.
+            $mol_assert_equal(scene.node.querySelectorAll('[bog_figmol_app_inspector]').length, 0);
+            figmol_web_pick(scene, id);
+            const inspector = scene.app.Inspector();
+            const panel = scene.node.querySelector('[bog_figmol_app_inspector]');
+            $mol_assert_ok(panel);
+            $mol_assert_equal(inspector.kind_title(), inspector.title_button());
+            // A button has a caption, an address and two colours, and the panel is
+            // showing every one of them.
+            for (const field of [inspector.Field_label(), inspector.Field_uri(), inspector.Field_color()]) {
+                $mol_assert_ok(panel.contains(field.dom_node()));
+            }
+            figmol_web_type(inspector.Label(), 'Buy now');
+            scene.draw();
+            $mol_assert_equal(scene.store.text(id), 'Buy now');
+            $mol_assert_equal(scene.shape(id).textContent, 'Buy now');
+            figmol_web_type(inspector.Color(), '#ff0000');
+            scene.draw();
+            $mol_assert_equal($.$mol_dom_context.getComputedStyle(scene.shape(id)).color, 'rgb(255, 0, 0)');
+            figmol_web_type(inspector.Uri(), 'https://example.com/buy');
+            scene.draw();
+            $mol_assert_equal(scene.store.uri(id), 'https://example.com/buy');
+            // Typing a word is one gesture and costs one step back, not one per key.
+            figmol_web_key($.$mol_dom_context, 'KeyZ', 90, { metaKey: true });
+            scene.draw();
+            $mol_assert_equal(scene.store.uri(id), '');
+            $mol_assert_equal(scene.store.text(id), 'Buy now');
+            scene.done();
+        },
+        /**
+         * The other way round: a caption typed on the sheet itself, in the element
+         * being edited, and the panel on the right saying the same thing.
+         */
+        'a double click opens the caption for typing right on the sheet'($) {
+            const scene = figmol_web_scene($);
+            const root = scene.build();
+            const id = scene.store.node_add('text', root, 200, 200, 'Before');
+            scene.draw();
+            figmol_web_pick(scene, id);
+            const rect = scene.shape(id).getBoundingClientRect();
+            scene.shape(id).dispatchEvent(new MouseEvent('dblclick', {
+                bubbles: true,
+                cancelable: true,
+                clientX: rect.left + 10,
+                clientY: rect.top + 5,
+            }));
+            scene.draw();
+            $mol_assert_equal(scene.canvas.editing(), id);
+            const editor = scene.shape(id).querySelector('[figmol_edit]');
+            $mol_assert_ok(editor);
+            $mol_assert_equal(editor.value, 'Before');
+            figmol_web_type(scene.canvas.Shape(id).Editor(), 'After');
+            scene.draw();
+            $mol_assert_equal(scene.store.text(id), 'After');
+            const inspector = scene.app.Inspector();
+            $mol_assert_equal(inspector.text(), 'After');
+            // A press anywhere but in the caption ends the typing, including one
+            // that lands on a panel the canvas never hears about.
+            figmol_web_point(scene.node.querySelector('[bog_figmol_app_side]'), 'pointerdown', {
+                clientX: 10,
+                clientY: 400,
+            });
+            scene.draw();
+            $mol_assert_equal(scene.canvas.editing(), '');
+            $mol_assert_equal(scene.shape(id).querySelector('[figmol_edit]'), null);
+            $mol_assert_equal(scene.shape(id).textContent, 'After');
+            scene.done();
+        },
+        /**
+         * Inside an auto layout the frame decides where a child sits, so a field
+         * for its own X would be a field that changes nothing anybody can see.
+         */
+        'an element placed by its frame is offered no coordinates'($) {
+            const scene = figmol_web_scene($);
+            const root = scene.build();
+            const loose = scene.store.node_add('rect', root, 700, 200, '');
+            const frame = scene.store.node_add('frame', root, 100, 100, '');
+            const inner = scene.store.node_add('rect', frame, 0, 0, '');
+            scene.draw();
+            const inspector = scene.app.Inspector();
+            figmol_web_pick(scene, loose);
+            let panel = scene.node.querySelector('[bog_figmol_app_inspector]');
+            $mol_assert_ok(panel.contains(inspector.Field_x().dom_node()));
+            $mol_assert_ok(panel.contains(inspector.Field_w().dom_node()));
+            // ⌘ reaches straight into the frame, past the level being edited.
+            figmol_web_pick(scene, inner, { metaKey: true });
+            $mol_assert_like(scene.canvas.selection(), [inner]);
+            $mol_assert_equal(scene.store.flow(inner), true);
+            panel = scene.node.querySelector('[bog_figmol_app_inspector]');
+            $mol_assert_equal(panel.contains(inspector.Field_x().dom_node()), false);
+            $mol_assert_equal(panel.contains(inspector.Field_y().dom_node()), false);
+            // The size is still its own, and so is everything else about it.
+            $mol_assert_ok(panel.contains(inspector.Field_w().dom_node()));
+            scene.done();
+        },
+        /**
+         * A component from end to end: made out of an element, placed twice, the
+         * master edited once for both, deleted, and brought back by one step back.
+         *
+         * Nothing is copied anywhere along the way — an instance draws the master
+         * itself, which is why an edit reaches every one of them at once and why
+         * deleting the master leaves them drawing nothing rather than a stale copy.
+         */
+        'an element becomes a component, both instances follow the master, and undo brings it back'($) {
+            const scene = figmol_web_scene($);
+            const root = scene.build();
+            const frame = scene.store.node_add('frame', root, 100, 100, '');
+            scene.store.node_add('text', frame, 0, 0, 'Call to action');
+            scene.draw();
+            figmol_web_pick(scene, frame);
+            const inspector = scene.app.Inspector();
+            $mol_assert_equal(inspector.makeable(), true);
+            figmol_web_click(inspector.Comp_make());
+            scene.draw();
+            const comp = scene.store.comp_ids()[0];
+            $mol_assert_ok(comp);
+            $mol_assert_equal(scene.store.comp_title(comp), 'Frame');
+            // The element is gone from the page and an instance stands in its place.
+            const first = scene.store.kids(root)[0];
+            $mol_assert_like(scene.store.kids(root), [first]);
+            $mol_assert_equal(scene.store.kind(first), 'inst');
+            $mol_assert_equal(scene.store.master(first), comp);
+            const comps = scene.app.Side().Comps();
+            figmol_web_click(comps.Pick(comp));
+            scene.draw();
+            const both = scene.store.kids(root);
+            $mol_assert_equal(both.length, 2);
+            const drawn = () => both.map(id => scene.shape(id).textContent);
+            $mol_assert_like(drawn(), ['Call to action', 'Call to action']);
+            // Into the master, which the editor shows as a page of its own.
+            figmol_web_click(comps.Edit(comp));
+            scene.draw();
+            $mol_assert_equal(scene.store.comp_current(), comp);
+            $mol_assert_equal(scene.store.root_id(), scene.store.comp_root(comp));
+            const label = scene.store.kids(scene.store.root_id())[0];
+            figmol_web_pick(scene, label);
+            figmol_web_type(inspector.Text().Edit(), 'Buy now');
+            scene.draw();
+            figmol_web_click(comps.Done());
+            scene.draw();
+            $mol_assert_equal(scene.store.comp_current(), '');
+            $mol_assert_like(drawn(), ['Buy now', 'Buy now']);
+            // Deleting the master leaves the instances empty rather than hunting
+            // them down: the Baza is append-only, so one step back fills them again.
+            figmol_web_click(comps.Edit(comp));
+            scene.draw();
+            figmol_web_click(comps.Drop());
+            scene.draw();
+            $mol_assert_like(scene.store.comp_ids(), []);
+            $mol_assert_equal(scene.store.inst_root(both[0]), '');
+            $mol_assert_like(drawn(), ['', '']);
+            figmol_web_key($.$mol_dom_context, 'KeyZ', 90, { metaKey: true });
+            scene.draw();
+            $mol_assert_like(scene.store.comp_ids(), [comp]);
+            $mol_assert_like(drawn(), ['Buy now', 'Buy now']);
+            scene.done();
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
 (function ($) {
     /**
      * Contents stay free of `<dollar>name` spellings on purpose — MAM finds
@@ -8960,6 +9420,586 @@ var $;
             guest.editable = () => false;
             $mol_assert_like(guest.panels(), [guest.Head(), guest.List()]);
             $mol_assert_like(guest.head_content(), [guest.Caption()]);
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($_1) {
+    /** An answer from GitHub, without a network to get it from. */
+    const figmol_web_answer = (code, body) => {
+        const res = new $mol_fetch_response;
+        res.code = () => code;
+        res.ok = () => code >= 200 && code < 300;
+        res.text = () => JSON.stringify(body);
+        res.json = () => body;
+        return res;
+    };
+    /**
+     * A GitHub the panel can talk to: every call it makes, answered the way the
+     * real one answers a first publication into an account that has no such
+     * repository yet.
+     *
+     * Only the one method that would open a socket is replaced. Everything above
+     * it — which endpoint each step asks for, what it puts in the body, how it
+     * reads a refusal — is the client the editor ships with.
+     */
+    const figmol_web_github = (owner) => {
+        const calls = [];
+        const client = $bog_figmol_deploy_github.make({
+            token: () => 'ghp_secret',
+            message: () => 'Published',
+        });
+        client.response = (method, path, body) => {
+            calls.push(method + ' ' + path.split('?')[0]);
+            if (path === '/user')
+                return figmol_web_answer(200, { login: 'alice' });
+            if (path.startsWith('/user/orgs'))
+                return figmol_web_answer(200, [{ id: 1, login: 'acme' }]);
+            // Nothing of that name anywhere yet, so the run makes one.
+            if (/^\/repos\/[^/]+\/[^/]+$/.test(path))
+                return figmol_web_answer(404, { message: 'Not Found' });
+            if (path === '/user/repos' || /^\/orgs\/[^/]+\/repos$/.test(path)) {
+                return figmol_web_answer(201, { default_branch: 'main' });
+            }
+            // A fresh repository has no branches at all, which is a 409.
+            if (/\/git\/ref\/heads\//.test(path))
+                return figmol_web_answer(409, { message: 'Git Repository is empty' });
+            if (/\/git\/trees$/.test(path))
+                return figmol_web_answer(201, { sha: 'tree1' });
+            if (/\/git\/commits$/.test(path))
+                return figmol_web_answer(201, { sha: 'commit1' });
+            if (/\/git\/refs$/.test(path))
+                return figmol_web_answer(201, {});
+            if (/\/actions\/runs/.test(path))
+                return figmol_web_answer(200, {
+                    workflow_runs: [{
+                            id: 7,
+                            head_sha: 'commit1',
+                            status: 'completed',
+                            conclusion: 'success',
+                            html_url: 'https://github.com/' + owner + '/mysite/actions/runs/7',
+                        }],
+                });
+            if (/\/pages$/.test(path))
+                return figmol_web_answer(201, {
+                    html_url: 'https://' + owner + '.github.io/mysite/',
+                });
+            return figmol_web_answer(500, { message: 'unexpected ' + method + ' ' + path });
+        };
+        return { client, calls };
+    };
+    /**
+     * A browser that already holds a token, and forgets it again afterwards.
+     *
+     * The panel keeps the token, the login and the chosen owner in
+     * `$mol_state_local`, and it reaches for that through the client class rather
+     * than through itself — which lands in the real storage of the browser, where
+     * it would outlive the scenario and be found by the next one. Pointed at the
+     * storage of this scenario instead, and reactive as the panel expects: the
+     * select reads the owner back through an atom that has to notice the write.
+     */
+    const figmol_web_signed = ($, panel, login) => {
+        const kept = (key, init) => (next) => {
+            const val = $.$mol_state_local.value('figmol_web_' + key, next);
+            return (val ?? init) || '';
+        };
+        panel.token = kept('token', 'ghp_secret');
+        panel.account = kept('account', login);
+        panel.nonce = kept('nonce', '');
+        panel.owner_wanted = kept('owner', '');
+    };
+    $mol_test({
+        /**
+         * The whole publication, from the button in the header to a live address:
+         * the token is checked, a repository is made, the generated sources are
+         * pushed, the build is waited for and Pages is switched on — with the log
+         * on screen saying which step is where.
+         */
+        'the publishing panel walks every step to a live site'($) {
+            const scene = figmol_web_scene($);
+            const root = scene.build();
+            scene.store.node_add('text', root, 100, 100, 'Hello');
+            scene.draw();
+            const panel = scene.app.Publish();
+            const github = figmol_web_github('alice');
+            figmol_web_signed($, panel, '');
+            panel.github = () => github.client;
+            figmol_web_click(scene.app.Publish_toggle());
+            scene.draw();
+            // The rail belongs to the panel now, and the inspector is out of the way.
+            $mol_assert_ok(scene.node.querySelector('[bog_figmol_deploy_publish]'));
+            $mol_assert_equal(scene.node.querySelectorAll('[bog_figmol_app_inspector]').length, 0);
+            // Opening the panel suggests a name rather than leaving the field
+            // blank, and what is typed over it is what the sources are made for.
+            $mol_assert_ok(panel.name());
+            figmol_web_type(panel.Name(), 'mysite');
+            scene.draw();
+            $mol_assert_ok(panel.files()['index.html']);
+            $mol_assert_ok(panel.files()['mysite.view.tree']);
+            // Every step is waiting, and none of them has been reached.
+            $mol_assert_like(panel.steps().map(id => panel.stage(id)), [
+                'wait', 'wait', 'wait', 'wait', 'wait', 'wait',
+            ]);
+            figmol_web_click(panel.Publish());
+            scene.draw();
+            $mol_assert_equal(panel.problem(), '');
+            $mol_assert_like(panel.steps().map(id => panel.stage(id)), [
+                'done', 'done', 'done', 'done', 'done', 'done',
+            ]);
+            $mol_assert_equal(panel.site(), 'https://alice.github.io/mysite/');
+            $mol_assert_equal(panel.busy(), false);
+            // A personal account is asked for its own endpoint.
+            $mol_assert_ok(github.calls.includes('POST /user/repos'));
+            $mol_assert_ok(github.calls.includes('POST /repos/alice/mysite/git/trees'));
+            $mol_assert_ok(github.calls.includes('POST /repos/alice/mysite/pages'));
+            // And the log on screen says so, with the address to open.
+            const log = scene.node.querySelector('[bog_figmol_deploy_publish]');
+            $mol_assert_equal(panel.step_mark('live'), '✓');
+            $mol_assert_ok(log.textContent.includes(panel.step_title_live()));
+            $mol_assert_ok(log.textContent.includes('https://alice.github.io/mysite/'));
+            scene.done();
+        },
+        /**
+         * An organisation is an owner like any other: a different endpoint to
+         * create the repository in, a domain of its own for the result, and the
+         * same body either way.
+         */
+        'a repository asked for an organisation goes to the endpoint of that organisation'($) {
+            const scene = figmol_web_scene($);
+            scene.build();
+            const panel = scene.app.Publish();
+            const github = figmol_web_github('acme');
+            figmol_web_signed($, panel, 'alice');
+            panel.github = () => github.client;
+            figmol_web_click(scene.app.Publish_toggle());
+            scene.draw();
+            figmol_web_type(panel.Name(), 'mysite');
+            scene.draw();
+            // The select offers the account first and the organisations behind it.
+            $mol_assert_like(panel.owner_list(), ['alice', 'acme']);
+            $mol_assert_equal(panel.owner_value(), 'alice');
+            panel.owner_value('acme');
+            scene.draw();
+            // The hint under the name spells the address out rather than the rule.
+            $mol_assert_like(panel.name_hint_rows(), [
+                panel.site_hint() + ' https://acme.github.io/mysite/',
+            ]);
+            figmol_web_click(panel.Publish());
+            scene.draw();
+            $mol_assert_equal(panel.problem(), '');
+            $mol_assert_equal(panel.owner(), 'acme');
+            $mol_assert_equal(panel.site(), 'https://acme.github.io/mysite/');
+            $mol_assert_ok(github.calls.includes('POST /orgs/acme/repos'));
+            $mol_assert_equal(github.calls.includes('POST /user/repos'), false);
+            // The account it publishes as is still the one the token belongs to.
+            $mol_assert_equal(panel.note('login'), 'alice → acme');
+            scene.done();
+        },
+    });
+})($ || ($ = {}));
+
+;
+"use strict";
+var $;
+(function ($_1) {
+    /**
+     * Window every scenario is played out in, in screen pixels.
+     *
+     * Fixed rather than taken from the browser: the canvas hands out whatever is
+     * left of this after the rails, and a step that aims at a place on the sheet
+     * has to hit the same place in every run.
+     */
+    const figmol_web_view = [1280, 800];
+    /**
+     * Scenarios still on the page.
+     *
+     * A scenario that fails never reaches the line that clears its own, and what
+     * it leaves behind is not inert: the shortcuts listen on the window, so an
+     * editor nobody took off the page would answer the keys of every scenario
+     * after it — and one broken case would take the rest down with it.
+     */
+    const figmol_web_left = [];
+    /**
+     * A box on screen only settles into its new size a frame or two later: the
+     * editor animates what it draws, and a measurement taken in between is a
+     * number from halfway through. Nothing here is about how a move looks, so
+     * the moves are turned off and every rectangle is the one that was written.
+     */
+    const figmol_web_still = () => $mol_style_attach('figmol_web_still', [
+        '[figmol_web_stage], [figmol_web_stage] * {',
+        '	transition: none !important;',
+        '	animation: none !important;',
+        '}',
+    ].join('\n'));
+    /**
+     * The store the editor runs on, with one thing taken away: a new site goes
+     * into the Land this browser already has instead of a Land of its own.
+     *
+     * Everything else below the editor is the real thing — the journal, the
+     * ordered lists, the tree walks and every write into the Baza. Those are what
+     * a scenario is about; what it cannot afford is the Proof-of-Work of grabbing
+     * a Land, which is seconds even when it goes well.
+     *
+     * The Land itself is real and local: the mocks the Baza ships for tests give
+     * this context a Glob of its own, an in-memory store instead of IndexedDB and
+     * a yard with no master, so nothing here reaches the network or survives the
+     * test that made it.
+     */
+    class figmol_web_store extends $bog_figmol_store {
+        site_preset() {
+            return null;
+        }
+    }
+    $_1.figmol_web_store = figmol_web_store;
+    /**
+     * Puts the editor on the page and hands back the handles a scenario needs.
+     *
+     * The header is left out on purpose: it holds the sync indicator, which opens
+     * a socket to whatever master the build was made with. What a scenario works
+     * with is the editor itself — the palette, the rails, the canvas and the
+     * inspector, all of them the real views over a real store.
+     *
+     * Presence is the other thing stubbed out. It lives in a Land of its own,
+     * grabbed with Proof-of-Work by whoever opens the site first, and no scenario
+     * here is about somebody else's cursor.
+     */
+    function figmol_web_scene($, editable = true) {
+        for (const left of figmol_web_left.splice(0))
+            left();
+        figmol_web_still();
+        const store = new figmol_web_store;
+        store.$ = $;
+        if (!editable)
+            store.writable = () => false;
+        const live = new $bog_figmol_live;
+        live.$ = $;
+        live.store = () => store;
+        live.start = () => { };
+        live.room = () => null;
+        live.room_make = () => null;
+        const app = new $bog_figmol_app;
+        app.$ = $;
+        app.store = () => store;
+        app.live = () => live;
+        live.picked = () => app.selection();
+        const canvas = app.Canvas();
+        const doc = $.$mol_dom_context.document;
+        const host = doc.createElement('div');
+        host.setAttribute('figmol_web_stage', '');
+        // Pinned to the corner of the window, so a client point and a page point
+        // are the same number and a step can aim at either.
+        host.setAttribute('style', [
+            'position: fixed',
+            'left: 0',
+            'top: 0',
+            `width: ${figmol_web_view[0]}px`,
+            `height: ${figmol_web_view[1]}px`,
+            'overflow: hidden',
+        ].join('; '));
+        doc.body.appendChild(host);
+        // Both the app and the canvas listen on the window rather than on a node
+        // of their own — the keys have to work wherever the focus is. Registering
+        // them here means the scenario can take them off again: a listener left
+        // behind would go on answering the keys of every scenario after this one.
+        const kills = [];
+        const win = $.$mol_dom_context;
+        const add = win.addEventListener;
+        win.addEventListener = function (type, handler, opts) {
+            kills.push(() => win.removeEventListener(type, handler, opts));
+            return add.call(win, type, handler, opts);
+        };
+        try {
+            app.listen();
+            host.appendChild(app.Editor().dom_tree());
+        }
+        finally {
+            win.addEventListener = add;
+        }
+        const draw = () => $mol_wire_fiber.sync();
+        const done = () => {
+            for (const kill of kills)
+                kill();
+            host.remove();
+        };
+        figmol_web_left.push(done);
+        return {
+            app,
+            canvas,
+            store,
+            node: host,
+            draw,
+            build() {
+                figmol_web_click(app.Start().Make());
+                draw();
+                // The viewport starts panned and scaled down, which is right for a
+                // person and wrong for a scenario that names places on the sheet.
+                canvas.zoom(1);
+                canvas.pan_x(0);
+                canvas.pan_y(0);
+                draw();
+                return store.root_id();
+            },
+            spot(x, y) {
+                const rect = canvas.Sheet().dom_node().getBoundingClientRect();
+                const zoom = canvas.zoom_live();
+                return { clientX: rect.left + x * zoom, clientY: rect.top + y * zoom };
+            },
+            shape(id) {
+                return host.querySelector(`[figmol_node="${id}"]`);
+            },
+            done() {
+                const at = figmol_web_left.indexOf(done);
+                if (at >= 0)
+                    figmol_web_left.splice(at, 1);
+                done();
+            },
+        };
+    }
+    $_1.figmol_web_scene = figmol_web_scene;
+    /** Presses a button the way a mouse does. */
+    function figmol_web_click(view) {
+        view.dom_node().click();
+    }
+    $_1.figmol_web_click = figmol_web_click;
+    /** Types into a field the way a keyboard does: the value, then the event. */
+    function figmol_web_type(view, text) {
+        const node = view.dom_node();
+        node.value = text;
+        node.dispatchEvent(new InputEvent('input', { bubbles: true, data: text }));
+    }
+    $_1.figmol_web_type = figmol_web_type;
+    /** One pointer event, with the fields a gesture of the canvas reads. */
+    function figmol_web_point(node, type, init) {
+        node.dispatchEvent(new PointerEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            isPrimary: true,
+            pointerId: 1,
+            button: 0,
+            buttons: 1,
+            ...init,
+        }));
+    }
+    $_1.figmol_web_point = figmol_web_point;
+    /**
+     * A whole drag: press on `from`, two moves and a release.
+     *
+     * The press goes to the element under the hand and the rest to the canvas,
+     * the way a browser routes them once the canvas has captured the pointer.
+     * Two moves rather than one because the first one is what tells a click from
+     * a drag, and a gesture the editor never saw moving is a click.
+     */
+    function figmol_web_drag(scene, grab, from, to, keys = {}) {
+        const canvas = scene.canvas.dom_node();
+        const half = {
+            clientX: (from.clientX + to.clientX) / 2,
+            clientY: (from.clientY + to.clientY) / 2,
+        };
+        figmol_web_point(grab, 'pointerdown', { ...from, ...keys });
+        scene.draw();
+        figmol_web_point(canvas, 'pointermove', { ...half, ...keys });
+        scene.draw();
+        figmol_web_point(canvas, 'pointermove', { ...to, ...keys });
+        scene.draw();
+        figmol_web_point(canvas, 'pointerup', { ...to, ...keys, buttons: 0 });
+        scene.draw();
+    }
+    $_1.figmol_web_drag = figmol_web_drag;
+    /** A key press, spelled the way both the window listener and a plugin read one. */
+    function figmol_web_key(node, code, key, mods = {}) {
+        const event = new KeyboardEvent('keydown', {
+            bubbles: true,
+            cancelable: true,
+            code,
+            ...mods,
+        });
+        // `$mol_hotkey` matches on the numeric code, which no browser lets an
+        // event carry from its own constructor any more.
+        Object.defineProperty(event, 'keyCode', { get: () => key });
+        node.dispatchEvent(event);
+        return event;
+    }
+    $_1.figmol_web_key = figmol_web_key;
+    $mol_test({
+        /**
+         * The editor of somebody who has never opened it before: an offer, and
+         * nothing that could be edited until it is taken up.
+         */
+        'a first visit offers to make a site and hands back an editor'($) {
+            const scene = figmol_web_scene($);
+            $mol_assert_equal(scene.node.querySelectorAll('[bog_figmol_app_start]').length, 1);
+            $mol_assert_equal(scene.node.querySelectorAll('[bog_figmol_app_canvas]').length, 0);
+            $mol_assert_equal(scene.store.site(), null);
+            const root = scene.build();
+            $mol_assert_ok(scene.store.site());
+            $mol_assert_ok(root);
+            $mol_assert_equal(scene.store.page_ids().length, 1);
+            // The offer is gone and the three rails of the editor are in its place.
+            $mol_assert_equal(scene.node.querySelectorAll('[bog_figmol_app_start]').length, 0);
+            $mol_assert_equal(scene.node.querySelectorAll('[bog_figmol_app_canvas]').length, 1);
+            $mol_assert_equal(scene.node.querySelectorAll('[bog_figmol_app_tools]').length, 1);
+            $mol_assert_equal(scene.node.querySelectorAll('[bog_figmol_app_side]').length, 1);
+            // The header offers the two things only an owner can do.
+            $mol_assert_like(scene.app.head_tools(), [
+                scene.app.Title(),
+                scene.app.Status(),
+                scene.app.Mates(),
+                scene.app.Share(),
+                scene.app.Publish_toggle(),
+                scene.app.Theme_toggle(),
+            ]);
+            scene.done();
+        },
+        /**
+         * A tool is armed in the palette and spent on the next press: the element
+         * appears where the press landed, and the palette goes back to selecting.
+         */
+        'a tool from the palette draws its element where the canvas was pressed'($) {
+            const scene = figmol_web_scene($);
+            const root = scene.build();
+            const draw = (tool, x, y) => {
+                figmol_web_click(scene.app.Tools().Tool(tool));
+                scene.draw();
+                $mol_assert_equal(scene.app.tool(), tool);
+                figmol_web_point(scene.canvas.dom_node(), 'pointerdown', scene.spot(x, y));
+                scene.draw();
+            };
+            draw('text', 300, 200);
+            draw('button', 600, 400);
+            draw('frame', 200, 600);
+            const kids = scene.store.kids(root);
+            $mol_assert_equal(kids.length, 3);
+            $mol_assert_like(kids.map(id => scene.store.kind(id)), ['text', 'button', 'frame']);
+            // A spent tool goes back to the arrow, or every press would keep
+            // drawing the same thing.
+            $mol_assert_equal(scene.app.tool(), 'select');
+            // The last one drawn is the one the inspector talks about.
+            $mol_assert_equal(scene.app.selected(), kids[2]);
+            // And every one of them is on the page where it was asked for.
+            const at = (id) => {
+                const rect = scene.shape(id).getBoundingClientRect();
+                const sheet = scene.canvas.Sheet().dom_node().getBoundingClientRect();
+                return [Math.round(rect.left - sheet.left), Math.round(rect.top - sheet.top)];
+            };
+            $mol_assert_like(at(kids[0]), [300, 200]);
+            $mol_assert_like(at(kids[1]), [600, 400]);
+            $mol_assert_like(at(kids[2]), [200, 600]);
+            // A caption nobody typed is still a caption: an empty box on the sheet
+            // reads as a bug rather than as an invitation.
+            $mol_assert_equal(scene.shape(kids[0]).textContent, scene.canvas.text_default());
+            scene.done();
+        },
+        /**
+         * The page list from end to end: a page is added, named, switched to and
+         * deleted, and the deletion is taken back — which has to put the page back
+         * where it was rather than at the end of the list.
+         */
+        'a page is added, renamed, switched to, deleted and brought back in place'($) {
+            const scene = figmol_web_scene($);
+            scene.build();
+            const pages = scene.app.Side().Pages();
+            const first = scene.store.page_ids()[0];
+            figmol_web_click(pages.Add());
+            scene.draw();
+            const ids = scene.store.page_ids();
+            $mol_assert_equal(ids.length, 2);
+            $mol_assert_equal(scene.store.page_current(), ids[1]);
+            figmol_web_type(pages.Title(), 'Pricing');
+            scene.draw();
+            $mol_assert_equal(scene.store.page_title(ids[1]), 'Pricing');
+            // The row of the list says the same thing the field does.
+            $mol_assert_equal(pages.Row(ids[1]).dom_node().textContent, 'Pricing');
+            $mol_assert_equal(pages.Row(ids[1]).dom_node().getAttribute('figmol_active'), 'true');
+            // Every page has a frame of its own, so switching changes what the
+            // canvas is drawing on.
+            const roots = [scene.store.page_by(first).Root().val().str, scene.store.root_id()];
+            $mol_assert_ok(roots[0] !== roots[1]);
+            figmol_web_click(pages.Row(first));
+            scene.draw();
+            $mol_assert_equal(scene.store.page_current(), first);
+            $mol_assert_equal(scene.store.root_id(), roots[0]);
+            // Back to the second one, and out with it.
+            figmol_web_click(pages.Row(ids[1]));
+            scene.draw();
+            figmol_web_click(pages.Drop());
+            scene.draw();
+            $mol_assert_like(scene.store.page_ids(), [first]);
+            scene.store.undo();
+            scene.draw();
+            $mol_assert_like(scene.store.page_ids(), ids);
+            $mol_assert_equal(scene.store.page_title(ids[1]), 'Pricing');
+            scene.done();
+        },
+        /** An editor with no page has nothing to draw on, so the last one stays. */
+        'the last page of a site cannot be deleted'($) {
+            const scene = figmol_web_scene($);
+            scene.build();
+            const pages = scene.app.Side().Pages();
+            $mol_assert_equal(pages.droppable(), false);
+            $mol_assert_equal(pages.Drop().dom_node().getAttribute('disabled'), 'true');
+            figmol_web_click(pages.Drop());
+            scene.draw();
+            $mol_assert_equal(scene.store.page_ids().length, 1);
+            scene.done();
+        },
+        /**
+         * The theme panel writes into the document and the sheet reads it back —
+         * one copy of the value, and the canvas showing what the built page will.
+         */
+        'a theme picked in the panel repaints the sheet under the shapes'($) {
+            const scene = figmol_web_scene($);
+            scene.build();
+            const theme = scene.app.Side().Theme();
+            const sheet = scene.canvas.Sheet().dom_node();
+            $mol_assert_equal(theme.font(), 'inter');
+            $mol_assert_equal(sheet.getAttribute('bog_builderui_lights'), 'light');
+            figmol_web_type(theme.Back(), '#102030');
+            scene.draw();
+            $mol_assert_equal(scene.store.theme('back'), '#102030');
+            $mol_assert_equal($.$mol_dom_context.getComputedStyle(sheet).backgroundColor, 'rgb(16, 32, 48)');
+            // The switches write a token rather than a colour, and the sheet wears
+            // the very attributes the generated project puts on its root.
+            theme.font('garamond');
+            theme.lights('dark');
+            scene.draw();
+            $mol_assert_equal(sheet.getAttribute('bog_builderui_font_body'), 'eb-garamond');
+            $mol_assert_equal(sheet.getAttribute('bog_builderui_font_head'), 'eb-garamond');
+            $mol_assert_equal(sheet.getAttribute('bog_builderui_lights'), 'dark');
+            scene.done();
+        },
+        /**
+         * Somebody else's site, opened by link: everything that reads is there and
+         * nothing that writes. Picking still works — the layer tree follows it, and
+         * the owner is shown the same frame the visitor sees.
+         */
+        'a site without writing rights keeps the canvas and loses every control that writes'($) {
+            const scene = figmol_web_scene($, false);
+            const root = scene.build();
+            const id = scene.store.node_add('rect', root, 200, 200, '');
+            scene.draw();
+            $mol_assert_equal(scene.app.editable(), false);
+            // Neither of the two buttons an owner gets is in the header.
+            $mol_assert_equal(scene.app.head_tools().includes(scene.app.Share()), false);
+            $mol_assert_equal(scene.app.head_tools().includes(scene.app.Publish_toggle()), false);
+            // No palette of primitives, no blocks, no fields of the page.
+            $mol_assert_equal(scene.node.querySelectorAll('[bog_figmol_app_tools]').length, 0);
+            $mol_assert_equal(scene.node.querySelectorAll('[bog_figmol_app_blocks]').length, 0);
+            $mol_assert_equal(scene.node.querySelectorAll('[bog_figmol_app_theme]').length, 0);
+            $mol_assert_ok(scene.node.querySelector('[bog_figmol_app_layers]'));
+            // Picking is not writing, so it works.
+            figmol_web_point(scene.shape(id), 'pointerdown', scene.spot(250, 250));
+            scene.draw();
+            $mol_assert_like(scene.app.selection(), [id]);
+            // The inspector is a panel full of controls that would fail.
+            $mol_assert_equal(scene.node.querySelectorAll('[bog_figmol_app_inspector]').length, 0);
+            // No grips are drawn, and a drag moves nothing.
+            $mol_assert_equal(scene.node.querySelectorAll('[figmol_handle]').length, 0);
+            figmol_web_drag(scene, scene.shape(id), scene.spot(250, 250), scene.spot(450, 400));
+            $mol_assert_like(scene.store.rect(id), [200, 200, 220, 140]);
+            scene.done();
         },
     });
 })($ || ($ = {}));
