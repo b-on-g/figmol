@@ -43471,6 +43471,17 @@ declare namespace $ {
      * memoized, and that is where the reactivity lives.
      */
     class $bog_figmol_store extends $mol_object2 {
+        /**
+         * The same list with every repeated link dropped, the first seat winning.
+         *
+         * Nothing in the schema keeps a link out of two seats of one list, and two
+         * peers moving the same element at once write exactly that — each of them
+         * inserts it where they dropped it, and both inserts survive the merge. A
+         * node listed twice would be drawn twice and dragged as two, so the second
+         * mention is passed over here; the next write to that list removes it for
+         * good, because cutting matches by value and takes every mention with it.
+         */
+        static dedup<Item>(items: readonly Item[], id: (item: Item) => string): readonly Item[];
         /** Bootstrap record in the user's own home Land: a single link to the site. */
         home(): $bog_figmol_schema_home;
         /**
@@ -43582,6 +43593,9 @@ declare namespace $ {
         /** One token with its fallback applied. */
         theme_value(key: string): string;
         root_id(): string;
+        /** Links listed under a node, exactly as the Baza holds them. */
+        kids_read(id: string): readonly string[];
+        /** Children of a node as the editor sees them: in order, each of them once. */
         kids(id: string): readonly string[];
         /** Frames of every component of the site, in the order the panel lists them. */
         comp_roots(): readonly string[];
@@ -43692,6 +43706,24 @@ declare namespace $ {
          */
         flow(id: string): boolean;
         /**
+         * Moves a link to seat `at` of an ordered list, or puts it there for the
+         * first time. Every ordered list in the document is written through here.
+         *
+         * Two units, whatever the list holds: one tombstone over the seat it left,
+         * one insertion at the seat it takes. Writing the list back as a whole
+         * instead — which is what `items( next )` does — costs a unit per element
+         * that shifted, and worse than the traffic is what those units are: the
+         * reconciliation aligns by position rather than by identity, so a shifted
+         * element is written as a replacement over whatever Sand sits in its new
+         * seat, reusing that Sand's Self. Two peers writing one Self is the merge
+         * the Baza cannot do, and it loses entries. An insertion posts a Self of
+         * its own and merges cleanly.
+         *
+         * `at` counts seats of the list the removal leaves behind, which is where
+         * the whole list rewrite counted them too. Negative means the end.
+         */
+        list_put(list: $giper_baza_list_link, id: string, at: number): void;
+        /**
          * Creates the site: a Land grabbed for it, one page, one root frame.
          *
          * Must run inside a fiber — a button press, not a render. Grabbing a Land
@@ -43793,11 +43825,10 @@ declare namespace $ {
          * Puts a node under `parent` at `index`, coordinates included, without a
          * word to the journal.
          *
-         * Reordering inside one frame goes through here too: the link is filtered
-         * out of the list and put back where it belongs, which is one code path
-         * instead of two and gives the same answer for both. The list is rewritten
-         * as a whole rather than moved unit by unit, so a reorder costs a couple of
-         * units per node — fine for a page, worth revisiting when pages get long.
+         * Reordering inside one frame goes through here too: the link is taken out
+         * of the list and put back where it belongs, which is one code path instead
+         * of two and gives the same answer for both. Either way it is two units,
+         * however many elements the frame holds — see `list_put`.
          */
         node_move(id: string, parent: string, index: number, x: number, y: number): void;
         node_reparent(id: string, parent: string, index: number, x: number, y: number): void;
